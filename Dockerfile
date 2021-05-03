@@ -22,11 +22,12 @@ ENV LANG=en_US.UTF-8 \
 
 # Sets codeserver directories
 ENV CODESERVEREXT_DIR /opt/codeserver/extensions
-ENV CODE_WORKINGDIR $HOME/work/src
+ENV CODE_WORKINGDIR $HOME/work
 ENV CODESERVERDATA_DIR $HOME/work/codeserver/data
+ENV PATH=/opt/bin:$PATH
 
 # Add conda env hook
-COPY ./conda-activate.sh /usr/local/bin/before-notebook.d/
+# COPY ./conda-activate.sh /usr/local/bin/before-notebook.d/
 
 # RUN jupyter labextension install @jupyterlab/latex doesn't work with lab 3.0
 # SO we test a fork. TODO: Multistage Build
@@ -39,14 +40,17 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 		jupyterlab-git==0.30.1 \
 		jupyterlab-system-monitor==0.8.0 && \
         conda install defaults::nb_conda_kernels && \
-        npm cache clean --force && \
  	echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
+		cd /tmp && \
     		git clone https://github.com/joequant/jupyterlab-latex.git && \
 		cd jupyterlab-latex && \
 		pip3 install -e . && \
 		jlpm install && \
 		jlpm run build && \
 		jupyter labextension install . && \
+		jlpm cache clean && \
+		cd && \
+		rm -rf /tmp/jupyterlab-latex && \
 	echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
         	curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
 	        mkdir -p $CODESERVEREXT_DIR && \
@@ -65,6 +69,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         	chmod 770 -R $CODESERVEREXT_DIR && \
 	        adduser "$NB_USER" codeserver && \
 	echo -e "\e[93m**** Clean up ****\e[38;5;241m" && \
+        	npm cache clean --force && \
 	        jupyter lab clean && \
 		fix-permissions $CONDA_DIR && \
 	    	fix-permissions /home/$NB_USER
