@@ -2,6 +2,8 @@ FROM jupyter/scipy-notebook:584f43f06586
 
 USER root
 RUN apt-get update && apt-get install -y \
+	bash \
+	curl \
 	less \
 	texlive \
 	texlive-lang-french \
