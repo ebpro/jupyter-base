@@ -26,10 +26,10 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	fix-permissions $CONDA_DIR && \
     	fix-permissions /home/$NB_USER
 
-RUN echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
 # RUN jupyter labextension install @jupyterlab/latex doesn't work with lab 3.0
 # SO we test a fork. TODO: Multistage Build
-RUN git clone https://github.com/joequant/jupyterlab-latex.git && \
+RUN echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
+    	git clone https://github.com/joequant/jupyterlab-latex.git && \
 	cd jupyterlab-latex && \
 	pip3 install -e . && \
 	jlpm install && \
