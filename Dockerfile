@@ -61,7 +61,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	        --install-extension redhat.vscode-xml \
 	        --install-extension vscode-icons-team.vscode-icons \
 	        --install-extension SonarSource.sonarlint-vscode \
-	#        --install-extension GabrielBB.vscode-lombok \
+	        --install-extension GabrielBB.vscode-lombok \
 		--install-extension james-yu.latex-workshop \
 	        --install-extension jebbs.plantuml && \
         	groupadd codeserver && \
