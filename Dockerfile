@@ -65,7 +65,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	        --install-extension GabrielBB.vscode-lombok \
 		--install-extension james-yu.latex-workshop \
 	        --install-extension jebbs.plantuml \
-		--install-extension install analytic-signal.preview-pdf && \
+		--install-extension analytic-signal.preview-pdf && \
         	groupadd codeserver && \
 	        chgrp -R codeserver $CODESERVEREXT_DIR &&\
         	chmod 770 -R $CODESERVEREXT_DIR && \
