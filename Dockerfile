@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
 	bash \
 	curl \
 	less \
+	openssh-client \
 	texlive \
 	texlive-lang-french \
 	texlive-latex-extra \
@@ -63,7 +64,8 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	        --install-extension SonarSource.sonarlint-vscode \
 	        --install-extension GabrielBB.vscode-lombok \
 		--install-extension james-yu.latex-workshop \
-	        --install-extension jebbs.plantuml && \
+	        --install-extension jebbs.plantuml \
+		--install-extension install analytic-signal.preview-pdf && \
         	groupadd codeserver && \
 	        chgrp -R codeserver $CODESERVEREXT_DIR &&\
         	chmod 770 -R $CODESERVEREXT_DIR && \
