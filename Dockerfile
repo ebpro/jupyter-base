@@ -75,9 +75,11 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 		fix-permissions $CONDA_DIR && \
 	    	fix-permissions /home/$NB_USER
 
-COPY code-server/codeserver-jupyter_notebook_config.py /tmp/
+COPY configs/* /home/jovyan/.jupyter/
+COPY code-server/jupyter_codeserver_config.py /tmp/
 COPY code-server/icons $HOME/.jupyter/icons
-RUN cat /tmp/codeserver-jupyter_notebook_config.py >> $HOME/.jupyter/jupyter_notebook_config.py
+RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
+	cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py 
 
 USER $NB_USER
 

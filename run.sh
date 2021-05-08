@@ -6,7 +6,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 docker run --rm \
 	--name ${PWD##*/} \
 	--volume $PWD/work:/home/jovyan/work \
-        --publish 8888:8888 \
+        --publish 8889:8888 \
         --env NB_UID=$UID \
 	--env JUPYTER_ENABLE_LAB=yes \
         ${BASE}:$SHA 

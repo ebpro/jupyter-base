@@ -1,0 +1,7 @@
+{
+  "CondaKernelSpecManager": {
+    "kernelspec_path": "--user",
+    "__env_filter": "/opt/conda/*"
+  }
+}
+
