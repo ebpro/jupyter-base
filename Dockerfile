@@ -80,3 +80,5 @@ COPY code-server/icons $HOME/.jupyter/icons
 RUN cat /tmp/codeserver-jupyter_notebook_config.py >> $HOME/.jupyter/jupyter_notebook_config.py
 
 USER $NB_USER
+
+COPY condarc /home/jovyan/.condarc
