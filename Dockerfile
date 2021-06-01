@@ -102,3 +102,6 @@ RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.ju
 
 USER $NB_USER
 
+RUN echo -e "\e[93m***** Moves user environment to work subdirectory ****\e[38;5;241m" && \
+	ln -s work/.gitconfig .gitconfig && \
+	mkdir work/.ssh && ln -s work/.ssh .ssh
