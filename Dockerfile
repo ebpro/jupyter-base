@@ -50,15 +50,6 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	conda install -c conda-forge jupyterlab_code_formatter && \
 	conda install black isort && \
 	pip install jupyterlab-lsp 'python-lsp-server[all]' && \
-	jlpm add --dev \
-	    bash-language-server \
-	    vscode-css-languageserver-bin \
-	    dockerfile-language-server-nodejs \
-	    vscode-html-languageserver-bin \
-	    sql-language-server \
-	    javascript-typescript-langserver \
-	    vscode-json-languageserver-bin \
-	    yaml-language-server && \
 	conda install -c conda-forge tectonic texlab chktex && \
 # 	echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
 #		cd /tmp && \
