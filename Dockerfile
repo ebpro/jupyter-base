@@ -91,6 +91,14 @@ COPY code-server/icons $HOME/.jupyter/icons
 RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
 	cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py 
 
+COPY nbgrader_config.py /tmp/nbgrader_config.py
+RUN python3 -m pip install git+https://github.com/jupyter/nbgrader.git@5a81fd5 && \
+	jupyter nbextension install --symlink --sys-prefix --py nbgrader && \
+	jupyter nbextension enable --sys-prefix --py nbgrader && \
+	jupyter serverextension enable --sys-prefix --py nbgrader && \
+	python3 -m pip install ngshare_exchange && \
+        cat  /tmp/nbgrader_config.py >> /etc/jupyter/nbgrader_config.py
+
 USER $NB_USER
 
 RUN echo -e "\e[93m***** Moves user environment to work subdirectory ****\e[38;5;241m" && \
