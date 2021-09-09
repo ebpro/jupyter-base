@@ -1,4 +1,5 @@
-FROM jupyter/scipy-notebook:584f43f06586
+#FROM jupyter/scipy-notebook:584f43f06586
+FROM jupyter/scipy-notebook:20210907
 
 USER root
 RUN apt-get update && apt-get install -y \
