@@ -1,4 +1,6 @@
-FROM jupyter/scipy-notebook:584f43f06586
+#FROM jupyter/scipy-notebook:584f43f06586
+#FROM jupyter/scipy-notebook:2021-09-07
+FROM jupyter/scipy-notebook:2021-10-20
 
 USER root
 RUN apt-get update && apt-get install -y \
@@ -37,18 +39,19 @@ COPY condarc /home/jovyan/.condarc
 
 RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --no-cache-dir --upgrade \
-		jupyter-book==0.10.2 \
-		jupyter-server-proxy==3.0.2 \
-		nbgitpuller==0.9.0 \
-		jupyterlab-git==0.30.1 \
-		jupyterlab-system-monitor==0.8.0 && \
+		jupyter-book \
+		jupyter-server-proxy \
+		nbgitpuller \
+		jupyterlab-git \
+		jupyterlab-system-monitor && \
 #	pip install jupyterlab_templates && \
 #		jupyter labextension install jupyterlab_templates && \
 #		jupyter serverextension enable --py jupyterlab_templates && \
-        conda install defaults::nb_conda_kernels && \
-	conda install -c conda-forge jupyterlab-drawio==0.9.0 && \
+#        conda install defaults::nb_conda_kernels && \
+	conda install nb_conda_kernels && \
+	conda install -c conda-forge jupyterlab-drawio && \
 	conda install -c conda-forge jupyterlab_code_formatter && \
-	conda install black isort && \
+#	conda install black isort && \
 	pip install jupyterlab-lsp 'python-lsp-server[all]' && \
 	conda install -c conda-forge tectonic texlab chktex && \
 # 	echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
