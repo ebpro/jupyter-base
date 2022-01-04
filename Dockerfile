@@ -43,7 +43,9 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 		jupyter-server-proxy \
 		nbgitpuller \
 		jupyterlab-git \
-		jupyterlab-system-monitor && \
+		jupyterlab-system-monitor \
+		jinja-yaml-magic && \
+	jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
 #	pip install jupyterlab_templates && \
 #		jupyter labextension install jupyterlab_templates && \
 #		jupyter serverextension enable --py jupyterlab_templates && \
