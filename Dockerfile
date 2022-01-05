@@ -42,6 +42,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 		jupyter-book \
 		jupyter-server-proxy \
 		nbgitpuller \
+		jupyterlab_latex \
 		jupyterlab-git \
 		jupyterlab-system-monitor \
 		jinja-yaml-magic \
@@ -55,19 +56,8 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	conda install -c conda-forge jupyterlab-drawio && \
 	conda install -c conda-forge jupyterlab_code_formatter && \
 #	conda install black isort && \
-	pip install jupyterlab-lsp 'python-lsp-server[all]' && \
+#	pip install jupyterlab-lsp 'python-lsp-server[all]' && \
 	conda install -c conda-forge tectonic texlab chktex && \
-# 	echo -e "\e[93m***** Install Jupyter LaTeX ****\e[38;5;241m" && \
-#		cd /tmp && \
-#    		git clone https://github.com/joequant/jupyterlab-latex.git && \
-#		cd jupyterlab-latex && \
-#		pip3 install -e . && \
-#		jlpm install && \
-#		jlpm run build && \
-#		jupyter labextension install . && \
-#		jlpm cache clean && \
-#		cd && \
-#		rm -rf /tmp/jupyterlab-latex && \
 	echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
         	curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
 	        mkdir -p $CODESERVEREXT_DIR && \
