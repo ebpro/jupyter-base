@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
+WORKDIR=$HOME/JUPYTER_WORK_DIR
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 . ${DIR}/env.sh
 
 docker run --rm \
 	--name ${PWD##*/} \
-	--volume $PWD/work:/home/jovyan/work \
+	--volume $WORKDIR:/home/jovyan/work \
         --publish 8888:8888 \
         --env NB_UID=$UID \
 	--env JUPYTER_ENABLE_LAB=yes \

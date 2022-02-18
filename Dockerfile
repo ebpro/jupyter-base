@@ -1,6 +1,7 @@
 FROM jupyter/scipy-notebook:2021-10-20
 
 USER root
+
 RUN apt-get update --yes && apt-get install --yes --no-install-recommends \
 	bash \
 	curl \
@@ -61,7 +62,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 			mamba clean --all -f -y && \
 	        jupyter lab clean && \
 			rm -rf "/home/${NB_USER}/.cache/yarn" && \
-		    fix-permissions "$CONDA_DIR" && \
+		fix-permissions "$CONDA_DIR" && \
 	    	fix-permissions "/home/$NB_USER"
 
 COPY configs/* /home/jovyan/.jupyter/
@@ -70,33 +71,27 @@ COPY code-server/icons $HOME/.jupyter/icons
 RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
 	cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py 
 
-RUN echo 'for dir in /home/jovyan/work/.ssh; do \n' \
-        'if [ ! -f $dir ]; then \n' \
-                'echo "Creating $dir"\n' \
-                'mkdir -p $dir\n' \
-                'chmod 700 $dir\n' \
-        'fi\n' \
-'done'>> /etc/skel/.bashrc && \
-touch /home/jovyan/work/.gitconfig
+# INSTALL NB GRADER FIXE NEEDED
+#COPY nbgrader_config.py /tmp/nbgrader_config.py
+#RUN python3 -m pip install git+https://github.com/jupyter/nbgrader.git@5a81fd5 && \
+#	jupyter nbextension install --symlink --sys-prefix --py nbgrader && \
+#	jupyter nbextension enable --sys-prefix --py nbgrader && \
+#	jupyter serverextension enable --sys-prefix --py nbgrader && \
+#	python3 -m pip install ngshare_exchange && \
+ #       cat  /tmp/nbgrader_config.py >> /etc/jupyter/nbgrader_config.py && \
+#	echo -e "\e[93m**** Clean up ****\e[38;5;241m" && \
+ #       	npm cache clean --force && \
+#			mamba clean --all -f -y && \
+#	        jupyter lab clean && \
+#			rm -rf "/home/${NB_USER}/.cache/yarn" && \
+#		    fix-permissions "$CONDA_DIR" && \
+#	    	fix-permissions "/home/$NB_USER"
 
-COPY nbgrader_config.py /tmp/nbgrader_config.py
-RUN python3 -m pip install git+https://github.com/jupyter/nbgrader.git@5a81fd5 && \
-	jupyter nbextension install --symlink --sys-prefix --py nbgrader && \
-	jupyter nbextension enable --sys-prefix --py nbgrader && \
-	jupyter serverextension enable --sys-prefix --py nbgrader && \
-	python3 -m pip install ngshare_exchange && \
-        cat  /tmp/nbgrader_config.py >> /etc/jupyter/nbgrader_config.py && \
-	echo -e "\e[93m**** Clean up ****\e[38;5;241m" && \
-        	npm cache clean --force && \
-			mamba clean --all -f -y && \
-	        jupyter lab clean && \
-			rm -rf "/home/${NB_USER}/.cache/yarn" && \
-		    fix-permissions "$CONDA_DIR" && \
-	    	fix-permissions "/home/$NB_USER"
+#Adds git and ssh sub directories in works
+COPY create_work_subdirs.sh /usr/local/bin/before-notebook.d/
+ENV NEEDED_WORK_DIRS .ssh
+ENV NEEDED_WORK_FILES .gitconfig
+
 USER $NB_USER
-
-RUN echo -e "\e[93m***** Moves user environment to work subdirectory ****\e[38;5;241m" && \
-	ln -s work/.gitconfig .gitconfig && \
-	mkdir work/.ssh && ln -s work/.ssh .ssh
 
 WORKDIR "${HOME}/work"
