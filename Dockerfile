@@ -1,27 +1,41 @@
-FROM jupyter/scipy-notebook:2021-10-20
+#FROM jupyter/scipy-notebook:2022-10-24
+FROM jupyter/scipy-notebook:lab-3.5.0
 
 USER root
 
-RUN apt-get update --yes && apt-get install --yes --no-install-recommends \
-	bash \
-	curl \
-	less \
-	vim \
-	zip && \
-  apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache/apt
+ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
+
+RUN --mount=type=cache,target=/var/cache/apt \
+        rm -f /etc/apt/apt.conf.d/docker-clean &&\
+	mkdir -p $PIP_CACHE_DIR &&\
+	apt-get update --yes && apt-get install --yes -qq --no-install-recommends \
+		bash \
+		curl \
+		less \
+		vim \
+		zip && \
+	rm -rf /var/lib/apt/lists/*
+
+# Sets Defaults directories
+ENV WORK_DIR $HOME/work
+ENV NOTEBOOKS_DIR $WORK_DIR/notebooks
+ENV SAMPLES_DIR  $WORK_DIR/samples
 
 # Sets codeserver directories
 ENV CODESERVEREXT_DIR /opt/codeserver/extensions
 ENV CODE_WORKINGDIR $HOME/work
-ENV CODESERVERDATA_DIR $HOME/work/codeserver/data
+ENV CODESERVERDATA_DIR $HOME/work/.codeserver/data
+
 ENV PATH=/opt/bin:$PATH
 
 # Enable persistant conda env
 COPY condarc /home/jovyan/.condarc
 
-# Instalk JupyterLab
-RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
-        pip install --quiet --no-cache-dir --upgrade \
+# Install JupyterLab
+RUN --mount=type=cache,target=/var/cache/buildkit/pip \
+    --mount=type=cache,target=/opt/conda/pkgs \
+	echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
+	pip install --quiet --no-cache-dir --upgrade \
 			jupyter-book \
 			jupyter-server-proxy \
 			nbgitpuller \
@@ -29,8 +43,9 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 			jupyterlab-git \
 			jupyterlab-system-monitor \
 			jinja-yaml-magic \
-			ipympl && \
-	    jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
+#			ipympl \
+			&& \
+        jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
 #	pip install jupyterlab_templates && \
 #		jupyter labextension install jupyterlab_templates && \
 #		jupyter serverextension enable --py jupyterlab_templates && \
@@ -42,6 +57,7 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 		tectonic texlab chktex && \
 	echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
         	curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
+			mkdir -p $CODESERVERDATA_DIR &&\
 	        mkdir -p $CODESERVEREXT_DIR && \
         	PATH=/opt/bin:$PATH code-server \
 	        --user-data-dir $CODESERVERDATA_DIR\
@@ -51,17 +67,17 @@ RUN echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
 	        --install-extension vscode-icons-team.vscode-icons \
 	        --install-extension SonarSource.sonarlint-vscode \
 	        --install-extension GabrielBB.vscode-lombok \
-		    --install-extension james-yu.latex-workshop \
+			--install-extension james-yu.latex-workshop \
 	        --install-extension jebbs.plantuml && \
         	groupadd codeserver && \
 	        chgrp -R codeserver $CODESERVEREXT_DIR &&\
         	chmod 770 -R $CODESERVEREXT_DIR && \
 	        adduser "$NB_USER" codeserver && \
 	echo -e "\e[93m**** Clean up ****\e[38;5;241m" && \
-        	npm cache clean --force && \
-			mamba clean --all -f -y && \
-	        jupyter lab clean && \
-			rm -rf "/home/${NB_USER}/.cache/yarn" && \
+#        	npm cache clean --force && \
+#		mamba clean --all -f -y && \
+#	        jupyter lab clean && \
+		rm -rf "/home/${NB_USER}/.cache/yarn" && \
 		fix-permissions "$CONDA_DIR" && \
 	    	fix-permissions "/home/$NB_USER"
 

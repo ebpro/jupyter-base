@@ -5,7 +5,8 @@ for subdir in $NEEDED_WORK_DIRS; do
         if [ ! -f $dir ]; then
         	echo Creating $dir
         	mkdir -p $dir
-        	chmod 700  $dir
+		fix-permissions $dir
+        	# chmod 700  $dir
         fi
 done
 
@@ -15,6 +16,7 @@ for subfile in $NEEDED_WORK_FILES; do
         if [ ! -f $file ]; then
         	echo Creating $file
         	touch $file
-        	chmod 700  $dir
+        	fix-permissions $file
+		# chmod 700  $dir
         fi
 done
