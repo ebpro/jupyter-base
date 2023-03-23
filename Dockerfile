@@ -1,14 +1,15 @@
-#FROM jupyter/scipy-notebook:2022-10-24
-FROM jupyter/scipy-notebook:lab-3.5.0
+ARG LAB_BASE=jupyter/scipy-notebook:lab-3.6.1
+
+FROM ${LAB_BASE}
 
 USER root
 
 ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
 
 RUN --mount=type=cache,target=/var/cache/apt \
-        rm -f /etc/apt/apt.conf.d/docker-clean &&\
 	mkdir -p $PIP_CACHE_DIR &&\
-	apt-get update --yes && apt-get install --yes -qq --no-install-recommends \
+	apt-get update --yes && \
+	apt-get install --yes -qq --no-install-recommends \
 		bash \
 		curl \
 		less \
@@ -19,7 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # Sets Defaults directories
 ENV WORK_DIR $HOME/work
 ENV NOTEBOOKS_DIR $WORK_DIR/notebooks
-ENV SAMPLES_DIR  $WORK_DIR/samples
+ENV DATA_DIR  $WORK_DIR/data
 
 # Sets codeserver directories
 ENV CODESERVEREXT_DIR /opt/codeserver/extensions
@@ -43,18 +44,21 @@ RUN --mount=type=cache,target=/var/cache/buildkit/pip \
 			jupyterlab-git \
 			jupyterlab-system-monitor \
 			jinja-yaml-magic \
+			jupyterlab_widgets \
 #			ipympl \
 			&& \
-        jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
 #	pip install jupyterlab_templates && \
 #		jupyter labextension install jupyterlab_templates && \
 #		jupyter serverextension enable --py jupyterlab_templates && \
 #        conda install defaults::nb_conda_kernels && \
-	mamba install --quiet --yes nb_conda_kernels && \
+	mamba install --quiet --yes \
+		nb_conda_kernels \
+		&& \
 	mamba install --quiet --yes -c conda-forge \
 		jupyterlab-drawio \
-		jupyterlab_code_formatter \
-		tectonic texlab chktex && \
+		# jupyterlab_code_formatter \
+		# tectonic texlab chktex \
+		&& \
 	echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
         	curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
 			mkdir -p $CODESERVERDATA_DIR &&\
@@ -68,7 +72,8 @@ RUN --mount=type=cache,target=/var/cache/buildkit/pip \
 	        --install-extension SonarSource.sonarlint-vscode \
 	        --install-extension GabrielBB.vscode-lombok \
 			--install-extension james-yu.latex-workshop \
-	        --install-extension jebbs.plantuml && \
+	        --install-extension jebbs.plantuml \
+			--install-extension eamodio.gitlens && \
         	groupadd codeserver && \
 	        chgrp -R codeserver $CODESERVEREXT_DIR &&\
         	chmod 770 -R $CODESERVEREXT_DIR && \
@@ -79,7 +84,7 @@ RUN --mount=type=cache,target=/var/cache/buildkit/pip \
 #	        jupyter lab clean && \
 		rm -rf "/home/${NB_USER}/.cache/yarn" && \
 		fix-permissions "$CONDA_DIR" && \
-	    	fix-permissions "/home/$NB_USER"
+		fix-permissions "/home/$NB_USER"
 
 COPY configs/* /home/jovyan/.jupyter/
 COPY code-server/jupyter_codeserver_config.py /tmp/
