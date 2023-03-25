@@ -1,0 +1,16 @@
+jinja-yaml-magic						
+jupyter-book
+jupyterlab-myst
+jupyter-server-proxy
+jupyterlab_latex
+jupyterlab_widgets
+jupyterlab-code-formatter 
+black 
+isort
+jupyterlab-git
+jupyterlab-system-monitor
+nbgitpuller
+iplantuml
+sphinx-inline-tabs
+sphinxcontrib-plantuml
+sphinxcontrib-svg2pdfconverter

@@ -1,0 +1,15 @@
+bash 
+curl
+graphviz 
+grep 
+host 
+imagemagick 	
+jq 
+latexmk 
+less 
+make 
+plantuml 
+texlive-full 
+vim 
+zip
+zsh
