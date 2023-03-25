@@ -13,7 +13,7 @@ USER root
 
 # Copy the list artefacts to install
 # Ubuntu and PIP packages, ...
-COPY list-* /tmp/
+COPY list_* /tmp/
 
 # Sets a cache for pip packages
 ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
