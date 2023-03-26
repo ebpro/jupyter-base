@@ -75,6 +75,10 @@ ENV PATH=/opt/bin:$PATH
 # Enable persistant conda env
 COPY condarc /home/jovyan/.condarc
 
+## ZSH Configuration files
+ADD zsh/initzsh.sh /tmp/initzsh.sh
+ADD zsh/p10k.zsh $HOME/.p10k.zsh 
+
 RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
     --mount=type=cache,target=/opt/conda/pkgs,sharing=locked  \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
@@ -103,6 +107,15 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
                 	--install-extension james-yu.latex-workshop \
                 	--install-extension jebbs.plantuml \
                 	--install-extension eamodio.gitlens && \
+        echo -e "\e[93m**** Install ZSH Kernel for Jupyter ****\e[38;5;241m" && \
+            python3 -m pip install zsh_jupyter_kernel && \
+            python3 -m zsh_jupyter_kernel.install --sys-prefix && \ 
+        echo -e "\e[93m**** Configure a nice zsh environment ****\e[38;5;241m" && \
+        git clone --recursive https://github.com/sorin-ionescu/prezto.git "$HOME/.zprezto" && \
+        zsh -c /tmp/initzsh.sh && \
+        sed -i -e "s/zstyle ':prezto:module:prompt' theme 'sorin'/zstyle ':prezto:module:prompt' theme 'powerlevel10k'/" $HOME/.zpreztorc && \
+        echo "[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh" >> $HOME/.zshrc && \
+        echo "PATH=/opt/bin:$PATH" >> $HOME/.zshrc && \
         echo -e "\e[93m**** Clean up ****\e[38;5;241m" && \
 #               npm cache clean --force && \
 #               mamba clean --all -f -y && \
@@ -136,6 +149,11 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
         jupyter lab --generate-config && \
         sed -i -e '/c.ServerApp.root_dir =/ s/= .*/= "\/home\/jovyan\/work"/' \
             -e "s/# \(c.ServerApp.root_dir\)/\1/" \ 
+            -e '/c.ServerApp.disable_check_xsrf =/ s/= .*/= True/' \
+            -e 's/# \(c.ServerApp.disable_check_xsrf\)/\1/' \
+            -e '/c.ServerApp.data_dir =/ s/= .*/= "\/home\/jovyan\/jupyter_data"/' \
+            -e "/c.ServerApp.terminado_settings =/ s/= .*/= { 'shell_command': ['\/bin\/zsh'] }/" \
+            -e 's/# \(c.ServerApp.terminado_settings\)/\1/' \ 
         $HOME/.jupyter/jupyter_lab_config.py
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/

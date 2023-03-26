@@ -1,4 +1,4 @@
-# JupyterLab Base Image 
+# JupyterLab Base Image
 
 A base image for the Jupyter Lab ased on jupyter/minimal-notebook :
   
