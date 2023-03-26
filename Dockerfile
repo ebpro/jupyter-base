@@ -22,7 +22,7 @@ RUN mkdir -p $PIP_CACHE_DIR && \
     mkdir -p /var/cache/apt
 
 # We need to remove the default `docker-clean` to avoid cache cleaning
-RUN --mount=type=cache,target=/var/cache/apt \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
@@ -75,11 +75,11 @@ ENV PATH=/opt/bin:$PATH
 # Enable persistant conda env
 COPY condarc /home/jovyan/.condarc
 
-RUN --mount=type=cache,target=${PIP_CACHE_DIR} \
-    --mount=type=cache,target=/opt/conda/pkgs \
+RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
+    --mount=type=cache,target=/opt/conda/pkgs,sharing=locked  \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
-			$(cat /tmp/Artefacts/list_packages) && \
+			$(cat /tmp/Artefacts/list_pip) && \
         mamba install --quiet --yes \
                 nb_conda_kernels \
                 && \
