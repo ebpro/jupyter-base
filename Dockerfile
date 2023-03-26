@@ -13,18 +13,20 @@ USER root
 
 # Copy the list artefacts to install
 # Ubuntu and PIP packages, ...
-COPY list_* /tmp/
+COPY Artefacts/ /tmp/Artefacts/
 
 # Sets a cache for pip packages
 ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
 
+RUN mkdir -p $PIP_CACHE_DIR && \
+    mkdir -p /var/cache/apt
+
 # We need to remove the default `docker-clean` to avoid cache cleaning
 RUN --mount=type=cache,target=/var/cache/apt \
-	mkdir -p $PIP_CACHE_DIR && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
-		$(cat /tmp/list_packages) && \
+		$(cat /tmp/Artefacts/list_packages) && \
 	rm -rf /var/lib/apt/lists/*
 
 # Installs only the docker client and docker compose
@@ -77,7 +79,7 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR} \
     --mount=type=cache,target=/opt/conda/pkgs \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
-			$(cat /tmp/packages) && \
+			$(cat /tmp/Artefacts/list_packages) && \
         mamba install --quiet --yes \
                 nb_conda_kernels \
                 && \

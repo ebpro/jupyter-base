@@ -7,6 +7,7 @@ jupyterlab_widgets
 jupyterlab-code-formatter 
 black 
 isort
+jupyterhub
 jupyterlab-git
 jupyterlab-system-monitor
 nbgitpuller
