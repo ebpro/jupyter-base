@@ -68,7 +68,7 @@ ENV DATA_DIR  $WORK_DIR/data
 ENV CODESERVEREXT_DIR /opt/codeserver/extensions
 ENV CODE_WORKINGDIR $HOME/work
 ENV CODESERVERDATA_DIR $HOME/work/.codeserver/data
-ENV CODE_EXTRA_EXTENSIONSDIR $HOME/work/.codeserver/extensions
+# ENV CODE_EXTRA_EXTENSIONSDIR $HOME/work/.codeserver/extensions
 
 ENV PATH=/opt/bin:$PATH
 
@@ -98,7 +98,7 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
                 PATH=/opt/bin:$PATH code-server \
                 	--user-data-dir $CODESERVERDATA_DIR\
                 	--extensions-dir $CODESERVEREXT_DIR \
-					--install-extension ms-python.python \
+			--install-extension ms-python.python \
                 	--install-extension vscjava.vscode-java-pack \
                 	--install-extension redhat.vscode-xml \
                 	--install-extension vscode-icons-team.vscode-icons \
@@ -159,5 +159,19 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
 USER $NB_USER
+
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+		ARCH_LEG=x86_64; \
+		ARCH=amd64; \
+	elif [ "$TARGETPLATFORM" = "linux/arm64/v8" ] || [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+		ARCH_LEG=aarch64; \
+		ARCH=arm64; \
+	else \
+		ARCH_LEG=amd64; \
+		ARCH=amd64; \
+	fi && \
+    mkdir -p /home/jovyan/.cache/ && \ 
+    curl -sL "https://github.com/romkatv/gitstatus/releases/download/v1.5.4/gitstatusd-linux-${ARCH_LEG}.tar.gz" | \
+      tar --directory="/home/jovyan/.cache/" -zx
 
 WORKDIR "${HOME}/work"

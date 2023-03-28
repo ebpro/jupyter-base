@@ -1,5 +1,7 @@
 # JupyterLab Base Image
 
+**Test it on** [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ebpro/notebook-qs-base/develop)
+
 A base image for the Jupyter Lab ased on jupyter/minimal-notebook :
   
 * ZSH
