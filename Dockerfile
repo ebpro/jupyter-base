@@ -11,6 +11,10 @@ ARG DOCKER_CONFIG="/usr/local/lib/docker/cli-plugins"
 
 USER root
 
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
+
 # Copy the list artefacts to install
 # Ubuntu and PIP packages, ...
 COPY Artefacts/ /tmp/Artefacts/
