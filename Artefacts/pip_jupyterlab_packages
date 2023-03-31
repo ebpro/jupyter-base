@@ -1,5 +1,6 @@
 jinja-yaml-magic						
 jupyter-book
+jupyterlab-drawio
 jupyterlab-myst
 jupyterlab_rise
 jupyter-server-proxy
