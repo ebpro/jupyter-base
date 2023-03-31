@@ -15,22 +15,20 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
-# Copy the list artefacts to install
-# Ubuntu and PIP packages, ...
-COPY Artefacts/ /tmp/Artefacts/
-
 # Sets a cache for pip packages
 ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
 
-RUN mkdir -p $PIP_CACHE_DIR && \
+RUN mkdir -p ${PIP_CACHE_DIR} && \
     mkdir -p /var/cache/apt
 
+
+COPY Artefacts/apt_packages /tmp/
 # We need to remove the default `docker-clean` to avoid cache cleaning
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
-		$(cat /tmp/Artefacts/list_packages) && \
+		$(cat /tmp/apt_packages) && \
 	rm -rf /var/lib/apt/lists/*
 
 # Installs only the docker client and docker compose
@@ -45,10 +43,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=amd64; \
 		ARCH=amd64; \
 	fi && \
-   echo -e "\e[93m**** Installs docker ****\e[38;5;241m"  && \
-   echo "https://download.docker.com/linux/static/stable/${ARCH_LEG}/docker-${DOCKER_CLI_VERSION}.tgz" && \
-   echo "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${ARCH_LEG}"  && \
-   echo "https://github.com/docker/buildx/releases/download/v${DOCKER_BUILDX_VERSION}/buildx-v${DOCKER_BUILDX_VERSION}.linux-${ARCH}" && \
+   echo -e "\e[93m**** Installs docker client ****\e[38;5;241m"  && \
    curl -sL "https://download.docker.com/linux/static/stable/${ARCH_LEG}/docker-${DOCKER_CLI_VERSION}.tgz" | \ 
       tar --directory="${BIN_DIR}" --strip-components=1 -zx docker/docker && \
       chmod +x "${BIN_DIR}/docker" && \
@@ -62,7 +57,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         -o "$DOCKER_CONFIG/docker-buildx" && \ 
       chmod +x "$DOCKER_CONFIG/docker-buildx"
 
-
 # Sets Defaults directories
 ENV WORK_DIR $HOME/work
 ENV NOTEBOOKS_DIR $WORK_DIR/notebooks
@@ -72,7 +66,6 @@ ENV DATA_DIR  $WORK_DIR/data
 ENV CODESERVEREXT_DIR /opt/codeserver/extensions
 ENV CODE_WORKINGDIR $HOME/work
 ENV CODESERVERDATA_DIR $HOME/work/.codeserver/data
-# ENV CODE_EXTRA_EXTENSIONSDIR $HOME/work/.codeserver/extensions
 
 ENV PATH=/opt/bin:$PATH
 
@@ -83,17 +76,19 @@ COPY condarc /home/jovyan/.condarc
 ADD zsh/initzsh.sh /tmp/initzsh.sh
 ADD zsh/p10k.zsh $HOME/.p10k.zsh 
 
-RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
-    --mount=type=cache,target=/opt/conda/pkgs,sharing=locked  \
+# PIP packages (extensions) for JupyterLab
+COPY Artefacts/pip_jupyterlab_packages /tmp/
+
+# Codeserver extensions to install
+COPY Artefacts/codeserver_extensions /tmp/
+
+RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
+    --mount=type=cache,target=/opt/conda/pkgs  \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
-			$(cat /tmp/Artefacts/list_pip) && \
+			$(cat /tmp/pip_jupyterlab_packages) && \
         mamba install --quiet --yes \
                 nb_conda_kernels \
-                && \
-        mamba install --quiet --yes -c conda-forge \
-                jupyterlab-drawio \
-                jupyterlab_code_formatter \
                 && \
         echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
                 curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
@@ -102,15 +97,7 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
                 PATH=/opt/bin:$PATH code-server \
                 	--user-data-dir $CODESERVERDATA_DIR\
                 	--extensions-dir $CODESERVEREXT_DIR \
-			--install-extension ms-python.python \
-                	--install-extension vscjava.vscode-java-pack \
-                	--install-extension redhat.vscode-xml \
-                	--install-extension vscode-icons-team.vscode-icons \
-                	--install-extension SonarSource.sonarlint-vscode \
-                	--install-extension GabrielBB.vscode-lombok \
-                	--install-extension james-yu.latex-workshop \
-                	--install-extension jebbs.plantuml \
-                	--install-extension eamodio.gitlens && \
+                    $(cat /tmp/codeserver-extensions|sed 's/./--install-extension &/') && \
         echo -e "\e[93m**** Install ZSH Kernel for Jupyter ****\e[38;5;241m" && \
             python3 -m pip install zsh_jupyter_kernel && \
             python3 -m zsh_jupyter_kernel.install --sys-prefix && \ 
@@ -164,6 +151,7 @@ RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
 USER $NB_USER
 
+# preinstall gitstatusd
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=x86_64; \
 		ARCH=amd64; \
@@ -174,8 +162,8 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=amd64; \
 		ARCH=amd64; \
 	fi && \
-    mkdir -p /home/jovyan/.cache/ && \ 
+    mkdir -p /home/jovyan/.cache/gistatus && \ 
     curl -sL "https://github.com/romkatv/gitstatus/releases/download/v1.5.4/gitstatusd-linux-${ARCH_LEG}.tar.gz" | \
-      tar --directory="/home/jovyan/.cache/" -zx
+      tar --directory="/home/jovyan/.cache/gitstatus" -zx
 
 WORKDIR "${HOME}/work"
