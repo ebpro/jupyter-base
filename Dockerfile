@@ -97,7 +97,7 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
                 PATH=/opt/bin:$PATH code-server \
                 	--user-data-dir $CODESERVERDATA_DIR\
                 	--extensions-dir $CODESERVEREXT_DIR \
-                    $(cat /tmp/codeserver-extensions|sed 's/./--install-extension &/') && \
+                    $(cat /tmp/codeserver_extensions|sed 's/./--install-extension &/') && \
         echo -e "\e[93m**** Install ZSH Kernel for Jupyter ****\e[38;5;241m" && \
             python3 -m pip install zsh_jupyter_kernel && \
             python3 -m zsh_jupyter_kernel.install --sys-prefix && \ 
