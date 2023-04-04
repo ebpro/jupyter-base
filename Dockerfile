@@ -1,4 +1,4 @@
-ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.1
+ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.2
 
 FROM ${LAB_BASE}
 
@@ -16,7 +16,8 @@ ARG BUILDPLATFORM
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Sets a cache for pip packages
-ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
+#ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
+ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip
 
 RUN mkdir -p ${PIP_CACHE_DIR} && \
     mkdir -p /var/cache/apt
@@ -145,7 +146,9 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
             -e '/c.ServerApp.data_dir =/ s/= .*/= "\/home\/jovyan\/jupyter_data"/' \
             -e "/c.ServerApp.terminado_settings =/ s/= .*/= { 'shell_command': ['\/bin\/zsh'] }/" \
             -e 's/# \(c.ServerApp.terminado_settings\)/\1/' \ 
-        $HOME/.jupyter/jupyter_lab_config.py
+        $HOME/.jupyter/jupyter_lab_config.py 
+
+RUN jupyter labextension install jupyterlab-jupytext
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
@@ -162,7 +165,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=amd64; \
 		ARCH=amd64; \
 	fi && \
-    mkdir -p /home/jovyan/.cache/gistatus && \ 
+    mkdir -p /home/jovyan/.cache/gitstatus && \ 
     curl -sL "https://github.com/romkatv/gitstatus/releases/download/v1.5.4/gitstatusd-linux-${ARCH_LEG}.tar.gz" | \
       tar --directory="/home/jovyan/.cache/gitstatus" -zx
 
