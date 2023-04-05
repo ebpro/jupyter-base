@@ -91,6 +91,10 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
         mamba install --quiet --yes \
                 nb_conda_kernels \
                 && \
+        mamba install -c conda-forge \
+            jupyterlab-tour \
+            mamba_gator \            
+            && \
         echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
                 curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
                 mkdir -p $CODESERVERDATA_DIR &&\
