@@ -117,7 +117,8 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
 				fix-permissions "$CODESERVEREXT_DIR" && \
                 fix-permissions "$CONDA_DIR" && \
 				fix-permissions /opt/codeserver/extensions && \
-                fix-permissions "/home/$NB_USER"
+                fix-permissions "/home/$NB_USER" && \
+                fix-permissions "/home/$NB_USER/.zprezto"
 
 COPY code-server/jupyter_codeserver_config.py /tmp/
 COPY code-server/icons $HOME/.jupyter/icons
@@ -148,7 +149,7 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
             -e 's/# \(c.ServerApp.terminado_settings\)/\1/' \ 
         $HOME/.jupyter/jupyter_lab_config.py 
 
-RUN jupyter labextension install jupyterlab-jupytext
+RUN pip install jupytext --upgrade
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
