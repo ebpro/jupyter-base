@@ -83,8 +83,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:${{ env.GITHUB_REF_NAME }}-buildcache
-          cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:${{ env.GITHUB_REF_NAME }}-buildcache,mode=min,compression=zstd
+          cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:$GITHUB_REF_NAME-buildcache
+          cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:$GITHUB_REF_NAME-buildcache,mode=min,compression=zstd
 
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
