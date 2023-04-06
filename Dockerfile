@@ -17,9 +17,9 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Sets a cache for pip packages
 #ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
-ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip/${TARGETPLATFORM}
-ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}-cache
-ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
+ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip/
+ENV APT_CACHE_DIR=/var/cache/apt/
+ENV CONDA_PKG_DIR=/opt/conda/pkgs/
 
 
 # We need to remove the default `docker-clean` to avoid cache cleaning
@@ -31,7 +31,7 @@ RUN mkdir -p ${PIP_CACHE_DIR} && \
 
 COPY Artefacts/apt_packages /tmp/
 
-RUN --mount=type=cache,target=${APT_CACHE_DIR} \
+RUN --mount=type=cache,target=${APT_CACHE_DIR},sharing=locked \
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
 		$(cat /tmp/apt_packages) && \
@@ -88,8 +88,8 @@ COPY Artefacts/pip_jupyterlab_packages /tmp/
 # Codeserver extensions to install
 COPY Artefacts/codeserver_extensions /tmp/
 
-RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
-    --mount=type=cache,target=${CONDA_PKG_DIR}  \
+RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
+    --mount=type=cache,target=${CONDA_PKG_DIR},sharing=locked  \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
 			$(cat /tmp/pip_jupyterlab_packages) && \
