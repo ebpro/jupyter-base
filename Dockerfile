@@ -26,8 +26,7 @@ ENV CONDA_PKG_DIR=/opt/conda/pkgs/
 RUN mkdir -p ${PIP_CACHE_DIR} && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
     #echo "Dir::Cache::pkgcache ${APT_CACHE_DIR};" > /etc/apt/apt.conf.d/00-move-cache && \
-    mkdir -p ${CONDA_PKG_DIR} && \
-    cat /etc/apt/apt.conf.d/00-move-cache
+    mkdir -p ${CONDA_PKG_DIR}
 
 COPY Artefacts/apt_packages /tmp/
 
