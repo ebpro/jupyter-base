@@ -18,7 +18,7 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 # Sets a cache for pip packages
 #ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
 ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip/${TARGETPLATFORM}
-ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}
+ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}-cache
 ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
 
 

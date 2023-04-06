@@ -1,4 +1,4 @@
-name: Multi Arch Bare Metal CI
+name: Multi Arch QEMU CI
 
 on:
   workflow_dispatch:  
