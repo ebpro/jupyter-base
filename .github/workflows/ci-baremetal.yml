@@ -1,13 +1,13 @@
-name: ci
+name: Multi Arch Bare Metal CI
 
 on:
   workflow_dispatch:  
-  push:
-    branches:
-      - 'releases/v*'
-      - 'develop'
-    tags:
-      - 'v*.*.*'
+#  push:
+#    branches:
+#      - 'releases/v*'
+#      - 'develop'
+#    tags:
+#      - 'v*.*.*'
 
 concurrency:
   group: ${{ github.ref }}
