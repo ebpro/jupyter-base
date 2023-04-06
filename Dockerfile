@@ -18,14 +18,18 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 # Sets a cache for pip packages
 #ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
 ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip
+ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}
+ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
+
 
 RUN mkdir -p ${PIP_CACHE_DIR} && \
-    mkdir -p /var/cache/apt
+    mkdir -p ${APT_CACHE_DIR} && \
+    mkdir -p ${CONDA_PKG_DIR}
 
 
 COPY Artefacts/apt_packages /tmp/
 # We need to remove the default `docker-clean` to avoid cache cleaning
-RUN --mount=type=cache,target=/var/cache/apt \
+RUN --mount=type=cache,target=${APT_CACHE_DIR} \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
@@ -84,7 +88,7 @@ COPY Artefacts/pip_jupyterlab_packages /tmp/
 COPY Artefacts/codeserver_extensions /tmp/
 
 RUN --mount=type=cache,target=${PIP_CACHE_DIR}  \
-    --mount=type=cache,target=/opt/conda/pkgs  \
+    --mount=type=cache,target=${CONDA_PKG_DIR}  \
         echo -e "\e[93m***** Install Jupyter Lab Extensions ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
 			$(cat /tmp/pip_jupyterlab_packages) && \
@@ -152,8 +156,6 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
             -e "/c.ServerApp.terminado_settings =/ s/= .*/= { 'shell_command': ['\/bin\/zsh'] }/" \
             -e 's/# \(c.ServerApp.terminado_settings\)/\1/' \ 
         $HOME/.jupyter/jupyter_lab_config.py 
-
-RUN pip install jupytext --upgrade
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
