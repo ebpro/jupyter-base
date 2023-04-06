@@ -17,7 +17,7 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Sets a cache for pip packages
 #ENV PIP_CACHE_DIR=/var/cache/buildkit/pip
-ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip
+ENV PIP_CACHE_DIR=/home/jovyan/work/var/cache/buildkit/pip/${TARGETPLATFORM}
 ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}
 ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
 
@@ -26,7 +26,7 @@ ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
 RUN mkdir -p ${PIP_CACHE_DIR} && \
     mkdir -p ${APT_CACHE_DIR} && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
-    echo "dir::cache::archives ${APT_CACHE_DIR}" > /etc/apt/apt.conf.d/00-move-cache && \
+    echo "Dir::Cache::pkgcache ${APT_CACHE_DIR}" > /etc/apt/apt.conf.d/00-move-cache && \
     mkdir -p ${CONDA_PKG_DIR}
 
 COPY Artefacts/apt_packages /tmp/
