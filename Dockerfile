@@ -22,15 +22,16 @@ ENV APT_CACHE_DIR=/var/cache/apt/${TARGETPLATFORM}
 ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
 
 
+# We need to remove the default `docker-clean` to avoid cache cleaning
 RUN mkdir -p ${PIP_CACHE_DIR} && \
     mkdir -p ${APT_CACHE_DIR} && \
+ 	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
+    echo "dir::cache::archives ${APT_CACHE_DIR}" > /etc/apt/apt.conf.d/00-move-cache && \
     mkdir -p ${CONDA_PKG_DIR}
 
-
 COPY Artefacts/apt_packages /tmp/
-# We need to remove the default `docker-clean` to avoid cache cleaning
+
 RUN --mount=type=cache,target=${APT_CACHE_DIR} \
- 	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
  	apt-get update && \
 	apt-get install -qq --yes --no-install-recommends \
 		$(cat /tmp/apt_packages) && \
