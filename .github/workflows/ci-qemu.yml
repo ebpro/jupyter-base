@@ -61,7 +61,9 @@ jobs:
         with:       
           config-inline: |
             [registry."docker.io"]
-              mirrors = ["${{ secrets.DOCKERHUB_PROXY_HOSTNAME }}"]            
+              mirrors = ["${{ secrets.DOCKERHUB_PROXY_HOSTNAME }}"]
+              http = true
+              insecure = true
             [registry."${{ secrets.PRIVATEHUB_HOSTNAME }}"]
               http = true
               insecure = true
