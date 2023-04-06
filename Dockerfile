@@ -24,7 +24,6 @@ ENV CONDA_PKG_DIR=/opt/conda/pkgs/${TARGETPLATFORM}
 
 # We need to remove the default `docker-clean` to avoid cache cleaning
 RUN mkdir -p ${PIP_CACHE_DIR} && \
-    mkdir -p ${APT_CACHE_DIR} && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
     echo "Dir::Cache::pkgcache ${APT_CACHE_DIR};" > /etc/apt/apt.conf.d/00-move-cache && \
     mkdir -p ${CONDA_PKG_DIR} && \
