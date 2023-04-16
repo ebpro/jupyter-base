@@ -159,6 +159,25 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+ 	apt-get update && \
+	apt-get install -qq --yes --no-install-recommends \
+		dbus-x11 \
+        libgl1-mesa-glx \
+        xfce4 \
+        xfce4-panel \
+        xfce4-session \
+        xfce4-settings \
+        xorg \
+        xubuntu-icon-theme && \
+	rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
+    --mount=type=cache,target=${CONDA_PKG_DIR},sharing=locked  \
+        echo -e "\e[93m***** Install Jupyter Remote desktop Extension ****\e[38;5;241m" && \
+        pip install --quiet --upgrade \
+			jupyter-remote-desktop-proxy
+
 USER $NB_USER
 
 # preinstall gitstatusd
