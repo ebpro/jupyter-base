@@ -159,6 +159,46 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+ 	apt-get update && \
+	apt-get install -qq --yes --no-install-recommends \
+		dbus-x11 \
+        libgl1-mesa-glx \
+        xfce4 \
+        xfce4-panel \
+        xfce4-session \
+        xfce4-settings \
+        xorg \
+        xubuntu-icon-theme && \
+    chown -R $NB_UID:$NB_GID $HOME && \
+	rm -rf /var/lib/apt/lists/*
+
+# Install TurboVNC (https://github.com/TurboVNC/turbovnc)
+ARG TURBOVNC_VERSION=3.0.3
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+		ARCH_LEG=x86_64; \
+		ARCH=amd64; \
+	elif [ "$TARGETPLATFORM" = "linux/arm64/v8" ] || [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+		ARCH_LEG=aarch64; \
+		ARCH=arm64; \
+	else \
+		ARCH_LEG=amd64; \
+		ARCH=amd64; \
+	fi && \
+ wget -q "https://sourceforge.net/projects/turbovnc/files/${TURBOVNC_VERSION}/turbovnc_${TURBOVNC_VERSION}_${ARCH}.deb/download" -O turbovnc.deb \
+ && apt-get install -y -q ./turbovnc.deb \
+    # remove light-locker to prevent screen lock
+ && apt-get remove -y -q light-locker \
+ && rm ./turbovnc.deb \
+ && ln -s /opt/TurboVNC/bin/* /usr/local/bin/
+
+RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
+    --mount=type=cache,target=${CONDA_PKG_DIR},sharing=locked  \
+        echo -e "\e[93m***** Install Jupyter Remote desktop Extension ****\e[38;5;241m" && \
+        pip install --quiet --upgrade \
+			jupyter-remote-desktop-proxy && \
+        conda install -c conda-forge websockify
+
 USER $NB_USER
 
 # preinstall gitstatusd

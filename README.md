@@ -8,6 +8,7 @@ A base image for the Jupyter Lab ased on jupyter/minimal-notebook :
 * TexLive
 * Code Server Web IDE
 * Jupyter Book
+* Web remote desktop
 
 ## Quickstart
 
