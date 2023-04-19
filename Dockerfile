@@ -1,4 +1,4 @@
-ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.2
+ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
 
 FROM ${LAB_BASE}
 
@@ -197,8 +197,8 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked  \
         echo -e "\e[93m***** Install Jupyter Remote desktop Extension ****\e[38;5;241m" && \
         pip install --quiet --upgrade \
 			jupyter-remote-desktop-proxy && \
-        conda install -c conda-forge websockify
-
+        conda install -c conda-forge websockify && \
+        fix-permissions "$CONDA_DIR" && \
 USER $NB_USER
 
 # preinstall gitstatusd
