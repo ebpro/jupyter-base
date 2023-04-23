@@ -34,6 +34,7 @@ def _get_code_server_cmd(port):
 c.ServerProxy.servers = {
   'code-server': {
     'command': _get_code_server_cmd,
+    'new_browser_tab': False,
     'timeout': 20,
     'launcher_entry': {
       'title': 'VS Code IDE',

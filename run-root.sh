@@ -3,7 +3,7 @@
 WORKDIR=$HOME/JUPYTER_WORK
 IMAGE_REPO=brunoe
 
-docker run --rm -it \
+docker run --rm -it --user=root\
     --name ${PWD##*/} \
     --volume JUPYTER_WORKDIR:/home/jovyan/work \
     --publish 8888:8888 \

@@ -1,0 +1,25 @@
+channels:
+- conda-forge
+- nodefaults
+
+dependencies:
+- black
+- isort
+- jupyter-book
+- jupyter-server-proxy
+- jupyterhub
+- jupyterlab_rise
+- jupyterlab_widgets
+- jupyterlab-drawio
+- jupyterlab-git
+- jupyterlab-link-share
+- jupyterlab-myst
+- jupyterlab-system-monitor
+- jupyterlab-tour
+- jupytext
+- mamba_gator
+- nb_conda_kernels
+- nbgitpuller
+- pandas
+- sphinx-inline-tabs
+- websockify

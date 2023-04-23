@@ -1,0 +1,14 @@
+#!/bin/bash
+
+for script in $(ls -d /home/$NB_USER/before-notebook/*); do 
+    bash $script
+done
+
+#Do the normal Binder start thing here...
+# if in binder 
+if [ $0 eq "start" ]
+then
+    exec "$@"
+else
+    echo "Not in Binder."
+fi

@@ -1,4 +1,7 @@
 #!/bin/bash
+
+echo -e "\e[93m**** Create and link user files and dirs ****\e[38;5;241m"
+
 for subdir in $NEEDED_WORK_DIRS; do
 		dir="/home/jovyan/work/$subdir"
 		ln -s "$dir" "/home/jovyan/$subdir"

@@ -1,6 +1,6 @@
 bash 
 curl
-openconnect
+dbus-x11
 graphviz 
 grep 
 host 
@@ -8,9 +8,18 @@ imagemagick
 jq 
 latexmk 
 less 
+libgl1-mesa-glx
 make 
+openconnect
 plantuml 
-texlive-full 
+terminator 
+texlive-full
 vim 
+xfce4
+xfce4-panel
+xfce4-session
+xfce4-settings
+xorg
+xubuntu-icon-theme
 zip
 zsh
