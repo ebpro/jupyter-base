@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for script in $(ls -d /home/$NB_USER/before-notebook/*); do 
+for script in $(ls -d /usr/local/bin/before-notebook.d/*); do 
     bash $script
 done
 
