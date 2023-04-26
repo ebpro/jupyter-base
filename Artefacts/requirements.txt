@@ -6,3 +6,4 @@ jupyterlab-code-formatter
 sphinxcontrib-plantuml
 sphinxcontrib-svg2pdfconverter
 zsh_jupyter_kernel
+ngshare_exchange
