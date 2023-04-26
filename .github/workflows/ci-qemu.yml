@@ -40,7 +40,6 @@ jobs:
           needs: ${{ toJson(needs) }}
           job: ${{ toJson(job) }}
           steps: ${{ toJson(steps) }}
-          dry_run: True
    
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
