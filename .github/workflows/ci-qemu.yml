@@ -45,8 +45,11 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
-      - run: echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
-      - run: echo TAG_SUFFIX=${VERSION:+-$VERSION}${ENV:+-$ENV}  >> $GITHUB_ENV
+      - name: Set GITHUB_ENV values
+        id: step_one
+        run: |
+            echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
+            echo TAG_SUFFIX=${VERSION:+-$VERSION}${ENV:+-$ENV}  >> $GITHUB_ENV
 
       - name: Docker meta
         id: meta
@@ -114,25 +117,25 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache
           cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache,mode=min,compression=zstd
 
-      # - name: Notify dedicated teams channel of Success
-      #   uses: dragos-cojocari/ms-teams-notification@v1.0.2
-      #   if: ${{ success() }}
-      #   with:
-      #     github-token: ${{ github.token }} # this will use the runner's token.
-      #     ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
-      #     notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general {{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
-      #     notification-color: 28a745
-      #     timezone: Europe/Paris
+      - name: Notify dedicated teams channel of Success
+        uses: dragos-cojocari/ms-teams-notification@v1.0.2
+        if: ${{ success() }}
+        with:
+          github-token: ${{ github.token }} # this will use the runner's token.
+          ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
+          notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general {{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
+          notification-color: 28a745
+          timezone: Europe/Paris
 
-      # - name: Notify dedicated teams channel of Success
-      #   uses: dragos-cojocari/ms-teams-notification@v1.0.2
-      #   if: ${{ failure() }}
-      #   with:
-      #     github-token: ${{ github.token }} # this will use the runner's token.
-      #     ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
-      #     notification-summary: "Build and Deploy failure https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
-      #     notification-color: dc143c
-      #     timezone: Europe/Paris
+      - name: Notify dedicated teams channel of Success
+        uses: dragos-cojocari/ms-teams-notification@v1.0.2
+        if: ${{ failure() }}
+        with:
+          github-token: ${{ github.token }} # this will use the runner's token.
+          ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
+          notification-summary: "Build and Deploy failure https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
+          notification-color: dc143c
+          timezone: Europe/Paris
 
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
