@@ -8,6 +8,7 @@ dependencies:
 - jupyter-book
 - jupyter-server-proxy
 - jupyterhub
+- jupyterlab>=3.0.0,<4.0.0a0 # for lsp
 - jupyterlab_rise
 - jupyterlab_widgets
 - jupyterlab-drawio
@@ -24,3 +25,5 @@ dependencies:
 - sphinx-inline-tabs
 - websockify
 - jupyterlab-spellchecker
+
+- jupyterlab-lsp
