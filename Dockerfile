@@ -156,6 +156,10 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 
 ENV SHELL=/bin/bash
 
+
+# Configure nbgrader
+COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
+
 USER $NB_USER
 
 RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \

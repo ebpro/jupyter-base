@@ -4,3 +4,5 @@ configureExchange(c, 'http://ngshare.jhub.svc.cluster.local:8080/services/ngshar
 # Add the following line to let students access courses without configuration
 # For more information, read Notes for Instructors in the documentation
 c.CourseDirectory.course_id = '*'
+
+
