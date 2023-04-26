@@ -1,7 +1,9 @@
 name: Multi Arch QEMU CI
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
+  schedule:
+    - cron: '0 02 * * *'    
   push:
     branches:
       - 'releases/v*'
@@ -9,30 +11,54 @@ on:
     tags:
       - 'v*.*.*'
 
+env:
+  MSTEAMS_WEBHOOK: ${{ secrets.MSTEAMS_WEBHOOK }}      
+
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   docker:
+    # strategy:
+    #   matrix:
+    #     ENV: ["", "community", "ultimate"]
+    #     version: ["", latest]
+    # env:
+    #   ENV: ${{ matrix.ENV }}
+    #   VERSION: ${{ matrix.VERSION }}
     runs-on: [self-hosted, qemu]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Microsoft Teams Notification
+        uses: skitionek/notify-microsoft-teams@master
+        if: always()
+        with:
+          webhook_url: ${{ secrets.MSTEAMS_WEBHOOK }}
+          needs: ${{ toJson(needs) }}
+          job: ${{ toJson(job) }}
+          steps: ${{ toJson(steps) }}
+          dry_run: True
+   
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
-      - name: Set the environment variable
-        run: echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
+      - run: echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
+      - run: echo TAG_SUFFIX=${VERSION:+-$VERSION}${ENV:+-$ENV}  >> $GITHUB_ENV
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4     
         with:
+          flavor: |
+            latest=auto
+            suffix=${{ env.TAG_SUFFIX }}
           images: |
             "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}"
           tags: |
+            type=schedule,pattern=nightly
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
@@ -79,13 +105,34 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
+          build-args: | 
+            ENV=${{ matrix.ENV }}
           platforms: linux/amd64,linux/arm64/v8
-#          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache
           cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache,mode=min,compression=zstd
+
+      # - name: Notify dedicated teams channel of Success
+      #   uses: dragos-cojocari/ms-teams-notification@v1.0.2
+      #   if: ${{ success() }}
+      #   with:
+      #     github-token: ${{ github.token }} # this will use the runner's token.
+      #     ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
+      #     notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general {{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
+      #     notification-color: 28a745
+      #     timezone: Europe/Paris
+
+      # - name: Notify dedicated teams channel of Success
+      #   uses: dragos-cojocari/ms-teams-notification@v1.0.2
+      #   if: ${{ failure() }}
+      #   with:
+      #     github-token: ${{ github.token }} # this will use the runner's token.
+      #     ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
+      #     notification-summary: "Build and Deploy failure https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
+      #     notification-color: dc143c
+      #     timezone: Europe/Paris
 
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
