@@ -122,7 +122,7 @@ jobs:
         with:
           github-token: ${{ github.token }} # this will use the runner's token.
           ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
-          notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general {{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
+          notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
           notification-color: 28a745
           timezone: Europe/Paris
 
