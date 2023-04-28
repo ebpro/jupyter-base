@@ -16,9 +16,9 @@ dependencies:
 - jupyterlab-link-share
 - jupyterlab-myst
 - jupyterlab-system-monitor
-- jupyterlab-tour
+# - jupyterlab-tour
 - jupytext
-- mamba_gator
+# - mamba_gator
 - nb_conda_kernels
 - nbgitpuller
 - pandas
@@ -27,3 +27,4 @@ dependencies:
 - jupyterlab-spellchecker
 
 - jupyterlab-lsp
+- python-language-server
