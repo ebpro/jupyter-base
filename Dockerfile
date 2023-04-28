@@ -1,5 +1,6 @@
 # THE BASE IMAGE
 ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
+ARG ENV
 
 # GENERAL
 ARG WORK_DIR=$HOME/work

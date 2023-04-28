@@ -1,4 +1,4 @@
-name: Multi Arch QEMU CI
+name: CI
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  docker:
+  build:
     # strategy:
     #   matrix:
     #     ENV: ["", "community", "ultimate"]
@@ -31,15 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Microsoft Teams Notification
-        uses: skitionek/notify-microsoft-teams@master
-        if: always()
-        with:
-          webhook_url: ${{ secrets.MSTEAMS_WEBHOOK }}
-          needs: ${{ toJson(needs) }}
-          job: ${{ toJson(job) }}
-          steps: ${{ toJson(steps) }}
    
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -115,26 +106,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache
           cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache,mode=min,compression=zstd
-
-      - name: Notify dedicated teams channel of Success
-        uses: dragos-cojocari/ms-teams-notification@v1.0.2
-        if: ${{ success() }}
-        with:
-          github-token: ${{ github.token }} # this will use the runner's token.
-          ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
-          notification-summary: "Build and Deploy success https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
-          notification-color: 28a745
-          timezone: Europe/Paris
-
-      - name: Notify dedicated teams channel of Success
-        uses: dragos-cojocari/ms-teams-notification@v1.0.2
-        if: ${{ failure() }}
-        with:
-          github-token: ${{ github.token }} # this will use the runner's token.
-          ms-teams-webhook-uri: ${{ env.MSTEAMS_WEBHOOK }}
-          notification-summary: "Build and Deploy failure https://hub.docker.com/repository/docker/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}/general ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}"
-          notification-color: dc143c
-          timezone: Europe/Paris
 
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
