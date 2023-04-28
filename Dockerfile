@@ -271,6 +271,8 @@ RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.ju
 # Git client default initialisation
 COPY before-notebook/ /usr/local/bin/before-notebook.d/
 
+COPY conda-activate.sh /home/$NB_USER/
+
 # preinstall gitstatusd
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=x86_64; \
