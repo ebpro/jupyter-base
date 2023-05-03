@@ -1,5 +1,6 @@
 # THE BASE IMAGE
 ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
+# minimal or empty 
 ARG ENV
 
 # GENERAL
@@ -141,6 +142,8 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 ########### MAIN IMAGE ###########
 FROM ${LAB_BASE}
 
+ARG ENV
+
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
@@ -179,32 +182,38 @@ RUN mkdir -p ${PIP_CACHE_DIR} && \
     mkdir -p ${CONDA_PKG_DIR}
 
 # Install needed apt packages
-COPY Artefacts/apt_packages /tmp/
+COPY Artefacts/apt_packages* /tmp/
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
  	apt-get update && \
+  pkgfiles=$(if [ "${ENV}" = "minimal" ]; then echo "/tmp/apt_packages_minimal"; else echo "/tmp/apt_packages*"; fi) && \
 	apt-get install -qq --yes --no-install-recommends \
-		$(cat /tmp/apt_packages) && \
+		# $(cat /tmp/apt_packages) && \
+    $(cat  $pkgfiles) && \
 	rm -rf /var/lib/apt/lists/*
 
 # For window manager remote access via VNC
 # Install TurboVNC (https://github.com/TurboVNC/turbovnc)
 ARG TURBOVNC_VERSION=3.0.3
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-		ARCH_LEG=x86_64; \
-		ARCH=amd64; \
-	elif [ "$TARGETPLATFORM" = "linux/arm64/v8" ] || [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-		ARCH_LEG=aarch64; \
-		ARCH=arm64; \
-	else \
-		ARCH_LEG=amd64; \
-		ARCH=amd64; \
-	fi && \
- wget --no-verbose "https://sourceforge.net/projects/turbovnc/files/${TURBOVNC_VERSION}/turbovnc_${TURBOVNC_VERSION}_${ARCH}.deb/download" -O turbovnc.deb \
- && apt-get install -y -q ./turbovnc.deb \
- # remove light-locker to prevent screen lock
- && apt-get remove -y -q light-locker \
- && rm ./turbovnc.deb \
- && ln -s /opt/TurboVNC/bin/* /usr/local/bin/
+RUN if [[ "$ENV" = "" ]] ; then \
+      if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+	  	  ARCH_LEG=x86_64; \
+	  	  ARCH=amd64; \
+	    elif [ "$TARGETPLATFORM" = "linux/arm64/v8" ] || [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+  	  	ARCH_LEG=aarch64; \
+	    	ARCH=arm64; \
+	    else \
+	  	  ARCH_LEG=amd64; \
+	  	  ARCH=amd64; \
+	    fi && \
+      wget --no-verbose \
+        "https://sourceforge.net/projects/turbovnc/files/${TURBOVNC_VERSION}/turbovnc_${TURBOVNC_VERSION}_${ARCH}.deb/download" \
+        -O turbovnc.deb && \
+      apt-get install -y -q ./turbovnc.deb && \
+      # remove light-locker to prevent screen lock
+      apt-get remove -y -q light-locker && \
+      rm ./turbovnc.deb && \
+      ln -s /opt/TurboVNC/bin/* /usr/local/bin/ ; \
+    fi
 
 ## ZSH
 ADD zsh/p10k.zsh $HOME/.p10k.zsh 
@@ -256,6 +265,8 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
             -e '/c.ServerApp.disable_check_xsrf =/ s/= .*/= True/' \
             -e 's/# \(c.ServerApp.disable_check_xsrf\)/\1/' \
             -e '/c.ServerApp.data_dir =/ s/= .*/= "\/home\/jovyan\/jupyter_data"/' \
+            -e '/c.ServerApp.db_file =/ s/= .*/= ":memory:"/' \
+            -e '/c.JupyterApp.log_level =/ s/= .*/= "DEBUG"/' \
             -e "/c.ServerApp.terminado_settings =/ s/= .*/= { 'shell_command': ['\/bin\/zsh'] }/" \
             -e 's/# \(c.ServerApp.terminado_settings\)/\1/' \ 
         $HOME/.jupyter/jupyter_lab_config.py 
@@ -263,8 +274,10 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
 # sets the jupyter proxy for codeserver
 COPY code-server/jupyter_codeserver_config.py /tmp/
 COPY --chown=$NB_USER:$NB_GRP code-server/icons $HOME/.jupyter/icons
-RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
-	cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py 
+RUN if [[ "$ENV" = "" ]] ; then \
+    [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
+	  cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py ; \
+  fi 
 
 # Copy scripts that should be executed before notebook start
 # Files creation/setup in persistant space.

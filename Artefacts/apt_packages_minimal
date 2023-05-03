@@ -1,0 +1,12 @@
+curl
+graphviz 
+grep 
+imagemagick 	
+jq 
+latexmk 
+less 
+make 
+plantuml 
+vim 
+zip
+zsh
