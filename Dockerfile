@@ -72,9 +72,9 @@ RUN --mount=type=cache,target=/home/jovyan/work/var/cache/buildkit/pip/,sharing=
 ###############
 # CODE SERVER #
 ###############
-FROM builder_base as builder_codeserver-minimal
+FROM builder_base AS builder_codeserver_minimal
 
-FROM builder_base as builder_codeserver-
+FROM builder_base AS builder_codeserver_
 ARG CODESERVER_DIR
 ARG CODESERVEREXT_DIR
 ARG CODE_WORKINGDIR
@@ -94,15 +94,15 @@ RUN echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
                 	--extensions-dir $CODESERVEREXT_DIR \
                     $(cat /tmp/codeserver_extensions|sed 's/./--install-extension &/')
 
-FROM builder_codeserver-${ENV} as builder_codeserver
+FROM builder_codeserver_${ENV} AS builder_codeserver
 
 ############
 ## DOCKER ##
 ############
 
-FROM builder_base as builder_Docker-minimal
+FROM builder_base AS builder_Docker_minimal
 
-FROM builder_base as builder_Docker-
+FROM builder_base AS builder_Docker_
 # Installs only the docker client and docker compose
 # easly used by mounting docker socket 
 #    docker run -v /var/run/docker.sock:/var/run/docker.socker
@@ -147,7 +147,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         -O "$DOCKER_CONFIG/docker-buildx" && \ 
       chmod +x "$DOCKER_CONFIG/docker-buildx"
 
-FROM builder_docker-${ENV} as builder_docker
+FROM builder_docker_${ENV} AS builder_docker
 
 ########### MAIN IMAGE ###########
 FROM ${LAB_BASE}
