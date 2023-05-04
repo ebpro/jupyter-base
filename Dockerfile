@@ -28,7 +28,7 @@ ARG CONDA_PKG_DIR=/opt/conda/pkgs/
 #######################
 # BASE BUILDER        #
 #######################
-FROM ubuntu as builder_base
+FROM ubuntu AS builder_base
 RUN  apt-get update \
   && apt-get install -y curl git wget zsh \
   && rm -rf /var/lib/apt/lists/*
@@ -37,7 +37,7 @@ RUN  apt-get update \
 ###############
 # ZSH         #
 ###############
-FROM builder_base as builder_zsh
+FROM builder_base AS builder_zsh
 RUN useradd -ms /bin/bash jovyan
 USER jovyan
 WORKDIR /home/jovyan
@@ -55,7 +55,7 @@ ENV PATH=/opt/bin:$PATH
 #######################
 # PYTHON_DEPENDENCIES #
 #######################
-FROM ${LAB_BASE} as builder_pythondependencies
+FROM ${LAB_BASE} AS builder_pythondependencies
 # PIP and conda packages to install
 COPY Artefacts/environment.yml /tmp
 COPY Artefacts/requirements.txt /tmp
@@ -74,7 +74,7 @@ RUN --mount=type=cache,target=/home/jovyan/work/var/cache/buildkit/pip/,sharing=
 ###############
 FROM builder_base AS builder_codeserver_minimal
 
-FROM builder_base AS builder_codeserver_
+FROM builder_base AS builder_codeserver_default
 ARG CODESERVER_DIR
 ARG CODESERVEREXT_DIR
 ARG CODE_WORKINGDIR
@@ -94,15 +94,15 @@ RUN echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
                 	--extensions-dir $CODESERVEREXT_DIR \
                     $(cat /tmp/codeserver_extensions|sed 's/./--install-extension &/')
 
-FROM builder_codeserver_${ENV} AS builder_codeserver
+FROM builder_codeserver_${ENV:-default} AS builder_codeserver
 
 ############
 ## DOCKER ##
 ############
 
-FROM builder_base AS builder_Docker_minimal
+FROM builder_base AS builder_docker_minimal
 
-FROM builder_base AS builder_Docker_
+FROM builder_base AS builder_docker_default
 # Installs only the docker client and docker compose
 # easly used by mounting docker socket 
 #    docker run -v /var/run/docker.sock:/var/run/docker.socker
@@ -147,7 +147,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         -O "$DOCKER_CONFIG/docker-buildx" && \ 
       chmod +x "$DOCKER_CONFIG/docker-buildx"
 
-FROM builder_docker_${ENV} AS builder_docker
+FROM builder_docker_${ENV:-default} AS builder_docker
 
 ########### MAIN IMAGE ###########
 FROM ${LAB_BASE}
