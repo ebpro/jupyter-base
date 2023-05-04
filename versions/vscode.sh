@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # To generate empty config
-code-server --user-data-dir $CODESERVERDATA_DIR --extensions-dir $CODESERVEREXT_DIR --version
+code-server --user-data-dir $CODESERVERDATA_DIR --extensions-dir $CODESERVEREXT_DIR --version > /dev/null 2>&1
 
 echo "## Visual Studio Code"
 echo

@@ -173,7 +173,7 @@ USER root
 # Set dirs and files that exist in $HOME (not persistent)
 # create and link them in $HOME/work (persistent) after notebook start
 # usefull for config files like .gitconfig, .ssh, ...
-ENV NEEDED_WORK_DIRS .ssh
+ENV NEEDED_WORK_DIRS .ssh .config/code-server
 ENV NEEDED_WORK_FILES .gitconfig
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
