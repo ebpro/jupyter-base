@@ -20,13 +20,11 @@ concurrency:
 
 jobs:
   build:
-    # strategy:
-    #   matrix:
-    #     ENV: ["", "community", "ultimate"]
-    #     version: ["", latest]
-    # env:
-    #   ENV: ${{ matrix.ENV }}
-    #   VERSION: ${{ matrix.VERSION }}
+    strategy:
+       matrix:
+         ENV: ["", "minimal"]
+    env:
+       ENV: ${{ matrix.ENV }}
     runs-on: [self-hosted, qemu]
     steps:
       - name: Checkout

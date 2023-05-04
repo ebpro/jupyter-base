@@ -50,6 +50,7 @@ RUN echo -e "\e[93m**** Configure a nice zsh environment ****\e[38;5;241m" && \
         echo "[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh" >> $HOME/.zshrc && \
         echo "PATH=/opt/bin:$PATH" >> $HOME/.zshrc
 RUN wget -O ~/.zprezto/modules/completion/external/src/_docker https://raw.githubusercontent.com/docker/cli/master/contrib/completion/zsh/_docker
+ENV PATH=/opt/bin:$PATH
 
 #######################
 # PYTHON_DEPENDENCIES #
@@ -71,7 +72,9 @@ RUN --mount=type=cache,target=/home/jovyan/work/var/cache/buildkit/pip/,sharing=
 ###############
 # CODE SERVER #
 ###############
-FROM builder_base as builder_codeserver
+FROM builder_base as builder_codeserver-minimal
+
+FROM builder_base as builder_codeserver-
 ARG CODESERVER_DIR
 ARG CODESERVEREXT_DIR
 ARG CODE_WORKINGDIR
@@ -91,10 +94,15 @@ RUN echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
                 	--extensions-dir $CODESERVEREXT_DIR \
                     $(cat /tmp/codeserver_extensions|sed 's/./--install-extension &/')
 
+FROM builder_codeserver-${ENV} as builder_codeserver
+
 ############
 ## DOCKER ##
 ############
-FROM builder_base as builder_Docker
+
+FROM builder_base as builder_Docker-minimal
+
+FROM builder_base as builder_Docker-
 # Installs only the docker client and docker compose
 # easly used by mounting docker socket 
 #    docker run -v /var/run/docker.sock:/var/run/docker.socker
@@ -139,10 +147,13 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         -O "$DOCKER_CONFIG/docker-buildx" && \ 
       chmod +x "$DOCKER_CONFIG/docker-buildx"
 
+FROM builder_docker-${ENV} as builder_docker
+
 ########### MAIN IMAGE ###########
 FROM ${LAB_BASE}
 
 ARG ENV
+ARG DOCKER_CONFIG
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -228,8 +239,8 @@ ENV DOCKER_BUILDX_VERSION=${DOCKER_BUILDX_VERSION}
 ENV DOCKER_CONFIG=${DOCKER_CONFIG}
 ENV DOCKER_CONFIG=DOCKER_CONFIG
 # Install docker client binaries
-COPY --from=builder_Docker /usr/local/bin/docker /usr/local/bin/docker
-COPY --from=builder_Docker /usr/local/lib/docker /usr/local/lib/docker
+COPY --from=builder_Docker /usr/local/bin/docker* /usr/local/bin/
+COPY --from=builder_Docker /usr/local/lib/docker* /usr/local/lib/
 
 ## CODE SERVER
 ARG CODESERVER_DIR
@@ -300,5 +311,15 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     mkdir -p /home/jovyan/.cache/gitstatus && \ 
     curl -sL "https://github.com/romkatv/gitstatus/releases/download/v1.5.4/gitstatusd-linux-${ARCH_LEG}.tar.gz" | \
       tar --directory="/home/jovyan/.cache/gitstatus" -zx
+
+ARG CACHEBUST=4
+COPY versions/ /versions/
+RUN touch $HOME/versions.md && \
+    echo "# jupyter-base Software détail" && \
+    echo ${CACHEBUST} && \
+    for version in $(ls -d /versions/*) ; do \
+      echo >> $HOME/versions.md ; \
+      $version 2>/dev/null >> $HOME/versions.md ; \
+    done
 
 WORKDIR "${HOME}/work"
