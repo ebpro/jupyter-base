@@ -318,8 +318,8 @@ RUN touch $HOME/versions.md && \
     echo "# jupyter-base Software détail" && \
     echo ${CACHEBUST} && \
     for version in $(ls -d /versions/*) ; do \
-      echo >> $HOME/versions.md ; \
-      $version 2>/dev/null >> $HOME/versions.md ; \
+      echo >> /versions.md ; \
+      $version 2>/dev/null >> /versions.md ; \
     done
 
 WORKDIR "${HOME}/work"
