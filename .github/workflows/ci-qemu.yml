@@ -105,9 +105,17 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache
           cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache,mode=min,compression=zstd
 
+      - name: Archive versions.
+        uses: actions/upload-artifact@v3
+        with:
+            name: Full Readme
+            path: |
+             /home/jovyan/README.md
+            
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}"          
+          short-description: ${{ github.event.repository.description }}

@@ -9,11 +9,11 @@ ARG NOTEBOOKS_DIR=$WORK_DIR/notebooks
 ARG MATERIALS_DIR=$WORK_DIR/materials
 
 # DOCKER
-ARG DOCKER_CLI_VERSION="23.0.1"
-ARG DOCKER_COMPOSE_VERSION="2.17.0"
-ARG DOCKER_BUILDX_VERSION="0.10.4"
-ARG DOCKER_CONFIG="/usr/local/lib/docker/cli-plugins"
-
+#ARG DOCKER_CLI_VERSION="23.0.1"
+#ARG DOCKER_COMPOSE_VERSION="2.17.0"
+#ARG DOCKER_BUILDX_VERSION="0.10.4"
+#ARG DOCKER_CONFIG="/usr/local/lib/docker/cli-plugins"
+ARG DOCKER_CONFIG="/home/jovyan/.docker/cli-plugins"
 # CODE SERVER
 ARG CODESERVER_DIR=/opt/codeserver
 ARG CODESERVEREXT_DIR=${CODESERVER_DIR}/extensions
@@ -32,7 +32,6 @@ FROM ubuntu AS builder_base
 RUN  apt-get update \
   && apt-get install -y curl git wget zsh \
   && rm -rf /var/lib/apt/lists/*
-
 
 ###############
 # ZSH         #
@@ -112,18 +111,39 @@ ARG BUILDPLATFORM
 ENV TARGETPLATFORM=${TARGETPLATFORM}
 ENV BUILDPLATFORM=${BUILDPLATFORM}
 
-ARG DOCKER_CLI_VERSION
-ARG DOCKER_COMPOSE_VERSION
-ARG DOCKER_BUILDX_VERSION
+#ARG DOCKER_CLI_VERSION
+#ARG DOCKER_COMPOSE_VERSION
+#ARG DOCKER_BUILDX_VERSION
 ARG DOCKER_CONFIG
-ARG BIN_DIR
-ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
-ENV DOCKER_COMPOSE_VERSION=${DOCKER_COMPOSE_VERSION}
-ENV DOCKER_BUILDX_VERSION=${DOCKER_BUILDX_VERSION}
 ENV DOCKER_CONFIG=${DOCKER_CONFIG}
+ARG BIN_DIR
 ENV BIN_DIR=/usr/local/bin
 
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+SHELL [ "/bin/bash", "-c" ]
+
+# TOO : Should be replace by generic function 
+RUN DOCKER_CLI_VERSION=$(comm -12  \
+  <(curl -s https://download.docker.com/linux/static/stable/aarch64/ | \
+      sed -n 's/.*docker-\([0-9]*\.[0-9]*\.[0-9]*\).tgz.*/\1/p' | tail -n1) \
+  <(curl -s https://download.docker.com/linux/static/stable/x86_64/ | \
+      sed -n 's/.*docker-\([0-9]*\.[0-9]*\.[0-9]*\).tgz.*/\1/p' | tail -n1)) && \
+# DOCKER_COMPOSE_VERSION=$(comm -12 \
+#   <(curl -s https://api.github.com/repos/docker/compose/releases/latest \
+#     | grep "browser_download_url.*-linux-x86_64\"$"| cut -d : -f 2,3 \
+#     | tr -d '"' | sed "s/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/") \
+#   <(curl -s https://api.github.com/repos/docker/compose/releases/latest \
+#     | grep "browser_download_url.*-linux-aarch64\"$" \
+#     | cut -d : -f 2,3 \
+#     | tr -d '"' \
+#     | sed "s/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/")) && \
+# DOCKER_BUILDX_VERSION=$(comm -12 \
+#   <(curl -s https://api.github.com/repos/docker/buildx/releases/latest \
+#     | grep "browser_download_url.*.linux-amd64\"$" | cut -d : -f 2,3 \
+# | tr -d '"' | sed "s/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/") \
+#   <(curl -s https://api.github.com/repos/docker/buildx/releases/latest \
+#     | grep "browser_download_url.*.linux-arm64\"$" | cut -d : -f 2,3 \
+#     | tr -d '"' | sed "s/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/")) && \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=x86_64; \
 		ARCH=amd64; \
 	elif [ "$TARGETPLATFORM" = "linux/arm64/v8" ] || [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
@@ -133,19 +153,20 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 		ARCH_LEG=amd64; \
 		ARCH=amd64; \
 	fi && \
-   echo -e "\e[93m**** Installs docker client ****\e[38;5;241m"  && \
-   wget --no-verbose -O - "https://download.docker.com/linux/static/stable/${ARCH_LEG}/docker-${DOCKER_CLI_VERSION}.tgz" | \ 
+echo -e "\e[93m**** Installs docker client ****\e[38;5;241m"  && \
+wget --no-verbose -O - "https://download.docker.com/linux/static/stable/${ARCH_LEG}/docker-${DOCKER_CLI_VERSION}.tgz" | \ 
       tar --directory="${BIN_DIR}" --strip-components=1 -zx docker/docker && \
-      chmod +x "${BIN_DIR}/docker" && \
-      mkdir -p "$DOCKER_CONFIG" && \
-   echo -e "\e[93m**** Installs docker compose ****\e[38;5;241m"  && \	  
-   wget --no-verbose "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${ARCH_LEG}" \
-        -O "$DOCKER_CONFIG/docker-compose" && \ 
-      chmod +x "$DOCKER_CONFIG/docker-compose" && \
-   echo -e "\e[93m**** Installs docker buildx ****\e[38;5;241m"  && \
-   wget --no-verbose "https://github.com/docker/buildx/releases/download/v${DOCKER_BUILDX_VERSION}/buildx-v${DOCKER_BUILDX_VERSION}.linux-${ARCH}" \
-        -O "$DOCKER_CONFIG/docker-buildx" && \ 
-      chmod +x "$DOCKER_CONFIG/docker-buildx"
+chmod +x "${BIN_DIR}/docker" && \
+# mkdir -p "$DOCKER_CONFIG" && \
+# echo -e "\e[93m**** Installs docker compose ****\e[38;5;241m"  && \	  
+# wget --no-verbose "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${ARCH_LEG}" \
+#      -O "$DOCKER_CONFIG/docker-compose" && \ 
+# chmod +x "$DOCKER_CONFIG/docker-compose" && \
+# echo -e "\e[93m**** Installs docker buildx ****\e[38;5;241m"  && \
+# wget --no-verbose "https://github.com/docker/buildx/releases/download/v${DOCKER_BUILDX_VERSION}/buildx-v${DOCKER_BUILDX_VERSION}.linux-${ARCH}" \
+#      -O "$DOCKER_CONFIG/docker-buildx" && \ 
+# chmod +x "$DOCKER_CONFIG/docker-buildx"
+echo "done"
 
 FROM builder_docker_${ENV:-default} AS builder_docker
 
@@ -153,7 +174,6 @@ FROM builder_docker_${ENV:-default} AS builder_docker
 FROM ${LAB_BASE}
 
 ARG ENV
-ARG DOCKER_CONFIG
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -173,7 +193,7 @@ USER root
 # Set dirs and files that exist in $HOME (not persistent)
 # create and link them in $HOME/work (persistent) after notebook start
 # usefull for config files like .gitconfig, .ssh, ...
-ENV NEEDED_WORK_DIRS .ssh .config/code-server
+ENV NEEDED_WORK_DIRS .ssh .config/code-server .local/share/jupyter
 ENV NEEDED_WORK_FILES .gitconfig
 
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
@@ -230,17 +250,20 @@ RUN if [[ "$ENV" = "" ]] ; then \
 ADD zsh/p10k.zsh $HOME/.p10k.zsh 
 RUN --mount=type=bind,from=builder_zsh,source=/home/jovyan,target=/user \
     cp -a /user/.z* ${HOME} && \
-    fix-permissions ${HOME}/.z*
+    fix-permissions ${HOME}/.z* ${HOME}/.p10k.zsh
 
 ## DOCKER
+ARG DOCKER_CONFIG
+ENV DOCKER_CONFIG=${DOCKER_CONFIG}
 ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
 ENV DOCKER_COMPOSE_VERSION=${DOCKER_COMPOSE_VERSION}
 ENV DOCKER_BUILDX_VERSION=${DOCKER_BUILDX_VERSION}
-ENV DOCKER_CONFIG=${DOCKER_CONFIG}
-ENV DOCKER_CONFIG=DOCKER_CONFIG
 # Install docker client binaries
 COPY --from=builder_Docker /usr/local/bin/docker* /usr/local/bin/
-COPY --from=builder_Docker /usr/local/lib/docker* /usr/local/lib/
+#COPY --from=builder_Docker --chown=jovyan:users ${DOCKER_CONFIG}/* ${DOCKER_CONFIG}/
+COPY --from=docker/buildx-bin /buildx /usr/libexec/docker/cli-plugins/docker-buildx
+COPY --from=docker/compose-bin /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+
 
 ## CODE SERVER
 ARG CODESERVER_DIR
@@ -258,10 +281,12 @@ COPY --from=builder_codeserver /opt/ /opt/
 COPY --from=builder_pythondependencies "${CONDA_DIR}" "${CONDA_DIR}"
 
 # Enable persistant conda env
-COPY --chown=$NB_USER:$NB_GRP condarc /home/jovyan/.condarc
+COPY --chown=$NB_UID:$NB_GID condarc /home/jovyan/.condarc
 COPY configs/jupyter_condaenv_config.json /tmp
 RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.json ]] && touch /home/jovyan/.jupyter/jupyter_config.json ; \
-	cat /tmp/jupyter_condaenv_config.json >> /home/jovyan/.jupyter/jupyter_config.json
+	cat /tmp/jupyter_condaenv_config.json >> /home/jovyan/.jupyter/jupyter_config.json && \
+  echo "source /opt/conda/bin/activate base" >> ${HOME}/.zshrc && \
+  fix-permissions ${HOME}/.jupyter ${HOME}/.zshrc
 
 # Configure nbgrader
 COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
@@ -314,12 +339,15 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 
 ARG CACHEBUST=4
 COPY versions/ /versions/
-RUN touch $HOME/versions.md && \
+COPY --chown=$NB_UID:$NB_GID README.md ${HOME}/
+RUN touch ${HOME}/README.md && \
     echo "# jupyter-base Software détail" && \
     echo ${CACHEBUST} && \
     for version in $(ls -d /versions/*) ; do \
-      echo >> /versions.md ; \
-      $version 2>/dev/null >> /versions.md ; \
+      echo >> ${HOME}/README.md ; \
+      $version 2>/dev/null >> ${HOME}/README.md ; \
     done
+
+ENV DOCKER_CONFIG=${DOCKER_CONFIG}
 
 WORKDIR "${HOME}/work"
