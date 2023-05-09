@@ -1,67 +1,8 @@
-# Book settings
-# Learn more at https://jupyterbook.org/customize/config.html
+format: jb-book #jb-article
+root: Book
 
-title: My Book
-author: Me
-copyright: "2023" 
-# logo: ""
-exclude_patterns            : [_build, Thumbs.db, .DS_Store, "**.ipynb_checkpoints", ".book/**"]
+options:  # The options key will be applied to all chapters, but not sub-sections
+    numbered: True
 
-sphinx:
-  config:
-    language: en
-    nb_merge_streams: true
-  extra_extensions:
-  - sphinx_inline_tabs
-  - sphinxcontrib.plantuml
-
-execute:
-  execute_notebooks: cache
-
-parse:
-  myst_enable_extensions:  # default extensions to enable in the myst parser. See https://myst-parser.readthedocs.io/en/latest/using/syntax-optional.html
-    - amsmath
-#    - attrs_inline
-    - colon_fence
-    - deflist
-    - dollarmath
-    - fieldlist
-    - html_admonition
-    - html_image
-    - linkify
-    - replacements
-    - smartquotes
-    - strikethrough
-    - substitution
-    - tasklist
-  myst_url_schemes: [mailto, http, https] # URI schemes that will be recognised as external URLs in Markdown links
-  myst_dmath_double_inline: true  # Allow display math ($$) within an inline context
-
-# Define the name of the latex output file for PDF builds
-latex:
-  use_jupyterbook_latex     : true # use sphinx-jupyterbook-latex for pdf builds as default
-  latex_engine: xelatex
-  latex_documents:
-    targetname: Book.tex
-  latex_theme: howto
-
-launch_buttons:
-  notebook_interface: jupyterlab
-  binderhub_url: https://mybinder.org
-  jupyterhub_url: https://jovem.univ-tln.fr
-
-# Add a bibtex file so that we can create citations
-bibtex_bibfiles:
-  - references.bib
-
-# Information about where the book exists on the web
-repository:
-  url: https://github.com/ebpro/notebook-docker  # Online location of your book
-  path_to_book: book  # Optional path to your book, relative to the repository root
-  branch: develop  # Which branch of the repository should be used when creating links (optional)
-
-# Add GitHub buttons to your book
-# See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
-html:
-  use_issues_button: true
-  use_repository_button: true
+chapters: 
+  - glob: "*"

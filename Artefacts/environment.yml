@@ -28,3 +28,4 @@ dependencies:
 
 - jupyterlab-lsp
 - python-language-server
+- seaborn

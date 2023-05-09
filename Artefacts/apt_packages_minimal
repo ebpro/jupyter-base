@@ -1,7 +1,8 @@
 curl
 graphviz 
 grep 
-imagemagick 	
+imagemagick
+inkscape 	
 jq 
 latexmk 
 less 

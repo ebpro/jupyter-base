@@ -210,7 +210,8 @@ ENV CONDA_PKG_DIR=${CONDA_PKG_DIR}
 RUN mkdir -p ${PIP_CACHE_DIR} && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
     #echo "Dir::Cache::pkgcache ${APT_CACHE_DIR};" > /etc/apt/apt.conf.d/00-move-cache && \
-    mkdir -p ${CONDA_PKG_DIR}
+    mkdir -p ${CONDA_PKG_DIR} && \
+    fix-permissions ${PIP_CACHE_DIR} ${CONDA_PKG_DIR}
 
 # Install needed apt packages
 COPY Artefacts/apt_packages* /tmp/
@@ -348,6 +349,11 @@ RUN touch ${HOME}/README.md && \
       $version 2>/dev/null >> ${HOME}/README.md ; \
     done
 
+COPY --chown=$NB_UID:$NB_GID home/ /home/jovyan/
+
 ENV DOCKER_CONFIG=${DOCKER_CONFIG}
 
 WORKDIR "${HOME}/work"
+
+# Configure container startup adding ssh-agent
+CMD ["ssh-agent","start-notebook.sh"]
