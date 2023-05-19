@@ -1,121 +1,20 @@
-name: CI
+name: Multi Arch Docker QEMU CI
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 02 * * *'    
   push:
-    branches:
-      - 'releases/v*'
-      - 'develop'
-    tags:
-      - 'v*.*.*'
-
-env:
-  MSTEAMS_WEBHOOK: ${{ secrets.MSTEAMS_WEBHOOK }}      
-
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
+      
 jobs:
   build:
-    strategy:
-       matrix:
-         ENV: ["", "minimal"]
-    env:
-       ENV: ${{ matrix.ENV }}
-    runs-on: [self-hosted, qemu]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-   
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set GITHUB_ENV values
-        id: step_one
-        run: |
-            echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
-            echo TAG_SUFFIX=${VERSION:+-$VERSION}${ENV:+-$ENV}  >> $GITHUB_ENV
-
-      - name: Sets Docker metadata
-        id: meta
-        uses: docker/metadata-action@v4     
-        with:
-          flavor: |
-            latest=auto
-            suffix=${{ env.TAG_SUFFIX }}
-          images: |
-            "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}"
-          tags: |
-            type=schedule,pattern=nightly
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-          labels: |
-            org.opencontainers.image.description=${{ github.event.repository.description }}            
-
-      - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-#      - name: Login to Private registry
-#        if: github.event_name != 'pull_request'
-#        uses: docker/login-action@v2
-#        with:
-#          registry: ${{ secrets.PRIVATEHUB_HOSTNAME }}
-#          username: ${{ secrets.PRIVATEHUB_USERNAME }}
-#          password: ${{ secrets.PRIVATEHUB_TOKEN }}                
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:       
-          config-inline: |
-            [registry."docker.io"]
-              mirrors = ["${{ secrets.DOCKERHUB_PROXY_HOSTNAME }}"]
-            [registry."${{ secrets.DOCKERHUB_PROXY_HOSTNAME }}"]
-              http = true              
-              insecure = true
-            [registry."${{ secrets.PRIVATEHUB_HOSTNAME }}"]
-              http = true
-              insecure = true
-          driver-opts: |
-            network=host
-          buildkitd-flags: |
-            --debug 
-            --allow-insecure-entitlement network.host
-            --allow-insecure-entitlement security.insecure  
-            
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          build-args: | 
-            ENV=${{ matrix.ENV }}
-          platforms: linux/amd64,linux/arm64/v8
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          #cache-from: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache
-          #cache-to: type=registry,ref=${{ secrets.PRIVATEHUB_HOSTNAME }}/${{ env.REPOSITORY_NAME }}:buildcache,mode=min,compression=zstd
-
-      - name: Archive versions.
-        uses: actions/upload-artifact@v3
-        with:
-            name: Full Readme
-            path: |
-             /home/jovyan/README.md
-            
-      - name: Update repo description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}"          
-          short-description: ${{ github.event.repository.description }}
+    name: build-push-updaterepo
+    uses: ebpro/gh-actions-shared-docker/.github/workflows/ci-shareable-docker-qemu.yml@develop
+    with:
+        env-list: >
+          [ 
+            "minimal",
+            ""
+          ]
+    secrets: inherit
+      
