@@ -1,7 +1,9 @@
 dbus-x11
 libgl1-mesa-glx
 terminator 
-texlive-full
+texlive-latex-extra
+texlive-fonts-extra
+texlive-xetex latexmk
 xfce4
 xfce4-panel
 xfce4-session
