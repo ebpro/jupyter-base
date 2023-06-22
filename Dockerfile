@@ -1,12 +1,16 @@
 # THE BASE IMAGE
-ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
-# minimal or empty 
-ARG ENV
+ARG LAB_BASE=jupyter/minimal-notebook:lab-4.0.2
+# ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
 
-# GENERAL
+# minimal, default, full 
+ARG ENV=default
+
+## GENERAL
+# Persistent data directory (user working directory)
 ARG WORK_DIR=$HOME/work
-ARG NOTEBOOKS_DIR=$WORK_DIR/notebooks
+# directory for given materials (git_provider/account/repo/...).
 ARG MATERIALS_DIR=$WORK_DIR/materials
+ARG NOTEBOOKS_DIR=$MATERIALS_DIR
 
 # DOCKER
 #ARG DOCKER_CLI_VERSION="23.0.1"
@@ -17,7 +21,7 @@ ARG DOCKER_CONFIG="/home/jovyan/.docker/cli-plugins"
 # CODE SERVER
 ARG CODESERVER_DIR=/opt/codeserver
 ARG CODESERVEREXT_DIR=${CODESERVER_DIR}/extensions
-ARG CODE_WORKINGDIR=/home/jovyan/work
+ARG CODE_WORKINGDIR=${WORK_DIR}
 ARG CODESERVERDATA_DIR=${CODE_WORKINGDIR}/.config/codeserver/data
 ARG CODE_SERVER_CONFIG=${CODE_WORKINGDIR}/.config/code-server/config.yaml
 
@@ -66,7 +70,7 @@ RUN --mount=type=cache,target=/home/jovyan/work/var/cache/buildkit/pip/,sharing=
         pip install -r /tmp/requirements.txt && \
         mamba env update -p ${CONDA_DIR} -f /tmp/environment.yml && \
         echo -e "\e[93m**** Install ZSH Kernel for Jupyter ****\e[38;5;241m" && \
-            python3 -m zsh_jupyter_kernel.install --sys-prefix 
+            python3 -m zsh_jupyter_kernel.install --sys-prefix
 
 ###############
 # CODE SERVER #
@@ -105,7 +109,7 @@ FROM builder_base AS builder_docker_default
 # Installs only the docker client and docker compose
 # easly used by mounting docker socket 
 #    docker run -v /var/run/docker.sock:/var/run/docker.socker
-# container must be start as root to change socket owner ship before privilege drop
+# container must be started as root to change socket ownership before privilege drop
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ENV TARGETPLATFORM=${TARGETPLATFORM}
@@ -121,7 +125,8 @@ ENV BIN_DIR=/usr/local/bin
 
 SHELL [ "/bin/bash", "-c" ]
 
-# TOO : Should be replace by generic function 
+# TO DO : Should be replaced by generic functions
+# Choose the latest docker version available for x86_64 and aarch64 
 RUN DOCKER_CLI_VERSION=$(comm -12  \
   <(curl -s https://download.docker.com/linux/static/stable/aarch64/ | \
       sed -n 's/.*docker-\([0-9]*\.[0-9]*\.[0-9]*\).tgz.*/\1/p' | tail -n1) \
@@ -173,7 +178,7 @@ FROM builder_docker_${ENV:-default} AS builder_docker
 ########### MAIN IMAGE ###########
 FROM ${LAB_BASE}
 
-ARG ENV
+ARG ENV=default
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -181,17 +186,17 @@ RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Set defaults directories
 ARG WORK_DIR
-ARG NOTEBOOKS_DIR
 ARG MATERIALS_DIR
+ARG NOTEBOOKS_DIR
 ENV WORK_DIR=${WORK_DIR}
-ENV NOTEBOOKS_DIR=${NOTEBOOKS_DIR} 
 ENV MATERIALS_DIR=${MATERIALS_DIR}
+ENV NOTEBOOKS_DIR=${NOTEBOOKS_DIR} 
 ENV PATH=/opt/bin:$PATH
 
 USER root
 
-# Set dirs and files that exist in $HOME (not persistent)
-# create and link them in $HOME/work (persistent) after notebook start
+# Set dirs and files that have to exist in $HOME (not persistent)
+# create and link them in $HOME/work (to become persistent) after notebook start
 # usefull for config files like .gitconfig, .ssh, ...
 ENV NEEDED_WORK_DIRS .ssh .config/code-server .local/share/jupyter
 ENV NEEDED_WORK_FILES .gitconfig
@@ -211,22 +216,22 @@ RUN mkdir -p ${PIP_CACHE_DIR} && \
  	rm -f /etc/apt/apt.conf.d/docker-clean && \ 
     #echo "Dir::Cache::pkgcache ${APT_CACHE_DIR};" > /etc/apt/apt.conf.d/00-move-cache && \
     mkdir -p ${CONDA_PKG_DIR} && \
-    fix-permissions ${PIP_CACHE_DIR} ${CONDA_PKG_DIR}
+    fix-permissions ${PIP_CACHE_DIR} ${CONDA_PKG_DIR} && \
+    mkdir -p /versions
 
 # Install needed apt packages
 COPY Artefacts/apt_packages* /tmp/
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
  	apt-get update && \
-  pkgfiles=$(if [ "${ENV}" = "minimal" ]; then echo "/tmp/apt_packages_minimal"; else echo "/tmp/apt_packages*"; fi) && \
 	apt-get install -qq --yes --no-install-recommends \
-		# $(cat /tmp/apt_packages) && \
-    $(cat  $pkgfiles) && \
-	rm -rf /var/lib/apt/lists/*
+		$(cat /tmp/apt_packages_minimal) $(if [ "${ENV}" != "minimal" ]; then cat /tmp/apt_*; fi) && \
+	rm -rf /var/lib/apt/lists/* && \
+  echo "## Apt packages" > /versions/apt.md 
 
 # For window manager remote access via VNC
 # Install TurboVNC (https://github.com/TurboVNC/turbovnc)
 ARG TURBOVNC_VERSION=3.0.3
-RUN if [[ "$ENV" = "" ]] ; then \
+RUN if [[ "${ENV}" != "minimal" ]] ; then \
       if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 	  	  ARCH_LEG=x86_64; \
 	  	  ARCH=amd64; \
@@ -248,7 +253,7 @@ RUN if [[ "$ENV" = "" ]] ; then \
     fi
 
 ## ZSH
-ADD zsh/p10k.zsh $HOME/.p10k.zsh 
+COPY --chown=$NB_UID:$NB_GID zsh/p10k.zsh $HOME/.p10k.zsh 
 RUN --mount=type=bind,from=builder_zsh,source=/home/jovyan,target=/user \
     cp -a /user/.z* ${HOME} && \
     fix-permissions ${HOME}/.z* ${HOME}/.p10k.zsh
@@ -256,9 +261,9 @@ RUN --mount=type=bind,from=builder_zsh,source=/home/jovyan,target=/user \
 ## DOCKER
 ARG DOCKER_CONFIG
 ENV DOCKER_CONFIG=${DOCKER_CONFIG}
-ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
-ENV DOCKER_COMPOSE_VERSION=${DOCKER_COMPOSE_VERSION}
-ENV DOCKER_BUILDX_VERSION=${DOCKER_BUILDX_VERSION}
+#ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
+#ENV DOCKER_COMPOSE_VERSION=${DOCKER_COMPOSE_VERSION}
+#ENV DOCKER_BUILDX_VERSION=${DOCKER_BUILDX_VERSION}
 # Install docker client binaries
 COPY --from=builder_Docker /usr/local/bin/docker* /usr/local/bin/
 #COPY --from=builder_Docker --chown=jovyan:users ${DOCKER_CONFIG}/* ${DOCKER_CONFIG}/
@@ -292,6 +297,10 @@ RUN [[ ! -f /home/jovyan/.jupyter/jupyter_config.json ]] && touch /home/jovyan/.
 # Configure nbgrader
 COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
 
+RUN wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.361/quarto-1.3.361-linux-$(echo $TARGETPLATFORM|cut -d '/' -f 2).deb -O /tmp/quarto.deb && \
+  dpkg -i /tmp/quarto.deb && \
+  rm /tmp/quarto.deb
+
 USER $NB_USER
 
 RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
@@ -314,14 +323,15 @@ COPY --chown=$NB_USER:$NB_GRP code-server/icons $HOME/.jupyter/icons
 RUN if [[ "$ENV" = "" ]] ; then \
     [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py ; \
 	  cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py ; \
-  fi 
+  fi && \
+  fix-permissions ${HOME}/.jupyter
 
 # Copy scripts that should be executed before notebook start
 # Files creation/setup in persistant space.
 # Git client default initialisation
 COPY before-notebook/ /usr/local/bin/before-notebook.d/
 
-COPY conda-activate.sh /home/$NB_USER/
+COPY --chown=$NB_USER:$NB_GRP conda-activate.sh /home/$NB_USER/
 
 # preinstall gitstatusd
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
@@ -342,18 +352,15 @@ ARG CACHEBUST=4
 COPY versions/ /versions/
 COPY --chown=$NB_UID:$NB_GID README.md ${HOME}/
 RUN touch ${HOME}/README.md && \
-    echo "# jupyter-base Software détail" && \
+    echo "# jupyter-base softwares" > ${HOME}/README.md && \
     echo ${CACHEBUST} && \
-    for version in $(ls -d /versions/*) ; do \
-      echo >> ${HOME}/README.md ; \
-      $version 2>/dev/null >> ${HOME}/README.md ; \
+    for versionscript in $(ls -d /versions/*) ; do \
+      eval "$versionscript" 2>/dev/null >> ${HOME}/README.md ; \
     done
 
 COPY --chown=$NB_UID:$NB_GID home/ /home/jovyan/
 
-ENV DOCKER_CONFIG=${DOCKER_CONFIG}
-
-WORKDIR "${HOME}/work"
+WORKDIR "${WORK_DIR}"
 
 # Configure container startup adding ssh-agent
 CMD ["ssh-agent","start-notebook.sh"]

@@ -2,9 +2,10 @@
 
 WORKDIR=$HOME/JUPYTER_WORK
 IMAGE_REPO=brunoe
-TAG=${IMAGE_REPO}/${PWD##*/}:$(git rev-parse --abbrev-ref HEAD|tr '/' '-') 
+TAG=docker.io/${IMAGE_REPO}/${PWD##*/}:$(git rev-parse --abbrev-ref HEAD|tr '/' '-') 
 
 docker run --rm -it \
+    --user root \
     --name ${PWD##*/} \
     --volume JUPYTER_WORKDIR:/home/jovyan/work \
     --publish 8888:8888 \

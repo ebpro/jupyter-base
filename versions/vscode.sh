@@ -5,9 +5,10 @@ code-server --user-data-dir $CODESERVERDATA_DIR --extensions-dir $CODESERVEREXT_
 
 echo "## Visual Studio Code"
 echo
-echo "  * $(code-server --user-data-dir $CODESERVERDATA_DIR --extensions-dir $CODESERVEREXT_DIR --version)"
-echo "  * Extensions :"
-echo "$(code-server --extensions-dir $CODESERVEREXT_DIR --list-extensions --show-versions|sed s/'\([^@]*\)@\([^@]*\)/    * \1 (\2)/')"
+echo "$(code-server --user-data-dir $CODESERVERDATA_DIR --extensions-dir $CODESERVEREXT_DIR --version)"
+echo "| Extension | Version |"
+echo "|-----------|--------:|"
+echo "$(code-server --extensions-dir $CODESERVEREXT_DIR --list-extensions --show-versions|sed -n s/'\([^@]*\)@\([^@]*\)/|\1|\2|/p')"
 
 # to remove the empty config
 rm -rf ~/.config/code-server

@@ -1,5 +1,7 @@
 #!/bin/bash
 
-echo "## Apt"
+echo "## Apt packages"
 echo
-echo "$(apt list --installed 2>/dev/null |tr '/' ' '|cut -d ' ' -f 1,3|sed 's/\([^ ]*\) \([^ ]*\)/    * \1 (\2)/')"
+echo "| Package | Version |"
+echo "|---------|--------:|"
+apt list|cut -d ' ' -f 1,2|sed -n 's/\([^ ]*\) \([^ ]*\)/|\1|\2|/p'
