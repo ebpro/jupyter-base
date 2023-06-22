@@ -2,8 +2,8 @@
 ARG LAB_BASE=jupyter/minimal-notebook:lab-4.0.2
 # ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
 
-# minimal, default, full 
-ARG ENV=default
+# minimal, default (empty), full 
+ARG ENV
 
 ## GENERAL
 # Persistent data directory (user working directory)
