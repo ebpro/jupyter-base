@@ -48,7 +48,7 @@ jobs:
 #          registry: ${{ secrets.PRIVATEHUB_HOSTNAME }}
 #          username: ${{ secrets.PRIVATEHUB_USERNAME }}
 #          password: ${{ secrets.PRIVATEHUB_TOKEN }}          
-      - uses: webfactory/ssh-agent@v0.7.0
+      - uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Set up Docker Buildx
