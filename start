@@ -1,6 +1,7 @@
 #!/bin/bash
 
 for script in $(ls -d /usr/local/bin/before-notebook.d/*); do 
+    echo "running $script before start (binder ?)"
     bash $script
 done
 

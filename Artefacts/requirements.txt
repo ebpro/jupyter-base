@@ -2,11 +2,11 @@ iplantuml
 jinja-yaml-magic
 jupyter-remote-desktop-proxy
 jupyter-tree-download
-jupyterlab-code-formatter
+# jupyterlab-code-formatter # To conda
 sphinxcontrib-plantuml
 sphinxcontrib-svg2pdfconverter
 zsh_jupyter_kernel
-ngshare_exchange
-jupyterlab-quarto
+# ngshare_exchange
+jupyterlab-quarto # bug with jupyterlab 4.0
 
- jupyterlab >=4.0.0
+jupyterlab >=4.0.0

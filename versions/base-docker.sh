@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "## Docker Client"
+echo "### Docker Client"
 echo
 echo "$(docker --version)"
 echo "| Plugin  | Version |"

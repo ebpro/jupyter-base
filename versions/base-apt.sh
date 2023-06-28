@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "## Apt packages"
+echo "### Apt packages"
 echo
 echo "| Package | Version |"
 echo "|---------|--------:|"

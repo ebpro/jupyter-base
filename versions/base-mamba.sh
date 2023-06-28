@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "## Mamba"
+echo "### Mamba"
 echo ""
 echo "$(mamba --version|sed s'/\(.*\)/  * \1/')"
 echo "  * $(python --version)"

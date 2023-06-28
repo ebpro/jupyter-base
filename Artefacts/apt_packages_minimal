@@ -1,14 +1,22 @@
+# latexmk 
 curl
+git
 graphviz 
 grep 
 imagemagick
-inkscape 	
+inkscape
 jq 
-latexmk 
 less 
 make 
+nano
+openssh-client
 plantuml 
+librsvg2-bin
 tree
+tzdata
+unzip
+vim
 vim 
+xclip
 zip
 zsh
