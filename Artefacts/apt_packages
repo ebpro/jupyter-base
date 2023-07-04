@@ -1,13 +1,6 @@
 dbus-x11
 libgl1-mesa-glx
 terminator 
-#texlive
-#texlive-pictures
-#texlive-latex-extra
-#texlive-fonts-extra
-#texlive-xetex 
-#lmodern
-#REPLACED BY TEXMINI FROM QUARTO
 xfce4
 xfce4-panel
 xfce4-session

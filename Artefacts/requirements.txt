@@ -3,7 +3,7 @@ jinja-yaml-magic
 jupyter-remote-desktop-proxy
 jupyter-tree-download
 # jupyterlab-code-formatter # To conda
-sphinxcontrib-plantuml
+# sphinxcontrib-plantuml # To conda
 sphinxcontrib-svg2pdfconverter
 zsh_jupyter_kernel
 # ngshare_exchange

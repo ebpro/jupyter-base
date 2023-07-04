@@ -2,6 +2,6 @@
 
 echo "### Jupyterlab"
 echo
-echo '```console'
-jupyter labextension list
+echo '```'
+echo "$(jupyter labextension list 2>&1)"
 echo '```'

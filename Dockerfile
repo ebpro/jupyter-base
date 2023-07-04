@@ -126,16 +126,20 @@ ENV PLANTUML=/usr/share/plantuml/plantuml.jar
 RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 
 # Install needed apt packages
-COPY Artefacts/apt_packages* Artefacts/TeXLive /tmp/
+COPY Artefacts/apt_packages* /tmp/
 RUN apt-get update && \
 	  apt-get install -qq --yes --no-install-recommends \
 		  $(cat /tmp/apt_packages_minimal|grep --invert-match "^#") $(if [ "${ENV}" != "minimal" ]; then cat /tmp/apt_*|grep --invert-match "^#"; fi) && \
       rm -rf /var/lib/apt/lists/*
-# Install quarto and LaTeX
+
+# Install quarto
 RUN wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.361/quarto-1.3.361-linux-$(echo $TARGETPLATFORM|cut -d '/' -f 2).deb && \
   dpkg -i /tmp/quarto.deb && \
   rm /tmp/quarto.deb
+
 # Tiny TeX installation
+COPY Artefacts/TeXLive /tmp/
+ENV TINYTEX_DIR=$HOME/.TinyTeX
 RUN  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
   PATH=$HOME/bin:$PATH tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#") && \
   chown -R ${NB_UID}:${NB_GID} ${HOME}/.TinyTeX ${HOME}/bin
@@ -273,12 +277,12 @@ ARG CACHEBUST=4
 COPY versions/ /versions/
 COPY --chown=$NB_UID:$NB_GID README.md ${HOME}/
 RUN echo "## Software details" >> ${HOME}/README.md && \
+    echo "" >> ${HOME}/README.md ; \
     echo ${CACHEBUST} && \
     for versionscript in $(ls -d /versions/*) ; do \
       echo "Executing ($versionscript)"; \
-      echo ""; \
-      eval "$versionscript" 2>/dev/null >> ${HOME}/README.md ; \      
-      #eval "$versionscript"; \
+      echo "" >> ${HOME}/README.md ; \
+      eval "$versionscript" >> ${HOME}/README.md ; \
     done
 
 COPY --chown=$NB_UID:$NB_GID home/ /home/jovyan/

@@ -2,7 +2,7 @@
 
 WORKDIR=$HOME/JUPYTER_WORK
 IMAGE_REPO=brunoe
-TAG=docker.io/${IMAGE_REPO}/${PWD##*/}:$(git rev-parse --abbrev-ref HEAD|tr '/' '-') 
+TAG=docker.io/${IMAGE_REPO}/${PWD##*/}:${ENV:+$ENV-}$(git rev-parse --abbrev-ref HEAD|tr '/' '-') 
 
 docker run --rm -it \
     --name ${PWD##*/} \
