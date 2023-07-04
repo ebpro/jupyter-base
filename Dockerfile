@@ -220,7 +220,7 @@ COPY --chown=$NB_USER:$NB_GID conda-activate.sh /home/$NB_USER/
 # Configure nbgrader
 COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
 
-RUN mkdir -p $HOME/.TinyTeX &&\
+RUN mkdir -p $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX &&\
   chown -R jovyan:users $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX
 
 USER $NB_USER
