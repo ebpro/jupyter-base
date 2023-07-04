@@ -130,15 +130,15 @@ COPY Artefacts/apt_packages* Artefacts/TeXLive /tmp/
 RUN apt-get update && \
 	  apt-get install -qq --yes --no-install-recommends \
 		  $(cat /tmp/apt_packages_minimal|grep --invert-match "^#") $(if [ "${ENV}" != "minimal" ]; then cat /tmp/apt_*|grep --invert-match "^#"; fi) && \
-  # Install quarto and LaTeX
-  wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.361/quarto-1.3.361-linux-$(echo $TARGETPLATFORM|cut -d '/' -f 2).deb && \
+      rm -rf /var/lib/apt/lists/*
+# Install quarto and LaTeX
+RUN wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.361/quarto-1.3.361-linux-$(echo $TARGETPLATFORM|cut -d '/' -f 2).deb && \
   dpkg -i /tmp/quarto.deb && \
-  rm /tmp/quarto.deb && \
-  # Tiny TeX installation
-  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
+  rm /tmp/quarto.deb
+# Tiny TeX installation
+RUN  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
   PATH=$HOME/bin:$PATH tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#") && \
-  chown -R ${NB_UID}:${NB_GID} ${HOME}/.TinyTeX ${HOME}/bin && \
-	rm -rf /var/lib/apt/lists/*
+  chown -R ${NB_UID}:${NB_GID} ${HOME}/.TinyTeX ${HOME}/bin
 
 # For window manager remote access via VNC
 # Install TurboVNC (https://github.com/TurboVNC/turbovnc)
