@@ -140,7 +140,8 @@ RUN wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quart
 # Tiny TeX installation
 COPY Artefacts/TeXLive /tmp/
 ENV TINYTEX_DIR=$HOME/.TinyTeX
-RUN  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
+RUN  mkdir -p ${TINYTEX_DIR} && \
+  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
   PATH=$HOME/bin:$PATH tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#") && \
   chown -R ${NB_UID}:${NB_GID} ${HOME}/.TinyTeX ${HOME}/bin
 
