@@ -25,8 +25,35 @@ ARG CODE_SERVER_CONFIG=${CODE_WORKINGDIR}/.config/code-server/config.yaml
 #######################
 FROM ubuntu AS builder_base
 RUN apt-get update \
-  && apt-get install -y curl git wget zsh \
+  && apt-get install -y curl git wget zsh fontconfig \
   && rm -rf /var/lib/apt/lists/*
+
+######################
+# TinyTeX            #
+######################
+FROM builder_base AS builder_tinytex
+RUN useradd -ms /bin/bash jovyan
+USER jovyan
+WORKDIR /home/jovyan
+COPY Artefacts/TeXLive /tmp/
+RUN TEXDIR="${HOME}/.TinyTeX" && \
+    TINYTEX_INSTALLER="installer-unix" && \
+    BINDIR="${HOME}/bin" && \
+    mkdir -p "${BINDIR}" && \ 
+    TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/daily/$TINYTEX_INSTALLER" && \
+    cd /tmp && \
+    wget --no-verbose --retry-connrefused -O ${TINYTEX_INSTALLER}.tar.gz ${TINYTEX_URL}.tar.gz && \
+    tar zxf ${TINYTEX_INSTALLER}.tar.gz && \
+    ./install.sh && \
+    mkdir -p "${TEXDIR}" && \
+    mv texlive/* "${TEXDIR}" && \
+    rm -r texlive "${TINYTEX_INSTALLER}.tar.gz" install.sh
+
+RUN TEXDIR="${HOME}/.TinyTeX" && \ 
+    cd ${TEXDIR}/bin/*/ && \
+    ./tlmgr postaction install script xetex  # GH issue #313 && \
+    ./tlmgr option repository ctan && \
+    ./tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#")
 
 ###############
 # ZSH         #
@@ -137,13 +164,7 @@ RUN wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quart
   dpkg -i /tmp/quarto.deb && \
   rm /tmp/quarto.deb
 
-# Tiny TeX installation
-COPY Artefacts/TeXLive /tmp/
-ENV TINYTEX_DIR=$HOME/.TinyTeX
-RUN  mkdir -p ${TINYTEX_DIR} && \
-  wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
-  cd ${HOME} && TMPDIR=/tmp PATH=$HOME/bin:$PATH tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#") && \
-  chown -R ${NB_UID}:${NB_GID} ${HOME}/.TinyTeX ${HOME}/bin
+
 
 # For window manager remote access via VNC
 # Install TurboVNC (https://github.com/TurboVNC/turbovnc)
@@ -225,8 +246,8 @@ COPY --chown=$NB_USER:$NB_GID conda-activate.sh /home/$NB_USER/
 # Configure nbgrader
 COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
 
-RUN mkdir -p $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX &&\
-  chown -R jovyan:users $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX
+RUN mkdir -p $HOME/.config $HOME/bin $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX &&\
+    chown -R  ${NB_UID}:${NB_GID} $HOME/bin $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX
 
 USER $NB_USER
 
@@ -273,6 +294,12 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     curl -sL "https://github.com/romkatv/gitstatus/releases/download/v1.5.4/gitstatusd-linux-${ARCH_LEG}.tar.gz" | \
       tar --directory="/home/jovyan/.cache/gitstatus" -zx
 
+# Tiny TeX installation
+COPY --chown=$NB_UID:$NB_GID --from=builder_tinytex /home/jovyan/.TinyTeX /home/jovyan/.TinyTeX
+RUN ${HOME}/.TinyTeX/bin/*/tlmgr path add
+
+COPY --chown=$NB_UID:$NB_GID home/ /home/jovyan/
+
 # Generate 
 ARG CACHEBUST=4
 COPY versions/ /versions/
@@ -283,10 +310,8 @@ RUN echo "## Software details" >> ${HOME}/README.md && \
     for versionscript in $(ls -d /versions/*) ; do \
       echo "Executing ($versionscript)"; \
       echo "" >> ${HOME}/README.md ; \
-      eval "$versionscript" >> ${HOME}/README.md ; \
+      eval "$versionscript" 2>/dev/null >> ${HOME}/README.md ; \
     done
-
-COPY --chown=$NB_UID:$NB_GID home/ /home/jovyan/
 
 WORKDIR "${WORK_DIR}"
 
