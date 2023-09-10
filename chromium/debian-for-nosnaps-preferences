@@ -1,0 +1,7 @@
+Package: *
+Pin: origin "deb.debian.org"
+Pin-Priority: -10
+
+Package:  libwebpmux3 chromium chromium-common chromium-l10n chromium-sandbox libflac12  libjpeg62-turbo libopenh264-7 libsnappy1v5 libwebp7 libwebpdemux2 libwebpmux4
+Pin: origin "deb.debian.org"
+Pin-Priority: 999

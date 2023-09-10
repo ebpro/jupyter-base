@@ -1,4 +1,4 @@
-# latexmk 
+build-essential
 curl
 git
 graphviz 
@@ -15,7 +15,6 @@ librsvg2-bin
 tree
 tzdata
 unzip
-vim
 vim 
 xclip
 zip

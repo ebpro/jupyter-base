@@ -1,5 +1,5 @@
 # THE BASE IMAGE
-ARG LAB_BASE=jupyter/base-notebook:lab-4.0.2
+ARG LAB_BASE=jupyter/base-notebook:lab-4.0.5
 # ARG LAB_BASE=jupyter/minimal-notebook:lab-4.0.2
 # ARG LAB_BASE=jupyter/minimal-notebook:lab-3.6.3
 
@@ -53,6 +53,7 @@ RUN TEXDIR="${HOME}/.TinyTeX" && \
     cd ${TEXDIR}/bin/*/ && \
     ./tlmgr postaction install script xetex  # GH issue #313 && \
     ./tlmgr option repository ctan && \
+    ./tlmgr paper a4 && \
     ./tlmgr install $(cat /tmp/TeXLive|grep --invert-match "^#")
 
 ###############
@@ -156,15 +157,13 @@ RUN ln -s /usr/share/plantuml/plantuml.jar /usr/local/bin/
 COPY Artefacts/apt_packages* /tmp/
 RUN apt-get update && \
 	  apt-get install -qq --yes --no-install-recommends \
-		  $(cat /tmp/apt_packages_minimal|grep --invert-match "^#") $(if [ "${ENV}" != "minimal" ]; then cat /tmp/apt_*|grep --invert-match "^#"; fi) && \
-      rm -rf /var/lib/apt/lists/*
+		  $(cat /tmp/apt_packages_minimal|grep --invert-match "^#") $(if [ "${ENV}" != "minimal" ]; then cat /tmp/apt_*|grep --invert-match "^#"; fi) && \ 
+    rm -rf /var/lib/apt/lists/*
 
 # Install quarto
 RUN wget --no-verbose --output-document=/tmp/quarto.deb https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.361/quarto-1.3.361-linux-$(echo $TARGETPLATFORM|cut -d '/' -f 2).deb && \
   dpkg -i /tmp/quarto.deb && \
   rm /tmp/quarto.deb
-
-
 
 # For window manager remote access via VNC
 # Install TurboVNC (https://github.com/TurboVNC/turbovnc)
@@ -182,11 +181,9 @@ RUN if [[ "${ENV}" != "minimal" ]] ; then \
 	    fi && \
       wget --no-verbose --output-document=turbovnc.deb \
         "https://sourceforge.net/projects/turbovnc/files/${TURBOVNC_VERSION}/turbovnc_${TURBOVNC_VERSION}_${ARCH}.deb/download" && \
-      apt-get install -y -q ./turbovnc.deb && \
+      apt-get install -y -q ./turbovnc.deb && ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && rm ./turbovnc.deb && \
       # remove light-locker to prevent screen lock
-      apt-get remove -y -q light-locker && \
-      rm ./turbovnc.deb && \
-      ln -s /opt/TurboVNC/bin/* /usr/local/bin/ ; \
+      apt-get remove -y -q light-locker ; \
     fi
 
 ## ZSH
@@ -248,6 +245,17 @@ COPY nbgrader_config.py /etc/jupyter/nbgrader_config.py
 
 RUN mkdir -p $HOME/.config $HOME/bin $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX &&\
     chown -R  ${NB_UID}:${NB_GID} $HOME/bin $HOME/.config $HOME/.local $HOME/.cache $HOME/.ipython $HOME/.TinyTeX
+
+# Install Chromium from debian
+RUN apt-get update && \
+  apt-get install -qq --yes --no-install-recommends gnupg debian-archive-keyring && \
+  apt-key add /usr/share/keyrings/debian-archive-keyring.gpg && \
+  rm -rf /var/lib/apt/lists/*
+COPY chromium/debian-for-nosnaps.list /etc/apt/sources.list.d/debian-for-nosnaps.list
+COPY chromium/debian-for-nosnaps-preferences /etc/apt/preferences.d/debian-for-nosnaps
+RUN apt-get update && \
+  apt-get install --yes --no-install-recommends chromium chromium-sandbox  && \
+  rm -rf /var/lib/apt/lists/*
 
 USER $NB_USER
 

@@ -4,21 +4,21 @@ channels:
 - terradue
 
 dependencies:
-- black
-- isort
-- jupyter-book
+# - black
+# - isort
+# - jupyter-book
 - jupyter-server-proxy
 - jupyterhub
 - jupyterlab >=4.0.0
 # - jupyterlab_rise  # jlab < 4.0
-- jupyterlab_widgets
+# - jupyterlab_widgets
 # - jupyterlab-drawio  # jlab < 4.0
 - jupyterlab-git
 # - jupyterlab-link-share # jlab < 4.0
 # - jupyterlab-myst  # jlab < 4.0
 # - jupyterlab-system-monitor # jlab < 4.0
 # - jupyterlab-tour
-- jupytext
+# - jupytext
 # - mamba_gator
 - nb_conda_kernels
 - nbgitpuller
@@ -26,7 +26,6 @@ dependencies:
 - websockify
 
 ##- sphinx-inline-tabs
-
 
 # - jupyterlab>=3.0.0,<4.0.0a0 # for lsp # jlab < 4.0
 #- jupyterlab-lsp # jlab < 4.0
@@ -36,4 +35,4 @@ dependencies:
 - seaborn
 
 - jupyterlab_code_formatter
-- sphinxcontrib-plantuml
+# - sphinxcontrib-plantuml
