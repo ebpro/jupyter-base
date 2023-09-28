@@ -10,3 +10,4 @@ zsh_jupyter_kernel
 jupyterlab-quarto
 
 jupyterlab >=4.0.0
+jupyter-cache

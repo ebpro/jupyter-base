@@ -2,11 +2,14 @@ beamer
 bookmark
 caption
 environ
+fontawesome5
 koma-script
 pdfcol
 pgf
 scrreport
+scrreprt
 svg
 tcolorbox
 tikzfill
 transparent
+xpatch

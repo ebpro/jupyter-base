@@ -51,6 +51,9 @@ RUN TEXDIR="${HOME}/.TinyTeX" && \
 
 RUN TEXDIR="${HOME}/.TinyTeX" && \ 
     cd ${TEXDIR}/bin/*/ && \
+    ./tlmgr update --self --all && \
+    ./tlmgr path add && \
+    ./fmtutil-sys --all && \
     ./tlmgr postaction install script xetex  # GH issue #313 && \
     ./tlmgr option repository ctan && \
     ./tlmgr paper a4 && \
@@ -221,7 +224,7 @@ RUN echo -e "\e[93m***** Install Python packages ****\e[38;5;241m" && \
             python3 -m zsh_jupyter_kernel.install --sys-prefix
 RUN if [[ "${ENV}" != "minimal" ]] ; then \
         echo -e "\e[93m**** Installs Code Server Web ****\e[38;5;241m" && \
-                curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone && \
+                curl -fsSL https://code-server.dev/install.sh | sh -s -- --prefix=/opt --method=standalone --version=4.15.0 && \
                 mkdir -p ${CODESERVERDATA_DIR} &&\
                 mkdir -p ${CODESERVEREXT_DIR} && \
                 PATH=/opt/bin:$PATH code-server \
