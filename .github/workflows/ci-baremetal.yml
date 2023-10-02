@@ -18,7 +18,7 @@ jobs:
     runs-on: [self-hosted, multiarch]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set the environment variable
         run: echo REPOSITORY_NAME=${GITHUB_REPOSITORY#*\/} >> $GITHUB_ENV
       - name: Docker meta
