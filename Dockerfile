@@ -239,9 +239,10 @@ COPY --chown=${NB_USER}:${NB_GID} versions/ ${HOME}/versions/
 RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     QUARTO_VERSION=$(jq -r '.tools.quarto' /tmp/versions.json) && \
     set -ex && \
-    ARCH=$(case "$TARGETPLATFORM" in \
-        "linux/amd64") echo "amd64" ;; \
-        "linux/arm64") echo "arm64" ;; \
+    PLATFORM=$(uname -m) && \
+    ARCH=$(case "$PLATFORM" in \
+        "X86_64") echo "amd64" ;; \
+        "aarch64") echo "arm64" ;; \
         *) echo "amd64" ;; \
     esac) && \
     # Download and install Quarto

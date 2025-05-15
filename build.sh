@@ -52,7 +52,7 @@ check_git_state() {
 }
 
 # Default values
-REPO=${REPO:-$(docker info 2>/dev/null | grep Username | cut -d' ' -f2 || echo "brunoe")}
+REPO=${REPO:-$(docker info 2>/dev/null | grep Username |tr -d ' '| cut -d':' -f2 || echo "brunoe")}
 IMAGE_NAME=${PWD##*/}
 read -r TAG1 TAG2 <<< "$(get_version_tags)"
 GIT_SHA=$(get_git_sha)
@@ -74,9 +74,10 @@ Build Docker image with specified options.
 Options:
     -h, --help          Show this help message
     -r, --repo          Docker repository name (default: ${REPO})
-    -t, --tag          Custom tag (default: ${TAG1})
-    -p, --platform     Build platform (default: ${TARGET_PLATFORM})
-    --push             Push image after build
+    -t, --tag           Custom tag (default: ${TAG1})
+    -p, --platform      Build platform (default: ${TARGET_PLATFORM})
+    --push              Push image after build
+    --load              Attempt to load multi-platform images locally (may not work with all platforms)
 
 Build Information:
     Build Platform: ${BUILD_PLATFORM}
@@ -94,6 +95,7 @@ EOF
 
 # Parse arguments
 PUSH=false
+LOAD=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help; exit 0 ;;
@@ -101,6 +103,7 @@ while [[ $# -gt 0 ]]; do
         -t|--tag) TAG1="$2" TAG2="${2}-${GIT_SHA}"; shift 2 ;;
         -p|--platform) TARGET_PLATFORM="$2"; shift 2 ;;
         --push) PUSH=true; shift ;;
+        --load) LOAD=true; shift ;;
         *) break ;;
     esac
 done
@@ -108,12 +111,50 @@ done
 # Check Git state before building
 check_git_state || log_warn "Consider committing changes before building"
 
+# Setup buildx builder for multi-platform builds if needed
+if [[ "${TARGET_PLATFORM}" == *","* ]]; then
+    log_info "Multi-platform build detected: ${TARGET_PLATFORM}"
+    
+    # Check if we have a suitable builder
+    BUILDER_NAME="multi-platform-builder"
+    if ! docker buildx inspect "${BUILDER_NAME}" &>/dev/null; then
+        log_info "Creating new buildx builder: ${BUILDER_NAME}"
+        docker buildx create --name "${BUILDER_NAME}" --use --driver docker-container
+    else
+        log_info "Using existing buildx builder: ${BUILDER_NAME}"
+        docker buildx use "${BUILDER_NAME}"
+    fi
+    
+    # For multi-platform, we need to either push or use a local cache
+    BUILD_ARGS=("--platform=${TARGET_PLATFORM}")
+    if [[ "${PUSH}" == "true" ]]; then
+        BUILD_ARGS+=("--push")
+    elif [[ "${LOAD}" == "true" ]]; then
+        # Try to load multi-platform images locally
+        BUILD_ARGS+=("--load")
+        log_info "Attempting to load multi-platform images locally"
+        log_warn "Loading may only work for compatible architectures with your host"
+    else
+        BUILD_ARGS+=("--output=type=image,push=false")
+        log_warn "Building multi-platform image without pushing. Images may not be available locally."
+        log_warn "Use --push to push to registry or --load to attempt loading locally."
+    fi
+else
+    # Single platform build
+    BUILD_ARGS=("--platform=${TARGET_PLATFORM}")
+    
+    # For single platform, we can always load unless push is specified
+    if [[ "${PUSH}" == "true" ]]; then
+        BUILD_ARGS+=("--push")
+    else
+        BUILD_ARGS+=("--load")
+    fi
+fi
+
 # Build image with both tags
 log_info "Building image ${REPO}/${IMAGE_NAME} with tags: ${TAG1}, ${TAG2}"
 docker buildx build \
-    --platform="${TARGET_PLATFORM}" \
-    --build-arg BUILDPLATFORM="${BUILD_PLATFORM}" \
-    --build-arg TARGETPLATFORM="${TARGET_PLATFORM}" \
+    "${BUILD_ARGS[@]}" \
     --build-arg GIT_SHA="${GIT_SHA}" \
     --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
     --label org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
