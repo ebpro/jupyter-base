@@ -67,23 +67,23 @@ ARG LOCAL_BIN=${HOME}/bin
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     set -ex && \
     mkdir -p ${LOCAL_BIN} && \
-    # Determine architecture
     ARCH=$(case "$TARGETPLATFORM" in \
         "linux/amd64") echo "amd64" ;; \
         "linux/arm64") echo "arm64" ;; \
         *) echo "amd64" ;; \
     esac) && \
     # Install kubectl
-    curl -fsSL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" -o ${LOCAL_BIN}/kubectl && \
+    curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" -o ${LOCAL_BIN}/kubectl && \
     chmod +x ${LOCAL_BIN}/kubectl && \
-    # Install Helm
-    curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" | \
-        tar xz --strip-components=1 -C ${LOCAL_BIN} linux-${ARCH}/helm && \
+    # Install Helm with retries and error log
+    curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz || (cat /tmp/helm.tar.gz && false) && \
+    tar xz --strip-components=1 -C ${LOCAL_BIN} -f /tmp/helm.tar.gz linux-${ARCH}/helm && \
+    rm /tmp/helm.tar.gz && \
     # Install k9s
-    curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" | \
+    curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" | \
         tar xz -C ${LOCAL_BIN} k9s && \
     # Install kustomize
-    curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" | \
+    curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" | \
         tar xz -C ${LOCAL_BIN} && \
     # Set permissions
     chmod +x ${LOCAL_BIN}/*
@@ -239,7 +239,6 @@ COPY --chown=${NB_USER}:${NB_GID} versions/ ${HOME}/versions/
 RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     QUARTO_VERSION=$(jq -r '.tools.quarto' /tmp/versions.json) && \
     set -ex && \
-    # Determine architecture
     ARCH=$(case "$TARGETPLATFORM" in \
         "linux/amd64") echo "amd64" ;; \
         "linux/arm64") echo "arm64" ;; \
@@ -279,4 +278,4 @@ COPY bin/* ${HOME}/bin/
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Default command to start a login shell
-CMD ["/bin/zsh", "-l"]    
+CMD ["/bin/zsh", "-l"]
