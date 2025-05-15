@@ -41,25 +41,6 @@ RUN --mount=type=bind,source=Artefacts/apt_packages,target=/tmp/Artefacts/apt_pa
     echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${NB_USER} && \
     chmod 0440 /etc/sudoers.d/${NB_USER}
 
-# Install Quarto
-ARG QUARTO_VERSION="1.6.40"
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    set -ex && \
-    echo "Installing Quarto v${QUARTO_VERSION}..." && \
-    # Determine architecture
-    ARCH=$(dpkg --print-architecture) && \
-    QUARTO_URL="https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${ARCH}.deb" && \
-    # Download and verify Quarto
-    curl -fsSL -o quarto-linux.deb "${QUARTO_URL}" && \
-    echo "Verifying package..." && \
-    dpkg-deb -I quarto-linux.deb && \
-    # Install Quarto and dependencies
-    gdebi --non-interactive quarto-linux.deb && \
-    # Verify installation
-    # quarto check install && \
-    # Clean up
-    rm -f quarto-linux.deb 
-
 # Install Docker tools with latest versions
 
 # Copy Docker CLI and plugins from official images
@@ -126,9 +107,6 @@ ENV MINIKUBE_HOME=${HOME}/.minikube \
     MINIKUBE_WANTUPDATENOTIFICATION=false \
     CHANGE_MINIKUBE_NONE_USER=true
     
-
-# Install Chromium for HTML rendering
-RUN quarto install chromium --no-prompt
 
 # ZSH Configuration
 ARG PREZTO_REPO="https://github.com/sorin-ionescu/prezto.git"
@@ -249,11 +227,7 @@ RUN chmod 755 ${HOME}/startup-scripts.d && \
     # Create directory for storing script execution order
     mkdir -p ${HOME}/.config/startup
 
-COPY run-startup-scripts.sh /usr/local/bin/run-startup-scripts.sh
-# Add startup script execution to zshrc
-RUN [[ -f ${HOME}/.zshrc ]] && \
-    echo "if [[ -f /usr/local/bin/run-startup-scripts.sh ]]; then source /usr/local/bin/run-startup-scripts.sh ; fi" >> ${HOME}/.zshrc && \
-    chmod 600 ${HOME}/.zshrc
+
 
 # Install GitHub CLI in user space
 RUN mkdir -p ${HOME}/bin && \
@@ -271,6 +245,49 @@ RUN mkdir -p ${HOME}/bin && \
 
 # Copy version scripts
 COPY --chown=${NB_USER}:${NB_GID} versions/ ${HOME}/versions/
+
+# Install Quarto
+RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
+    QUARTO_VERSION=$(jq -r '.tools.quarto' /tmp/versions.json) && \
+    set -ex && \
+    # Determine architecture
+    ARCH=$(case "$TARGETPLATFORM" in \
+        "linux/amd64") echo "amd64" ;; \
+        "linux/arm64") echo "arm64" ;; \
+        *) echo "amd64" ;; \
+    esac) && \
+    # Download and install Quarto
+    QUARTO_URL="https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${ARCH}.tar.gz" && \
+    echo "Installing Quarto v${QUARTO_VERSION} for ${ARCH}..." && \
+    curl -fsSL ${QUARTO_URL} -o quarto.tar.gz && \
+    mkdir -p "${HOME}/opt" && \
+    tar -C "${HOME}/opt" -xzf quarto.tar.gz && \
+    rm quarto.tar.gz && \
+    # Create bin directory and symlink
+    mkdir -p "${HOME}/.local/bin" && \
+    ln -sf "${HOME}/opt/quarto-${QUARTO_VERSION}/bin/quarto" "${HOME}/.local/bin/quarto" && \
+    # Add to PATH
+    echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> "${HOME}/.zshrc" && \
+    # Add Quarto Python environment to zshrc
+    echo "QUARTO_PYTHON=$(conda env list|grep "^base"|tr -s ' '|cut -f 3 -d ' ')" >> "${HOME}/.zshrc" && \
+    # Install Chromium for HTML rendering
+    "${HOME}/.local/bin/quarto" install chromium --no-prompt && \
+    # Verify installation
+    "${HOME}/.local/bin/quarto" check install && \
+    mamba clean --all --yes --force-pkgs-dirs
+
+# Add before CMD
+COPY run-startup-scripts.sh /usr/local/bin/run-startup-scripts.sh
+COPY entrypoint.sh /usr/local/bin/
+
+# Add startup script execution to zshrc
+#RUN [[ -f ${HOME}/.zshrc ]] && \
+#    echo "if [[ -f /usr/local/bin/run-startup-scripts.sh ]]; then source /usr/local/bin/run-startup-scripts.sh ; fi" >> ${HOME}/.zshrc && \
+#    chmod 600 ${HOME}/.zshrc
+
+COPY bin/* ${HOME}/bin/
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Default command to start a login shell
 CMD ["/bin/zsh", "-l"]    

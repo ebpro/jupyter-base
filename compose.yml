@@ -1,0 +1,49 @@
+services:
+  jupyter:
+    build: 
+      context: .
+      args:
+        BUILD_DATE: ${BUILD_DATE:-2024-02-17}
+        VERSION: ${VERSION:-1.0.0}
+    image: brunoe/jupyter-base:${VERSION:-latest}
+    container_name: jupyter-dev
+    volumes:
+      - ./:/workspace:cached
+      - jupyter-work:/home/jovyan/work
+      - ${HOME}/.ssh:/home/jovyan/.ssh:ro
+    environment:
+      - DOCKER_HOST=tcp://docker:2376
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_CERT_PATH=/certs/client
+      - NEEDED_WORK_DIRS=".ssh .config .cache materials notebooks"
+    networks:
+      - jupyter-net
+    depends_on:
+      - docker
+
+  docker:
+    image: docker:${DOCKER_VERSION:-27.0}-dind
+    container_name: jupyter-docker
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - docker-certs:/certs
+      - docker-data:/var/lib/docker
+    networks:
+      - jupyter-net
+    command: 
+      - --tls=true
+      - --tlsverify=true
+      - --tlscacert=/certs/ca.pem
+      - --tlscert=/certs/server-cert.pem
+      - --tlskey=/certs/server-key.pem
+
+volumes:
+  jupyter-work:
+  docker-certs:
+  docker-data:
+
+networks:
+  jupyter-net:
+    name: jupyter-net
