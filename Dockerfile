@@ -157,28 +157,17 @@ RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
 
 # Install TeXLive
 ENV TEXDIR=${HOME}/.TinyTeX
-ENV TINYTEX_INSTALLER="install-unix"
+ENV TINYTEX_INSTALLER="installer-unix"
 ENV TINYTEX_VERSION=2025.05
 ENV TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v$TINYTEX_VERSION/$TINYTEX_INSTALLER-v$TINYTEX_VERSION"
 ENV CTAN_REPO="https://distrib-coffee.ipsl.jussieu.fr/pub/mirrors/ctan/systems/texlive/tlnet"
 RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \ 
-    OSNAME=$(uname) && \
-    OSTYPE=$([ -x "$(command -v bash)" ] && bash -c 'echo $OSTYPE') && \
-    if [ "$OSNAME" != 'Linux' -o $(uname -m) != 'x86_64' -o "$OSTYPE" != 'linux-gnu' ]; then \
-        TINYTEX_INSTALLER="install-unix"; \
-    fi && \
-    if [ "$TINYTEX_INSTALLER" != 'install-unix' ]; then \
-        wget --quiet --retry-connrefused --progress=dot:giga -O TinyTeX.tar.gz ${TINYTEX_URL}.tar.gz && \
-        tar xf TinyTeX.tar.gz -C $(dirname $TEXDIR) && \
-        rm TinyTeX.tar.gz; \
-    else \
-        wget --quiet --retry-connrefused -O ${TINYTEX_INSTALLER}.tar.gz ${TINYTEX_URL}.tar.gz && \
-        tar xf ${TINYTEX_INSTALLER}.tar.gz && \
-        ./install.sh && \
-        mkdir -p "$TEXDIR" && \
-        mv texlive/* "$TEXDIR" && \
-        rm -r texlive "${TINYTEX_INSTALLER}.tar.gz" install.sh install-tl-unx.tar.gz; \
-    fi && \
+    curl -fsSL ${TINYTEX_URL}.tar.gz -o ${TINYTEX_INSTALLER}.tar.gz && \
+    tar xf ${TINYTEX_INSTALLER}.tar.gz && \
+    ./install.sh && \
+    mkdir -p "$TEXDIR" && \
+    mv texlive/* "$TEXDIR" && \
+    rm -r texlive "${TINYTEX_INSTALLER}.tar.gz" install.sh install-tl-unx.tar.gz && \
     export PATH=$(echo ${HOME}/.TinyTeX/bin/*):${PATH} && \
     tlmgr option repository "$CTAN_REPO" && \
     tlmgr paper a4 && \
