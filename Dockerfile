@@ -158,7 +158,7 @@ RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
 # Install TeXLive
 ENV TEXDIR=${HOME}/.TinyTeX
 ENV TINYTEX_INSTALLER="install-unix"
-ENV TINYTEX_VERSION=2024.11
+ENV TINYTEX_VERSION=2025.05
 ENV TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v$TINYTEX_VERSION/$TINYTEX_INSTALLER-v$TINYTEX_VERSION"
 ENV CTAN_REPO="https://distrib-coffee.ipsl.jussieu.fr/pub/mirrors/ctan/systems/texlive/tlnet"
 RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \ 
