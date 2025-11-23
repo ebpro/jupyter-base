@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+# set -euo pipefail
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -8,7 +8,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
-VERSIONS_DIR="${HOME}/versions/generators"
+VERSIONS_DIR="${PWD}/versions/generators"
 
 # Logging functions
 log_info() { echo -e "${GREEN}INFO: $1${NC}" >&2; }
@@ -21,11 +21,13 @@ echo
 echo "Generated on: $(date '+%Y-%m-%d %H:%M:%S')"
 echo
 
-# Make scripts executable
-chmod +x "${VERSIONS_DIR}"/*.sh
-
 # Execute each generator script
+
+echo "Executing version generator scripts in ${VERSIONS_DIR}..." >&2
+shopt -s nullglob
 for script in "${VERSIONS_DIR}"/*.sh; do
+    echo "Processing script: ${script}" >&2
+    chmod +x "${script}"
     if [[ -x "${script}" ]]; then
         script_name=$(basename "${script}")
         
@@ -45,6 +47,7 @@ for script in "${VERSIONS_DIR}"/*.sh; do
 
     fi
 done
+shopt -u nullglob
 
 # Print footer
 echo "---"
