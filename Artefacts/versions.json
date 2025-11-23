@@ -12,6 +12,8 @@
       "kubectl": "1.34.1",
       "kustomize": "5.7.1",
       "quarto": "1.8.24",
+      "minikube": "1.37.0",
+      "gh": "2.83.1",
       "scout": "1.18.2",
       "tinytex": "2025.09"
     }

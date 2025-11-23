@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Archived binder-oriented start script (moved from repo root `start`).
+# Kept for reference — devcontainer startup is handled by the devcontainer configuration.
+
+for script in $(ls -d /usr/local/bin/before-notebook.d/*); do 
+    echo "running $script before start (binder ?)"
+    bash $script
+done
+
+#Do the normal Binder start thing here...
+# if in binder 
+if [ $0 eq "start" ]
+then
+    exec "$@"
+else
+    echo "Not in Binder."
+fi

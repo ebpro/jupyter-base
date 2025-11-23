@@ -41,6 +41,9 @@ RUN --mount=type=bind,source=Artefacts/apt_packages,target=/tmp/Artefacts/apt_pa
     echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${NB_USER} && \
     chmod 0440 /etc/sudoers.d/${NB_USER}
 
+# Copy artifact checksums for build-time verification
+COPY --chown=root:root Artefacts/checksums.json /tmp/checksums.json
+
 # Install Docker tools with latest versions
 
 # Copy Docker CLI and plugins from official images
@@ -65,6 +68,7 @@ ARG KUSTOMIZE_VERSION="5.3.0"
 ARG LOCAL_BIN=${HOME}/bin
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     set -ex && \
     mkdir -p ${LOCAL_BIN} && \
     ARCH=$(case "$TARGETPLATFORM" in \
@@ -72,34 +76,60 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         "linux/arm64") echo "arm64" ;; \
         *) echo "amd64" ;; \
     esac) && \
+    # Read pinned tool versions from Artefacts/versions.json
+    KUBECTL_VERSION=$(jq -r '.tools.kubectl' /tmp/versions.json) && \
+    HELM_VERSION=$(jq -r '.tools.helm' /tmp/versions.json) && \
+    K9S_VERSION=$(jq -r '.tools.k9s' /tmp/versions.json) && \
+    KUSTOMIZE_VERSION=$(jq -r '.tools.kustomize' /tmp/versions.json) && \
     # Install kubectl
-    curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" -o ${LOCAL_BIN}/kubectl && \
-    chmod +x ${LOCAL_BIN}/kubectl && \
-    # Install Helm with retries and error log
-    curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz || (cat /tmp/helm.tar.gz && false) && \
-    tar xz --strip-components=1 -C ${LOCAL_BIN} -f /tmp/helm.tar.gz linux-${ARCH}/helm && \
-    rm /tmp/helm.tar.gz && \
-    # Install k9s
-    curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" | \
-        tar xz -C ${LOCAL_BIN} k9s && \
-    # Install kustomize
-    curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" | \
-        tar xz -C ${LOCAL_BIN} && \
-    # Set permissions
-    chmod +x ${LOCAL_BIN}/*
+        curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" -o /tmp/kubectl && \
+        # Verify kubectl checksum when available
+        if [ -f /tmp/checksums.json ]; then \
+            KUBE_CHKSUM=$(jq -r --arg t "kubectl" --arg ver "${KUBECTL_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${KUBE_CHKSUM}" ]; then echo "${KUBE_CHKSUM}  /tmp/kubectl" > /tmp/kubectl.sha256 && sha256sum -c /tmp/kubectl.sha256; fi; \
+        fi && \
+        mv /tmp/kubectl ${LOCAL_BIN}/kubectl && chmod +x ${LOCAL_BIN}/kubectl && \
+        # Install Helm with retries and verify checksum
+        curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz || (cat /tmp/helm.tar.gz && false) && \
+        if [ -f /tmp/checksums.json ]; then \
+            HELM_CHKSUM=$(jq -r --arg t "helm" --arg ver "${HELM_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${HELM_CHKSUM}" ]; then echo "${HELM_CHKSUM}  /tmp/helm.tar.gz" > /tmp/helm.sha256 && sha256sum -c /tmp/helm.sha256; fi; \
+        fi && \
+        tar xz --strip-components=1 -C ${LOCAL_BIN} -f /tmp/helm.tar.gz linux-${ARCH}/helm && rm /tmp/helm.tar.gz && \
+        # Install k9s (download, verify, extract)
+        curl --silent --show-error --location --fail --retry 3 --retry-delay 5 "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" -o /tmp/k9s.tar.gz && \
+        if [ -f /tmp/checksums.json ]; then \
+            K9S_CHKSUM=$(jq -r --arg t "k9s" --arg ver "${K9S_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${K9S_CHKSUM}" ]; then echo "${K9S_CHKSUM}  /tmp/k9s.tar.gz" > /tmp/k9s.sha256 && sha256sum -c /tmp/k9s.sha256; fi; \
+        fi && \
+        tar xz -C ${LOCAL_BIN} -f /tmp/k9s.tar.gz k9s && rm /tmp/k9s.tar.gz && \
+        # Install kustomize (download, verify, extract)
+        curl --silent --show-error --location --fail --retry 3 --retry-delay 5  "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/kustomize.tar.gz && \
+        if [ -f /tmp/checksums.json ]; then \
+            KUSTOMIZE_CHKSUM=$(jq -r --arg t "kustomize" --arg ver "${KUSTOMIZE_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${KUSTOMIZE_CHKSUM}" ]; then echo "${KUSTOMIZE_CHKSUM}  /tmp/kustomize.tar.gz" > /tmp/kustomize.sha256 && sha256sum -c /tmp/kustomize.sha256; fi; \
+        fi && \
+        tar xz -C ${LOCAL_BIN} -f /tmp/kustomize.tar.gz && rm /tmp/kustomize.tar.gz && \
+        # Set permissions
+        chmod +x ${LOCAL_BIN}/*
 
-# Install Minikube
-RUN set -ex && \
-    ARCH=$(case "$TARGETPLATFORM" in \
-        "linux/amd64") echo "amd64" ;; \
-        "linux/arm64") echo "arm64" ;; \
-        *) echo "amd64" ;; \
-    esac) && \
-    # Install Minikube
-    curl -fsSL "https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-${ARCH}" -o ${LOCAL_BIN}/minikube && \
-    chmod +x ${LOCAL_BIN}/minikube && \
-    # Create minikube config directory
-    mkdir -p ${HOME}/.minikube
+# Install Minikube (use pinned version)
+RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json set -ex && \
+        ARCH=$(case "$TARGETPLATFORM" in \
+                "linux/amd64") echo "amd64" ;; \
+                "linux/arm64") echo "arm64" ;; \
+                *) echo "amd64" ;; \
+        esac) && \
+        # Read pinned version and install Minikube
+        MINIKUBE_VERSION=$(jq -r '.tools.minikube' /tmp/versions.json) && \
+        curl -fsSL "https://github.com/kubernetes/minikube/releases/download/v${MINIKUBE_VERSION}/minikube-linux-${ARCH}" -o /tmp/minikube && \
+        if [ -f /tmp/checksums.json ]; then \
+            MINIKUBE_CHKSUM=$(jq -r --arg t "minikube" --arg ver "${MINIKUBE_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${MINIKUBE_CHKSUM}" ]; then echo "${MINIKUBE_CHKSUM}  /tmp/minikube" > /tmp/minikube.sha256 && sha256sum -c /tmp/minikube.sha256; fi; \
+        fi && \
+        mv /tmp/minikube ${LOCAL_BIN}/minikube && chmod +x ${LOCAL_BIN}/minikube && \
+        # Create minikube config directory
+        mkdir -p ${HOME}/.minikube
 
 # Add Minikube environment variables
 ENV MINIKUBE_HOME=${HOME}/.minikube \
@@ -148,8 +178,12 @@ RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     # Create cache directory
     mkdir -p "${HOME}/.cache/gitstatus" && \
     # Download and extract gitstatusd
-    curl -fsSL "https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-${ARCH}.tar.gz" | \
-    tar --directory="${HOME}/.cache/gitstatus" -zx && \
+        curl -fsSL "https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-${ARCH}.tar.gz" -o /tmp/gitstatusd.tar.gz && \
+        if [ -f /tmp/checksums.json ]; then \
+            GITSTATUS_CHKSUM=$(jq -r --arg t "gitstatus" --arg ver "${GITSTATUS_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${GITSTATUS_CHKSUM}" ]; then echo "${GITSTATUS_CHKSUM}  /tmp/gitstatusd.tar.gz" > /tmp/gitstatusd.sha256 && sha256sum -c /tmp/gitstatusd.sha256; fi; \
+        fi && \
+        tar --directory="${HOME}/.cache/gitstatus" -zx -f /tmp/gitstatusd.tar.gz && rm -f /tmp/gitstatusd.tar.gz && \
     # Set permissions
     chown -R "${NB_UID}:${NB_GID}" "${HOME}/.cache/gitstatus" && \
     chmod 755 "${HOME}/.cache/gitstatus"
@@ -218,19 +252,23 @@ RUN chmod 755 ${HOME}/startup-scripts.d && \
 
 
 
-# Install GitHub CLI in user space
-RUN mkdir -p ${HOME}/bin && \
-    ARCH=$(case "$TARGETPLATFORM" in \
-        "linux/amd64") echo "amd64" ;; \
-        "linux/arm64") echo "arm64" ;; \
-        *) echo "amd64" ;; \
-    esac) && \
-    GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | grep -Po '"tag_name": "v\K[^"]*') && \
-    curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz" | \
-    tar xz --strip-components=2 -C ${HOME}/bin gh_${GH_VERSION}_linux_${ARCH}/bin/gh && \
-    chmod +x ${HOME}/bin/gh && \
-    # Add gh completion to zsh
-    echo 'eval "$(gh completion -s zsh)"' >> ${HOME}/.zshrc
+# Install GitHub CLI in user space (use pinned version)
+RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json mkdir -p ${HOME}/bin && \
+        ARCH=$(case "$TARGETPLATFORM" in \
+                "linux/amd64") echo "amd64" ;; \
+                "linux/arm64") echo "arm64" ;; \
+                *) echo "amd64" ;; \
+        esac) && \
+        GH_VERSION=$(jq -r '.tools.gh' /tmp/versions.json) && \
+        curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/gh.tar.gz && \
+        if [ -f /tmp/checksums.json ]; then \
+            GH_CHKSUM=$(jq -r --arg t "gh" --arg ver "${GH_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${GH_CHKSUM}" ]; then echo "${GH_CHKSUM}  /tmp/gh.tar.gz" > /tmp/gh.sha256 && sha256sum -c /tmp/gh.sha256; fi; \
+        fi && \
+        tar xz --strip-components=2 -C ${HOME}/bin gh_${GH_VERSION}_linux_${ARCH}/bin/gh -f /tmp/gh.tar.gz && rm -f /tmp/gh.tar.gz && \
+        chmod +x ${HOME}/bin/gh && \
+        # Add gh completion to zsh
+        echo 'eval "$(gh completion -s zsh)"' >> ${HOME}/.zshrc
 
 # Copy version scripts
 COPY --chown=${NB_USER}:${NB_GID} versions/ ${HOME}/versions/
@@ -248,10 +286,13 @@ RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     # Download and install Quarto
     QUARTO_URL="https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${ARCH}.tar.gz" && \
     echo "Installing Quarto v${QUARTO_VERSION} for ${ARCH}..." && \
-    curl -fsSL ${QUARTO_URL} -o quarto.tar.gz && \
+    curl -fsSL ${QUARTO_URL} -o /tmp/quarto.tar.gz && \
+    if [ -f /tmp/checksums.json ]; then \
+    QUARTO_CHKSUM=$(jq -r --arg t "quarto" --arg ver "${QUARTO_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+      if [ -n "${QUARTO_CHKSUM}" ]; then echo "${QUARTO_CHKSUM}  /tmp/quarto.tar.gz" > /tmp/quarto.sha256 && sha256sum -c /tmp/quarto.sha256; fi; \
+    fi && \
     mkdir -p "${HOME}/opt" && \
-    tar -C "${HOME}/opt" -xzf quarto.tar.gz && \
-    rm quarto.tar.gz && \
+    tar -C "${HOME}/opt" -xzf /tmp/quarto.tar.gz && rm /tmp/quarto.tar.gz && \
     # Create bin directory and symlink
     mkdir -p "${HOME}/.local/bin" && \
     ln -sf "${HOME}/opt/quarto-${QUARTO_VERSION}/bin/quarto" "${HOME}/.local/bin/quarto" && \

@@ -1,0 +1,6 @@
+---
+title: "Quarto smoke test"
+format: html
+---
+
+Hello Quarto — this is a simple smoke test to verify the devcontainer can run `quarto render`.
