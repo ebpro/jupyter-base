@@ -3,5 +3,4 @@
 @profile:40-k8s-dev
 
 tilt
-docker-cli-helper
 podman
