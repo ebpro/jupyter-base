@@ -1,0 +1,7 @@
+
+# Purpose: Full profile — combines developer and data-science features with GUI and code-server
+@profile:dev
+@profile:data-science
+texlive
+code-server
+codeserver-extensions

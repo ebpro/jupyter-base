@@ -1,6 +1,0 @@
-{
-  "name": "profile-data",
-  "version": "1.0.0",
-  "description": "Meta-feature: data-science profile (comfortable + python-conda, pip-requirements, jupyter-kernels)",
-  "options": {}
-}

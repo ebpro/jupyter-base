@@ -37,9 +37,36 @@ get_version_tags() {
     fi
 }
 
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)/scripts"
+if [ -f "$SCRIPTS_DIR/arch.sh" ]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPTS_DIR/arch.sh"
+fi
+
 # Platform detection functions
 detect_build_platform() {
-    echo "linux/$(uname -m)"
+    # canonicalize host arch (uname -m -> amd64/arm64/...)
+    local host=$(uname -m)
+    local canon=$(arch_map "$host")
+    echo "linux/$canon"
+}
+
+normalize_platforms() {
+    # input: comma-separated list of arch tokens (e.g. amd64,arm64 or linux/amd64)
+    local raw="$1"
+    local out=""
+    IFS=',' read -r -a parts <<< "$raw"
+    for part in "${parts[@]}"; do
+        part="$(echo "$part" | sed -e 's/^\s*//' -e 's/\s*$//')"
+        [ -z "$part" ] && continue
+        local canon=$(arch_map "$part")
+        if [ -z "$out" ]; then
+            out="linux/$canon"
+        else
+            out+=",linux/$canon"
+        fi
+    done
+    echo "$out"
 }
 
 # Check Git state
@@ -57,7 +84,15 @@ IMAGE_NAME=${PWD##*/}
 read -r TAG1 TAG2 <<< "$(get_version_tags)"
 GIT_SHA=$(get_git_sha)
 BUILD_PLATFORM=$(detect_build_platform)
-TARGET_PLATFORM=${PLATFORM:-${BUILD_PLATFORM}}
+# If PLATFORM env provided, normalize it. Otherwise default to host build platform
+if [ -n "${PLATFORM:-}" ]; then
+    TARGET_PLATFORM=$(normalize_platforms "$PLATFORM")
+else
+    TARGET_PLATFORM="$BUILD_PLATFORM"
+fi
+
+# Multi-arch flag (set via CLI) or env `ARCHS` to choose explicit architectures when requested
+ALL_ARCHS=false
 
 # Logging functions
 log_info() { echo -e "${GREEN}INFO: $1${NC}"; }
@@ -66,7 +101,7 @@ log_error() { echo -e "${RED}ERROR: $1${NC}" >&2; }
 
 # Help message
 show_help() {
-    cat << EOF
+    cat <<'EOF'
 Usage: $(basename "$0") [options]
 
 Build Docker image with specified options.
@@ -77,8 +112,11 @@ Options:
     -t, --tag           Custom tag (default: ${TAG1})
     -p, --platform      Build platform (default: ${TARGET_PLATFORM})
     --push              Push image after build
-    --build-codeserver  Build a codeserver image based on the built image and `Dockerfile.codeserver`
+    --build-codeserver  Build a codeserver image based on the built image using `Dockerfile.codeserver`
+    --all-architectures  Build images for multiple architectures (uses ARCHS env or default amd64,arm64)
     --load              Attempt to load multi-platform images locally (may not work with all platforms)
+    --profile <name>    Generate a Dockerfile from profile and build it
+    --generate-only     Only generate Dockerfile/devcontainer and exit
 
 Build Information:
     Build Platform: ${BUILD_PLATFORM}
@@ -98,6 +136,9 @@ EOF
 PUSH=false
 LOAD=false
 BUILD_CODESERVER=false
+PROFILE=""
+GENERATE_ONLY=false
+DOCKERFILE="Dockerfile"
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help; exit 0 ;;
@@ -107,12 +148,87 @@ while [[ $# -gt 0 ]]; do
         --push) PUSH=true; shift ;;
         --build-codeserver|--codeserver) BUILD_CODESERVER=true; shift ;;
         --load) LOAD=true; shift ;;
+        --all-architectures) ALL_ARCHS=true; shift ;;
+        --profile) PROFILE="$2"; shift 2 ;;
+        --generate-only) GENERATE_ONLY=true; shift ;;
+        --all-profiles) ALL_PROFILES=true; shift ;;
         *) break ;;
     esac
 done
 
 # Check Git state before building
 check_git_state || log_warn "Consider committing changes before building"
+
+# If a profile is requested, generate the Dockerfile/devcontainer first
+if [ -n "${PROFILE}" ]; then
+    log_info "Generating Dockerfile from profile: ${PROFILE}"
+    bash "${PWD}/scripts/generate-dockerfile.sh" --profile "${PROFILE}" --out Dockerfile.generated
+    bash "${PWD}/scripts/generate-devcontainer.sh" --profile "${PROFILE}" --out devcontainer.generated.json || true
+    DOCKERFILE="Dockerfile.generated"
+    if [ "${GENERATE_ONLY}" = true ]; then
+        log_info "Generation complete; exiting due to --generate-only"
+        exit 0
+    fi
+fi
+
+if [ "${ALL_PROFILES:-false}" = true ]; then
+    log_info "Generating Dockerfile for all profiles"
+    bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
+    bash "${PWD}/scripts/generate-devcontainer.sh" --all-profiles --out devcontainer.generated.json || true || true
+    # Prepare bake platforms and archs for HCL generation
+    if [ "${ALL_ARCHS}" = true ]; then
+        RAW_ARCHS="${ARCHS:-amd64,arm64}"
+        BAKE_PLATFORMS=$(normalize_platforms "$RAW_ARCHS")
+    else
+        # TARGET_PLATFORM may already be normalized (linux/amd64) or comma list
+        BAKE_PLATFORMS="$TARGET_PLATFORM"
+    fi
+    # derive arch tokens (strip linux/ prefix)
+    BAKE_ARCHS=""
+    IFS=',' read -r -a _parts <<< "$BAKE_PLATFORMS"
+    for pp in "${_parts[@]}"; do
+        arch=${pp#linux/}
+        if [ -z "$BAKE_ARCHS" ]; then
+            BAKE_ARCHS="$arch"
+        else
+            BAKE_ARCHS+=",$arch"
+        fi
+    done
+    export REPO IMAGE_NAME TAG1 TAG2 BAKE_PLATFORMS BAKE_ARCHS
+    bash "${PWD}/scripts/generate-bake.sh" || true
+    DOCKERFILE="Dockerfile.generated"
+    if [ "${GENERATE_ONLY}" = true ]; then
+        log_info "Generation complete; exiting due to --generate-only"
+        exit 0
+    fi
+    # Build via bake if available
+    if command -v docker-buildx >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
+        log_info "Attempting to build all profiles via docker buildx bake"
+        BAKE_CMD=(docker buildx bake -f docker-bake.generated.hcl --set "*.platform=${TARGET_PLATFORM}")
+        if [ "${PUSH}" = true ]; then
+            BAKE_CMD+=(--push)
+        fi
+        "${BAKE_CMD[@]}"
+        log_info "Bake completed"
+        exit 0
+    else
+        log_warn "buildx not available; falling back to per-profile builds"
+        for p in profiles/*; do
+            prof=$(basename "$p")
+            [ "$prof" = "README.md" ] && continue
+            log_info "Building profile: $prof"
+            docker buildx build --platform=${TARGET_PLATFORM} -f Dockerfile.generated --target final-$prof -t "${REPO}/${IMAGE_NAME}:${prof}-${TAG1}" ${LOAD:+--load} ${PUSH:+--push} . || true
+        done
+        exit 0
+    fi
+fi
+
+# If user requested all architectures, generate canonical list from ARCHS env or default
+if [ "${ALL_ARCHS}" = true ]; then
+    RAW_ARCHS="${ARCHS:-amd64,arm64}"
+    TARGET_PLATFORM=$(normalize_platforms "$RAW_ARCHS")
+    log_info "Building for architectures: $TARGET_PLATFORM"
+fi
 
 # Setup buildx builder for multi-platform builds if needed
 if [[ "${TARGET_PLATFORM}" == *","* ]]; then
@@ -163,6 +279,7 @@ docker buildx build \
     --label org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
     --label org.opencontainers.image.version="${TAG1}" \
     --label org.opencontainers.image.revision="${GIT_SHA}" \
+    -f "${DOCKERFILE}" \
     --progress=plain \
     -t "${REPO}/${IMAGE_NAME}:${TAG1}" \
     -t "${REPO}/${IMAGE_NAME}:${TAG2}" \

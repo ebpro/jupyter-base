@@ -1,6 +1,0 @@
-{
-  "name": "profile-docs",
-  "version": "1.0.0",
-  "description": "Meta-feature: docs profile (comfortable + quarto, texlive (TinyTeX), pip-requirements, jupyter-kernels)",
-  "options": {}
-}

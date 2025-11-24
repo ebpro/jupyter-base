@@ -1,6 +1,0 @@
-{
-  "name": "profile-gui",
-  "version": "1.0.0",
-  "description": "Meta-feature: GUI/heavy profile (docs/data + codeserver, full texlive, gui extras)",
-  "options": {}
-}

@@ -1,0 +1,10 @@
+ # Purpose: Common base features applied to all profiles (shared layers)
+base-apt
+zsh-config
+
+# Common shared features for all profiles
+python-conda
+pip-requirements
+dev-tools
+prompt-helpers
+startup

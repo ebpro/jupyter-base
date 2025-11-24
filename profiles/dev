@@ -1,0 +1,5 @@
+# Purpose: Developer profile — node, language servers, and CLI tools
+@profile:minimal
+node
+lsp-tools
+gh-cli

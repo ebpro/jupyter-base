@@ -1,0 +1,48 @@
+# Generated multi-profile Dockerfile
+ARG VARIANT="ubuntu-24.04"
+FROM mcr.microsoft.com/devcontainers/base:
+
+ARG NB_USER=jovyan NB_UID=1001 NB_GID=1001
+ENV HOME=/home/jovyan
+WORKDIR /home/jovyan
+
+# Common stage
+FROM mcr.microsoft.com/devcontainers/base: AS common
+# Feature: base-apt
+COPY .devcontainer/features/base-apt /tmp/features/base-apt
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/base-apt/install.sh ]; then /tmp/features/base-apt/install.sh; else echo "No install.sh for base-apt"; fi;     rm -rf /tmp/features/base-apt
+
+# Feature: zsh-config
+COPY .devcontainer/features/zsh-config /tmp/features/zsh-config
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/zsh-config/install.sh ]; then /tmp/features/zsh-config/install.sh; else echo "No install.sh for zsh-config"; fi;     rm -rf /tmp/features/zsh-config
+
+# Profile: base
+FROM common AS final-base
+
+# Profile: codeserver
+FROM common AS final-codeserver
+
+# Profile: data-science
+FROM common AS final-data-science
+
+# Profile: dev
+FROM common AS final-dev
+
+# Profile: full
+FROM common AS final-full
+
+# Profile: k8s-dev
+FROM common AS final-k8s-dev
+
+# Profile: minimal
+FROM profile-base AS final-minimal
+
+# Profile: podman
+FROM common AS final-podman
+
+# Profile: quarto-lecture
+FROM common AS final-quarto-lecture
+
+# Profile: teaching-interactive
+FROM common AS final-teaching-interactive
+

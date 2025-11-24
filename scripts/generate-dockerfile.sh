@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROFILES_DIR="$ROOT/profiles"
+FEATURES_DIR="$ROOT/.devcontainer/features"
+
+usage(){
+  cat <<EOF
+Usage: $(basename "$0") [--profile <name>] [--all-profiles] [--out Dockerfile] [--dry-run]
+
+Generates a Dockerfile by composing features listed in a profile or for all profiles.
+If --all-profiles is provided, a multi-stage Dockerfile is emitted with a 'common' stage
+when `profiles/base` exists.
+EOF
+}
+
+PROFILE=""
+OUT="Dockerfile.generated"
+DRY=false
+ALL=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --profile) PROFILE="$2"; shift 2 ;;
+    --all-profiles) ALL=true; shift ;;
+    --out) OUT="$2"; shift 2 ;;
+    --dry-run) DRY=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown arg: $1"; usage; exit 2 ;;
+  esac
+done
+
+declare -A VISITED
+
+expand_profile(){
+  p="$1"
+  out_name="$2"
+  if [ -n "${VISITED[$p]:-}" ]; then
+    return
+  fi
+  VISITED[$p]=1
+  f="$PROFILES_DIR/$p"
+  if [ ! -f "$f" ]; then
+    echo "Profile not found: $p" >&2; exit 3
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="$(echo "$line" | sed -e 's/^\s*//' -e 's/\s*$//')"
+    [ -z "$line" ] && continue
+    case "$line" in
+      \#*) continue ;;
+      @parent:*)
+        parent=${line#@parent:}
+        expand_profile "$parent" "$out_name"
+        ;;
+      @profile:*)
+        sub=${line#@profile:}
+        expand_profile "$sub" "$out_name"
+        ;;
+      *)
+        # append to the array whose name is in out_name
+        eval "$out_name+=(\"$line\")"
+        ;;
+    esac
+  done < "$f"
+}
+
+collect_profiles(){
+  profiles=()
+  for f in "$PROFILES_DIR"/*; do
+    name=$(basename "$f")
+    [ "$name" = "README.md" ] && continue
+    profiles+=("$name")
+  done
+}
+
+if [ "$ALL" = true ]; then
+  collect_profiles
+  # If base profile exists, expand it as common
+  common_features=()
+  if [ -f "$PROFILES_DIR/base" ]; then
+    expand_profile "base" common_features
+  fi
+  # Expand each profile into resolved list and store as parallel arrays
+  profile_features_strings=()
+  i=0
+  for p in "${profiles[@]}"; do
+    arr=()
+    expand_profile "$p" arr
+    # deduplicate per-profile preserve order
+    dedup=()
+    declare -A seen
+    for item in "${arr[@]}"; do
+      if [ -z "${seen[$item]:-}" ]; then
+        dedup+=("$item")
+        seen[$item]=1
+      fi
+    done
+    profile_features_strings[$i]="${dedup[*]}"
+    i=$((i+1))
+  done
+
+  # Build parent map and topological order of profiles so parents are emitted before children
+  declare -A parent_map
+  for p in "${profiles[@]}"; do
+    parent=""
+    if [ -f "$PROFILES_DIR/$p" ]; then
+      parent_line=$(grep -E '^[[:space:]]*@parent:' "$PROFILES_DIR/$p" || true)
+      if [ -n "$parent_line" ]; then
+        parent=${parent_line#@parent:}
+        parent=$(echo "$parent" | sed -e 's/^\s*//' -e 's/\s*$//')
+      fi
+    fi
+    parent_map[$p]="$parent"
+  done
+
+  ordered_profiles=()
+  processed=()
+  remain=("${profiles[@]}")
+  while [ ${#remain[@]} -gt 0 ]; do
+    progressed=false
+    next_remain=()
+    for p in "${remain[@]}"; do
+      par=${parent_map[$p]:-}
+      if [ -z "$par" ] || [[ " ${ordered_profiles[*]} " == *" $par "* ]]; then
+        ordered_profiles+=("$p")
+        progressed=true
+      else
+        next_remain+=("$p")
+      fi
+    done
+    if [ "$progressed" = false ]; then
+      echo "Error: cannot resolve profile order (possible cycle or missing parent)" >&2; exit 3
+    fi
+    remain=("${next_remain[@]}")
+  done
+
+  # Compute per-profile unique features (features not present in parent)
+  declare -A full_features_map
+  for idx in "${!ordered_profiles[@]}"; do
+    p=${ordered_profiles[$idx]}
+    arr=()
+    expand_profile "$p" arr
+    # deduplicate
+    dedup=()
+    declare -A seen2
+    for item in "${arr[@]}"; do
+      if [ -z "${seen2[$item]:-}" ]; then
+        dedup+=("$item")
+        seen2[$item]=1
+      fi
+    done
+    full_features_map[$p]="${dedup[*]}"
+  done
+
+  declare -A unique_features_map
+  for p in "${ordered_profiles[@]}"; do
+    par=${parent_map[$p]:-}
+    parent_feats=()
+    if [ -n "$par" ]; then
+      IFS=' ' read -r -a parent_feats <<< "${full_features_map[$par]:-}"
+    fi
+    IFS=' ' read -r -a all_feats <<< "${full_features_map[$p]:-}"
+    uniq=()
+    for f in "${all_feats[@]}"; do
+      skip=false
+      for pf in "${parent_feats[@]}"; do
+        if [ "$pf" = "$f" ]; then skip=true; break; fi
+      done
+      if [ "$skip" = false ]; then uniq+=("$f"); fi
+    done
+    unique_features_map[$p]="${uniq[*]}"
+  done
+
+  if [ "$DRY" = true ]; then
+    echo "Profiles resolved:"
+    for idx in "${!profiles[@]}"; do
+      p=${profiles[$idx]}
+      echo "- $p: ${profile_features_strings[$idx]}"
+    done
+    exit 0
+  fi
+
+  # Emit Dockerfile with common stage if present
+  cat > "$OUT" <<EOF
+# Generated multi-profile Dockerfile
+ARG VARIANT="ubuntu-24.04"
+FROM mcr.microsoft.com/devcontainers/base:
+
+ARG NB_USER=jovyan NB_UID=1001 NB_GID=1001
+ENV HOME=/home/jovyan
+WORKDIR /home/jovyan
+
+EOF
+
+  if [ ${#common_features[@]} -gt 0 ]; then
+    echo "# Common stage" >> "$OUT"
+    echo "FROM mcr.microsoft.com/devcontainers/base: AS common" >> "$OUT"
+    for feat in "${common_features[@]}"; do
+      echo "# Feature: $feat" >> "$OUT"
+      echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+      cat >> "$OUT" <<RUNBLOCK
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+    set -eux; \
+    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
+    rm -rf /tmp/features/$feat
+RUNBLOCK
+      echo >> "$OUT"
+    done
+  fi
+
+  # Emit per-profile stages in topological order so parent stages are available
+  for p in "${ordered_profiles[@]}"; do
+    echo "# Profile: $p" >> "$OUT"
+    par=${parent_map[$p]:-}
+    # determine base stage to inherit from (parent stage or common/base image)
+    if [ -n "$par" ]; then
+      base_from="profile-$par"
+    elif [ ${#common_features[@]} -gt 0 ]; then
+      base_from="common"
+    else
+      base_from="mcr.microsoft.com/devcontainers/base:"
+    fi
+
+    # emit only unique features for this profile (parent features already present)
+    prof_feats_string="${unique_features_map[$p]:-}"
+    IFS=' ' read -r -a prof_feats <<< "$prof_feats_string"
+
+    if [ ${#prof_feats[@]} -eq 0 ]; then
+      # no unique features; collapse stage and alias final directly to base
+      echo "FROM $base_from AS final-$p" >> "$OUT"
+      echo >> "$OUT"
+      continue
+    fi
+
+    # otherwise create a profile stage that inherits from the base and apply unique features
+    echo "FROM $base_from AS profile-$p" >> "$OUT"
+    for feat in "${prof_feats[@]}"; do
+      # skip features that are in common_features (they were applied in common stage)
+      skip=false
+      for cf in "${common_features[@]}"; do
+        if [ "$cf" = "$feat" ]; then skip=true; break; fi
+      done
+      if [ "$skip" = true ]; then continue; fi
+      echo "# Feature: $feat" >> "$OUT"
+      echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+      cat >> "$OUT" <<RUNBLOCK
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+    set -eux; \
+    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
+    rm -rf /tmp/features/$feat
+RUNBLOCK
+      echo >> "$OUT"
+    done
+    echo "FROM profile-$p AS final-$p" >> "$OUT"
+    echo >> "$OUT"
+  done
+
+  echo "Dockerfile generated to $OUT"
+  exit 0
+fi
+
+# Single-profile mode (unchanged behavior)
+if [ -z "$PROFILE" ]; then
+  echo "--profile is required unless --all-profiles is used" >&2; usage; exit 2
+fi
+
+declare -a RESOLVED
+expand_profile "$PROFILE" RESOLVED
+
+# validate features exist
+for feat in "${RESOLVED[@]}"; do
+  if [ ! -d "$FEATURES_DIR/$feat" ]; then
+    echo "Feature not found: $feat (expected $FEATURES_DIR/$feat)" >&2
+    exit 4
+  fi
+done
+
+if [ "$DRY" = true ]; then
+  echo "Resolved features for profile '$PROFILE':"
+  for f in "${RESOLVED[@]}"; do echo " - $f"; done
+  exit 0
+fi
+
+cat > "$OUT" <<EOF
+# Generated Dockerfile for profile: $PROFILE
+ARG VARIANT="ubuntu-24.04"
+FROM mcr.microsoft.com/devcontainers/base:
+
+LABEL org.jupyter-base.profile="$PROFILE"
+
+ENV NB_USER=jovyan NB_UID=1001 NB_GID=1001 HOME=/home/jovyan
+
+WORKDIR /home/jovyan
+
+EOF
+
+for feat in "${RESOLVED[@]}"; do
+  echo "# Feature: $feat" >> "$OUT"
+  echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+  cat >> "$OUT" <<RUNBLOCK
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+    set -eux; \
+    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
+    rm -rf /tmp/features/$feat
+RUNBLOCK
+  echo >> "$OUT"
+done
+
+echo "Dockerfile generated to $OUT"
+exit 0

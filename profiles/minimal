@@ -1,0 +1,4 @@
+
+# Purpose: Minimal profile — base plus minimal Python/tooling
+@parent:base
+

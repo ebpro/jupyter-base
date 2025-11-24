@@ -1,0 +1,6 @@
+
+# Purpose: Data science profile — Quarto, TeX and Jupyter kernels
+@profile:dev
+quarto
+texlive
+jupyter-kernels

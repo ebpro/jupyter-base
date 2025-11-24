@@ -1,0 +1,5 @@
+
+# Purpose: Kubernetes development profile — kubectl, helm, tilt, etc.
+@profile:dev
+kubernetes-tools
+tilt
