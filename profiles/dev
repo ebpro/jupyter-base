@@ -1,5 +1,8 @@
+
 # Purpose: Developer profile — node, language servers, and CLI tools
 @profile:minimal
+
 node
 lsp-tools
+pip-requirements
 gh-cli

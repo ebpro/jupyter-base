@@ -1,0 +1,7 @@
+{
+  "id": "python-base",
+  "version": "1.0.0",
+  "name": "python-base",
+  "description": "Install system Python3 and pip (minimal)",
+  "options": {}
+}

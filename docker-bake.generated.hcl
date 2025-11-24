@@ -2,13 +2,17 @@ group "all" {
   targets = [
     "final-base",
     "final-codeserver",
+    "final-containers-tools",
     "final-data-science",
     "final-dev",
     "final-full",
+    "final-jetbrains-gateway",
     "final-k8s-dev",
+    "final-k8s-sim",
     "final-minimal",
     "final-podman",
     "final-quarto-lecture",
+    "final-quarto-lecture-full",
     "final-teaching-interactive",
   ]
 }
@@ -23,8 +27,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -37,8 +41,22 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
+    ]
+  }
+
+  "final-containers-tools" = {
+    context = "."
+    dockerfile = "Dockerfile.generated"
+    target = "final-containers-tools"
+    platforms = [
+      "linux/amd64",
+      "linux/arm64",
+    ]
+    tags = [
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -51,8 +69,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -65,8 +83,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -79,8 +97,22 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
+    ]
+  }
+
+  "final-jetbrains-gateway" = {
+    context = "."
+    dockerfile = "Dockerfile.generated"
+    target = "final-jetbrains-gateway"
+    platforms = [
+      "linux/amd64",
+      "linux/arm64",
+    ]
+    tags = [
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -93,8 +125,22 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
+    ]
+  }
+
+  "final-k8s-sim" = {
+    context = "."
+    dockerfile = "Dockerfile.generated"
+    target = "final-k8s-sim"
+    platforms = [
+      "linux/amd64",
+      "linux/arm64",
+    ]
+    tags = [
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -107,8 +153,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -121,8 +167,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -135,8 +181,22 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
+    ]
+  }
+
+  "final-quarto-lecture-full" = {
+    context = "."
+    dockerfile = "Dockerfile.generated"
+    target = "final-quarto-lecture-full"
+    platforms = [
+      "linux/amd64",
+      "linux/arm64",
+    ]
+    tags = [
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 
@@ -149,8 +209,8 @@ targets = {
       "linux/arm64",
     ]
     tags = [
-      "testuser/testimg:latest",
-      "testuser/testimg:latest-sha",
+      "ebpro/jupyter-base:latest",
+      "ebpro/jupyter-base:latest-sha",
     ]
   }
 

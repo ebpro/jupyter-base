@@ -1,0 +1,4 @@
+ # Purpose: Quarto + full TeX for PDF outputs (heavy)
+@profile:quarto-lecture
+
+texlive

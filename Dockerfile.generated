@@ -16,11 +16,42 @@ RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     i
 COPY .devcontainer/features/zsh-config /tmp/features/zsh-config
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/zsh-config/install.sh ]; then /tmp/features/zsh-config/install.sh; else echo "No install.sh for zsh-config"; fi;     rm -rf /tmp/features/zsh-config
 
+# Feature: prompt-helpers
+COPY .devcontainer/features/prompt-helpers /tmp/features/prompt-helpers
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/prompt-helpers/install.sh ]; then /tmp/features/prompt-helpers/install.sh; else echo "No install.sh for prompt-helpers"; fi;     rm -rf /tmp/features/prompt-helpers
+
+# Feature: startup
+COPY .devcontainer/features/startup /tmp/features/startup
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/startup/install.sh ]; then /tmp/features/startup/install.sh; else echo "No install.sh for startup"; fi;     rm -rf /tmp/features/startup
+
+# Feature: gh-cli
+COPY .devcontainer/features/gh-cli /tmp/features/gh-cli
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/gh-cli/install.sh ]; then /tmp/features/gh-cli/install.sh; else echo "No install.sh for gh-cli"; fi;     rm -rf /tmp/features/gh-cli
+
+# Feature: git-lfs
+COPY .devcontainer/features/git-lfs /tmp/features/git-lfs
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/git-lfs/install.sh ]; then /tmp/features/git-lfs/install.sh; else echo "No install.sh for git-lfs"; fi;     rm -rf /tmp/features/git-lfs
+
+# Feature: docker-cli-helper
+COPY .devcontainer/features/docker-cli-helper /tmp/features/docker-cli-helper
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/docker-cli-helper/install.sh ]; then /tmp/features/docker-cli-helper/install.sh; else echo "No install.sh for docker-cli-helper"; fi;     rm -rf /tmp/features/docker-cli-helper
+
+# Feature: _lib/checksum-verify
+COPY .devcontainer/features/_lib/checksum-verify /tmp/features/_lib/checksum-verify
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/_lib/checksum-verify/install.sh ]; then /tmp/features/_lib/checksum-verify/install.sh; else echo "No install.sh for _lib/checksum-verify"; fi;     rm -rf /tmp/features/_lib/checksum-verify
+
+# Feature: _lib/toolcache
+COPY .devcontainer/features/_lib/toolcache /tmp/features/_lib/toolcache
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts     set -eux;     if [ -x /tmp/features/_lib/toolcache/install.sh ]; then /tmp/features/_lib/toolcache/install.sh; else echo "No install.sh for _lib/toolcache"; fi;     rm -rf /tmp/features/_lib/toolcache
+
 # Profile: base
 FROM common AS final-base
 
 # Profile: codeserver
 FROM common AS final-codeserver
+
+# Profile: containers-tools
+FROM common AS final-containers-tools
 
 # Profile: data-science
 FROM common AS final-data-science
@@ -31,17 +62,26 @@ FROM common AS final-dev
 # Profile: full
 FROM common AS final-full
 
+# Profile: jetbrains-gateway
+FROM common AS final-jetbrains-gateway
+
 # Profile: k8s-dev
 FROM common AS final-k8s-dev
 
+# Profile: k8s-sim
+FROM common AS final-k8s-sim
+
 # Profile: minimal
-FROM profile-base AS final-minimal
+FROM common AS final-minimal
 
 # Profile: podman
 FROM common AS final-podman
 
 # Profile: quarto-lecture
 FROM common AS final-quarto-lecture
+
+# Profile: quarto-lecture-full
+FROM common AS final-quarto-lecture-full
 
 # Profile: teaching-interactive
 FROM common AS final-teaching-interactive

@@ -1,3 +1,4 @@
- # Purpose: Quarto lecture profile — materials and docs for lectures
-# Base system + developer tools + Quarto + TeX
+ # Purpose: Quarto lecture profile — run and render Quarto materials (light)
 @profile:data-science
+
+quarto

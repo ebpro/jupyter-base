@@ -1,2 +1,5 @@
 work
 local
+# Generated artifacts
+Dockerfile.generated
+docker-bake.generated.hcl

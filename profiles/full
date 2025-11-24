@@ -1,7 +1,9 @@
 
-# Purpose: Full profile — combines developer and data-science features with GUI and code-server
-@profile:dev
-@profile:data-science
-texlive
+
+# Purpose: Full profile — everything (CI/release image only; heavy)
+@profile:quarto-lecture-full
+@profile:k8s-sim
+
 code-server
 codeserver-extensions
+jetbrains-gateway

@@ -1,0 +1,6 @@
+# Purpose: Container development tools profile — Tilt/Podman/Docker helpers
+@profile:dev
+
+tilt
+podman
+docker-cli-helper

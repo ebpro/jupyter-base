@@ -1,6 +1,8 @@
 
-# Purpose: Data science profile — Quarto, TeX and Jupyter kernels
+
+# Purpose: Data science profile — Conda environments and Jupyter kernels
 @profile:dev
-quarto
-texlive
+
+python-conda
 jupyter-kernels
+pip-requirements

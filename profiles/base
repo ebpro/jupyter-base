@@ -1,10 +1,12 @@
- # Purpose: Common base features applied to all profiles (shared layers)
+ # Purpose: Core baseline for all profiles — shell, prompt, tiny helpers
 base-apt
 zsh-config
-
-# Common shared features for all profiles
-python-conda
-pip-requirements
-dev-tools
 prompt-helpers
 startup
+
+# Ergonomics and small tools
+gh-cli
+git-lfs
+docker-cli-helper
+_lib/checksum-verify
+_lib/toolcache
