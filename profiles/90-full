@@ -1,8 +1,8 @@
 
 
 # Purpose: Full profile — everything (CI/release image only; heavy)
-@profile:quarto-lecture-full
-@profile:k8s-sim
+@profile:32-quarto-lecture-full
+@profile:41-k8s-sim
 
 code-server
 codeserver-extensions

@@ -1,6 +1,6 @@
 # Purpose: Local cluster simulation & dev (heavy)
 # Includes local cluster tooling for integration tests; heavy and optional
-@profile:k8s-dev
+@profile:40-k8s-dev
 
 tilt
 docker-cli-helper

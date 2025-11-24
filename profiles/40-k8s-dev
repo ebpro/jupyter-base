@@ -1,7 +1,7 @@
 
 
 # Purpose: Kubernetes development profile — kubectl, helm, tilt, etc. (light)
-@profile:dev
+@profile:20-dev
 
 kubernetes-tools
 tilt

@@ -1,4 +1,4 @@
 # Purpose: JetBrains Gateway profile — remote IDE access via JetBrains
-@profile:dev
+@profile:20-dev
 
 jetbrains-gateway

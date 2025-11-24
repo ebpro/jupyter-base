@@ -1,7 +1,7 @@
 
 
 # Purpose: Minimal profile — base plus minimal Python/tooling
-@profile:base
+@profile:00-base
 
 python-base
 dev-tools

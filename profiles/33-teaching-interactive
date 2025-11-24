@@ -1,4 +1,4 @@
 
 # Purpose: Interactive teaching profile — lecture materials plus Kubernetes exercises
-@profile:quarto-lecture
-@profile:k8s-dev
+@profile:31-quarto-lecture
+@profile:40-k8s-dev

@@ -1,6 +1,7 @@
 
+
 # Purpose: Developer profile — node, language servers, and CLI tools
-@profile:minimal
+@profile:10-minimal
 
 node
 lsp-tools

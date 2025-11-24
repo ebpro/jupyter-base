@@ -1,6 +1,6 @@
 
 # Purpose: Code Server profile — browser-based VS Code and its extensions
-@profile:dev
+@profile:20-dev
 
 code-server
 codeserver-extensions
