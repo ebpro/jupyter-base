@@ -1,0 +1,9 @@
+{
+  "name": "texlive",
+  "version": "0.1.0",
+  "id": "jupyter-base/texlive",
+  "description": "Installs TinyTeX/TeXLive packages listed in Artefacts/TeXLive",
+  "options": {
+    "install_extra": { "type": "boolean", "default": false }
+  }
+}

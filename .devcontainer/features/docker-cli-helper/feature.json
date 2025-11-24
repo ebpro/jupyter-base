@@ -1,0 +1,7 @@
+{
+  "name": "docker-cli-helper",
+  "version": "0.1.0",
+  "id": "jupyter-base/docker-cli-helper",
+  "description": "Helper: configure docker group and helper scripts for using host Docker socket",
+  "options": {}
+}

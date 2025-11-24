@@ -1,0 +1,13 @@
+{
+  "name": "python-conda",
+  "version": "0.1.0",
+  "id": "jupyter-base/python-conda",
+  "description": "Installs Miniforge and updates environment from Artefacts/environment.yml",
+  "options": {
+    "miniforge_channel": {
+      "type": "string",
+      "default": "conda-forge",
+      "description": "Channel used by conda"
+    }
+  }
+}

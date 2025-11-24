@@ -28,17 +28,41 @@ ENV MATERIALS_DIR=${WORK_DIR}/materials \
     PATH=${HOME}/bin:/opt/bin:${PATH}
 
 # System dependencies installation with cache mounting
-RUN --mount=type=bind,source=Artefacts/apt_packages,target=/tmp/Artefacts/apt_packages \ 
-	--mount=type=cache,target=/var/cache/apt,sharing=locked \
+# By default install `apt_packages.base`. To also install extras, pass
+# --build-arg INSTALL_EXTRA_PACKAGES=true to the build.
+ARG INSTALL_EXTRA_PACKAGES="false"
+RUN --mount=type=bind,source=Artefacts/apt_packages/base,target=/tmp/Artefacts/apt_packages_base \
+    --mount=type=bind,source=Artefacts/apt_packages/extra,target=/tmp/Artefacts/apt_packages_extra \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && \
-	apt-get install -qq --yes --no-install-recommends \
-		$(grep -v -e "^#" -e "^$" /tmp/Artefacts/apt_packages) && \
-	rm -rf /var/lib/apt/lists/* && \
+    set -eux; \
+    # Read base packages
+    BASE_PKGS=$(grep -v -e "^#" -e "^$" /tmp/Artefacts/apt_packages_base | tr '\n' ' ' || true); \
+    EXTRA_PKGS=""; \
+    if [ "${INSTALL_EXTRA_PACKAGES}" = "true" ] && [ -f /tmp/Artefacts/apt_packages_extra ]; then \
+        EXTRA_PKGS=$(grep -v -e "^#" -e "^$" /tmp/Artefacts/apt_packages_extra | tr '\n' ' ' || true); \
+    fi; \
+    PKGS="${BASE_PKGS} ${EXTRA_PKGS}"; \
+    # Normalize whitespace
+    PKGS=$(echo "${PKGS}" | xargs || true); \
+    if [ -n "${PKGS}" ]; then \
+        apt-get update; \
+        apt-get install -qq --yes --no-install-recommends ${PKGS}; \
+        rm -rf /var/lib/apt/lists/*; \
+        # Verify installation and fail early if a package didn't install
+        for p in ${PKGS}; do \
+            if ! dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "installed"; then \
+                echo "FATAL: apt package '$p' failed to install"; \
+                exit 1; \
+            fi; \
+        done; \
+    else \
+        echo "No apt packages to install"; \
+    fi; \
     # Create user and set up sudo
-    groupadd -g ${NB_GID} ${NB_USER} && \
-    useradd -l -m -s /bin/zsh -N -u ${NB_UID} -g ${NB_GID} ${NB_USER} && \
-    echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${NB_USER} && \
+    groupadd -g ${NB_GID} ${NB_USER}; \
+    useradd -l -m -s /bin/zsh -N -u ${NB_UID} -g ${NB_GID} ${NB_USER}; \
+    echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${NB_USER}; \
     chmod 0440 /etc/sudoers.d/${NB_USER}
 
 # Copy artifact checksums for build-time verification

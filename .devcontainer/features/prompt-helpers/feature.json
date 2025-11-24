@@ -1,0 +1,7 @@
+{
+  "name": "prompt-helpers",
+  "version": "0.1.0",
+  "id": "jupyter-base/prompt-helpers",
+  "description": "Installs gitstatusd and related prompt helpers",
+  "options": {}
+}

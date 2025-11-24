@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "moved_to": "Artefacts/checksums.json",
-    "note": "This file has been renamed to Artefacts/checksums.json. Please update references; the old file is kept for backward compatibility."
-  }
-}

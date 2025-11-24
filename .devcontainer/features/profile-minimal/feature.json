@@ -1,0 +1,6 @@
+{
+  "name": "profile-minimal",
+  "version": "1.0.0",
+  "description": "Meta-feature: minimal profile (base-apt, zsh-config, dev-tools minimal subset, startup, docker-cli-helper optional)",
+  "options": {}
+}

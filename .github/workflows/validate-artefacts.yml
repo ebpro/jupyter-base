@@ -1,0 +1,23 @@
+name: Validate Artefacts
+
+on:
+  push:
+    paths:
+      - 'Artefacts/**'
+      - 'scripts/validate-artefacts.sh'
+  pull_request:
+    paths:
+      - 'Artefacts/**'
+      - 'scripts/validate-artefacts.sh'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Run artefacts validator
+        run: |
+          chmod +x scripts/validate-artefacts.sh
+          scripts/validate-artefacts.sh Artefacts

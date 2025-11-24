@@ -1,0 +1,7 @@
+{
+  "name": "git-lfs",
+  "version": "0.1.0",
+  "id": "jupyter-base/git-lfs",
+  "description": "Installs Git LFS and configures it for the dev user",
+  "options": {}
+}

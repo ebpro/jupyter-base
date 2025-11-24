@@ -10,24 +10,29 @@ CENTRAL_FILE="$REPO_ROOT/Artefacts/checksums.json"
 CHECKSUMS_FILE="$CENTRAL_FILE"
 VERSIONS_FILE="$REPO_ROOT/Artefacts/versions.json"
 TMPDIR=$(mktemp -d)
-ARCH_LOCAL=$(uname -m)
 
-arch_map() {
-  case "$1" in
-    x86_64|X86_64|amd64) echo amd64 ;;
-    aarch64|arm64) echo arm64 ;;
-    *) echo amd64 ;;
-  esac
-}
+# Use centralized arch helper when available
+if [ -f "$REPO_ROOT/scripts/arch.sh" ]; then
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/scripts/arch.sh"
+else
+  arch_map() {
+    case "$1" in
+      x86_64|X86_64|amd64) echo amd64 ;;
+      aarch64|arm64) echo arm64 ;;
+      *) echo amd64 ;;
+    esac
+  }
+  arch_aliases() {
+    case "$1" in
+      amd64) echo "amd64 x86_64" ;;
+      arm64) echo "arm64 aarch64 armv8" ;;
+      *) echo "$1" ;;
+    esac
+  }
+fi
 
-# Return aliases for common arch names (used when release assets use different naming)
-arch_aliases() {
-  case "$1" in
-    amd64) echo "amd64 x86_64" ;;
-    arm64) echo "arm64 aarch64 armv8" ;;
-    *) echo "$1" ;;
-  esac
-}
+ARCH_LOCAL=$(arch_map "$(uname -m)")
 
 # Default ARCHS: if ARCHS env var provided use it (space-separated), else use local arch
 if [ -n "${ARCHS:-}" ]; then

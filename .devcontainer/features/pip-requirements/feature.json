@@ -1,0 +1,7 @@
+{
+  "name": "pip-requirements",
+  "version": "0.1.0",
+  "id": "jupyter-base/pip-requirements",
+  "description": "Installs pip requirements from Artefacts/requirements.txt (or base/extra splits)",
+  "options": {}
+}

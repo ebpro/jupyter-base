@@ -1,0 +1,6 @@
+{
+  "name": "profile-k8s",
+  "version": "1.0.0",
+  "description": "Meta-feature: k8s ops profile (comfortable + kubernetes-tools)",
+  "options": {}
+}

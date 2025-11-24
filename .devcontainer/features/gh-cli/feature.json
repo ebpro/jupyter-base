@@ -1,0 +1,7 @@
+{
+  "name": "gh-cli",
+  "version": "0.1.0",
+  "id": "jupyter-base/gh-cli",
+  "description": "Installs GitHub CLI into the dev user's bin using Artefacts/versions.json",
+  "options": {}
+}

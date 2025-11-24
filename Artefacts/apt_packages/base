@@ -1,0 +1,23 @@
+# Minimal apt packages for a lightweight devcontainer
+# Keep this list small to minimize image size.
+
+jq
+fzf
+tmux
+neovim
+cmake
+pkg-config
+
+# Runtime libraries required by XeTeX/XeLaTeX (installed by TinyTeX/TeXLive)
+# These provide `libfontconfig.so.1` and other font/image support so fmtutil
+# can successfully build xetex/xelatex during the TinyTeX installer.
+libfontconfig1
+libfreetype6
+libx11-6
+libxrender1
+libxext6
+libxft2
+libpng16-16
+libxcb1
+# Basic fonts so TeX can use system fonts if needed
+fonts-dejavu-core

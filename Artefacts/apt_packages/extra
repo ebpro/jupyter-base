@@ -1,0 +1,14 @@
+# Extra / optional apt packages for heavier developer workflows
+# Installed only when `--build-arg INSTALL_EXTRA_PACKAGES=true` is provided.
+
+gdebi
+git-lfs
+vim
+graphviz
+pandoc
+plantuml
+imagemagick
+inkscape
+conntrack
+socat
+ebtables

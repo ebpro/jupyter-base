@@ -77,6 +77,7 @@ Options:
     -t, --tag           Custom tag (default: ${TAG1})
     -p, --platform      Build platform (default: ${TARGET_PLATFORM})
     --push              Push image after build
+    --build-codeserver  Build a codeserver image based on the built image and `Dockerfile.codeserver`
     --load              Attempt to load multi-platform images locally (may not work with all platforms)
 
 Build Information:
@@ -96,6 +97,7 @@ EOF
 # Parse arguments
 PUSH=false
 LOAD=false
+BUILD_CODESERVER=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help; exit 0 ;;
@@ -103,6 +105,7 @@ while [[ $# -gt 0 ]]; do
         -t|--tag) TAG1="$2" TAG2="${2}-${GIT_SHA}"; shift 2 ;;
         -p|--platform) TARGET_PLATFORM="$2"; shift 2 ;;
         --push) PUSH=true; shift ;;
+        --build-codeserver|--codeserver) BUILD_CODESERVER=true; shift ;;
         --load) LOAD=true; shift ;;
         *) break ;;
     esac
@@ -166,6 +169,16 @@ docker buildx build \
     "$@" \
     .
 
+# Optionally build a codeserver image that uses the just-built image as its base.
+if [[ "${BUILD_CODESERVER}" == "true" ]]; then
+        CODESERVER_TAG="${REPO}/${IMAGE_NAME}:${TAG1}-codeserver"
+        BASE_IMAGE_TAG="${REPO}/${IMAGE_NAME}:${TAG1}"
+        log_info "Building codeserver image ${CODESERVER_TAG} using base ${BASE_IMAGE_TAG}"
+        DOCKER_BUILDKIT=1 docker build -t "${CODESERVER_TAG}" \
+            --build-arg BASE_IMAGE="${BASE_IMAGE_TAG}" \
+            -f Dockerfile.codeserver .
+fi
+
 # Push if requested
 if [[ "${PUSH}" == "true" ]]; then
     if check_git_state; then
@@ -173,6 +186,10 @@ if [[ "${PUSH}" == "true" ]]; then
         docker push "${REPO}/${IMAGE_NAME}:${TAG1}"
         log_info "Pushing image ${REPO}/${IMAGE_NAME}:${TAG2}"
         docker push "${REPO}/${IMAGE_NAME}:${TAG2}"
+        if [[ "${BUILD_CODESERVER}" == "true" ]]; then
+            log_info "Pushing codeserver image ${CODESERVER_TAG}"
+            docker push "${CODESERVER_TAG}"
+        fi
     else
         log_error "Cannot push: uncommitted changes detected"
         exit 1

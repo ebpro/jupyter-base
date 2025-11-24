@@ -1,0 +1,6 @@
+{
+  "name": "_lib/toolcache",
+  "version": "1.0.0",
+  "description": "Helper utilities for installing tools into /opt/toolcache/<name>/<version>",
+  "options": {}
+}

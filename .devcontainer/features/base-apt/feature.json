@@ -1,0 +1,7 @@
+{
+  "name": "base-apt",
+  "version": "0.1.0",
+  "id": "jupyter-base/base-apt",
+  "description": "Installs minimal OS utility packages from Artefacts/apt_packages/base",
+  "options": {}
+}

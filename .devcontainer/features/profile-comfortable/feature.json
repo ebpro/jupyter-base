@@ -1,0 +1,6 @@
+{
+  "name": "profile-comfortable",
+  "version": "1.0.0",
+  "description": "Meta-feature: comfortable developer profile (minimal + node, lsp-tools, gh-cli, git-lfs, prompt-helpers)",
+  "options": {}
+}

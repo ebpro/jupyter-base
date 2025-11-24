@@ -1,0 +1,4 @@
+# sample requirements to test pip-as-non-root
+# use the latest stable ipykernel 7.x for compatibility
+ipykernel==7.1.0
+zsh-jupyter-kernel==3.5.1

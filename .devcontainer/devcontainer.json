@@ -1,4 +1,26 @@
 {
+  "name": "jupyter-base (devcontainer)",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "args": {
+      "INSTALL_EXTRA_PACKAGES": "false"
+    }
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/zsh"
+  },
+  "remoteUser": "jovyan",
+  "forwardPorts": [8888],
+  "features": {
+    "./.devcontainer/features/_lib/checksum-verify": {},
+    "./.devcontainer/features/zsh-config": {},
+    "./.devcontainer/features/python-conda": {},
+    "./.devcontainer/features/quarto": {},
+    "./.devcontainer/features/jetbrains-gateway": {}
+  }
+}
+{
   "name": "jupyter-base — Quarto dev",
   "build": {
     "dockerfile": "Dockerfile",

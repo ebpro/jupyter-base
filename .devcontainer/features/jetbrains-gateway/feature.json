@@ -1,0 +1,13 @@
+{
+  "name": "jetbrains-gateway",
+  "version": "0.1.0",
+  "id": "jupyter-base/jetbrains-gateway",
+  "description": "Optional SSH server to support JetBrains Gateway / Connect to DevContainer",
+  "options": {
+    "start_sshd": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, configure and enable sshd in the container (expose port in compose)"
+    }
+  }
+}

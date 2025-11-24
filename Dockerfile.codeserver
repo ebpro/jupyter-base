@@ -1,8 +1,8 @@
 # Dockerfile.codeserver
-# Builds a variant with optional code-server installed using pinned versions and checksums
-
-ARG VARIANT="ubuntu-24.04"
-FROM mcr.microsoft.com/devcontainers/base:${VARIANT}
+# Builds a codeserver image. The base image is supplied via build arg `BASE_IMAGE`.
+# This allows your `build.sh` to build the devcontainer image and pass its tag here.
+ARG BASE_IMAGE="jupyter-base:dev"
+FROM ${BASE_IMAGE}
 
 ARG NB_USER="jovyan"
 ARG NB_UID="1001"
@@ -15,9 +15,11 @@ ENV HOME=/home/${NB_USER}
 COPY --chown=root:root Artefacts/checksums.json /tmp/checksums.json
 COPY --chown=root:root Artefacts/versions.json /tmp/versions.json
 
+USER root
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar && rm -rf /var/lib/apt/lists/*
+
 
 # Install code-server from GitHub release using pinned version from Artefacts/versions.json
 RUN set -eux; \
@@ -38,6 +40,8 @@ RUN set -eux; \
     mkdir -p /opt/code-server && tar -xzf /tmp/code-server.tar.gz -C /opt/code-server --strip-components=1 && rm /tmp/code-server.tar.gz; \
     ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server || true; \
     chown -R ${NB_UID}:${NB_GID} /opt/code-server || true
+
+USER ${NB_USER}
 
 # Do not run code-server by default; this image installs it for use in devcontainers or by a separate runtime command
 CMD ["/bin/bash"]
