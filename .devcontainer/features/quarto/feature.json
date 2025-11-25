@@ -1,7 +1,7 @@
 {
   "name": "quarto",
   "version": "0.1.0",
-  "id": "jupyter-base/quarto",
+  "id": "quarto",
   "description": "Installs Quarto CLI and optionally its runtime (Chromium)",
   "options": {
     "install_chromium": {

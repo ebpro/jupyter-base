@@ -1,6 +1,7 @@
 # Purpose: Local cluster simulation & dev (heavy)
+# Purpose: Local cluster simulation & dev (heavy)
 # Includes local cluster tooling for integration tests; heavy and optional
-@profile:40-k8s-dev
 
-tilt
+@parent:30-00-k8s-dev
+
 podman

@@ -1,7 +1,7 @@
 {
   "name": "zsh-config",
   "version": "0.1.0",
-  "id": "jupyter-base/zsh-config",
+  "id": "zsh-config",
   "description": "Installs Prezto and configures Powerlevel10k for the dev user",
   "options": {
     "prezto_repo": {

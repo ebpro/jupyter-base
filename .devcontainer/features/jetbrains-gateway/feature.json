@@ -1,7 +1,7 @@
 {
   "name": "jetbrains-gateway",
   "version": "0.1.0",
-  "id": "jupyter-base/jetbrains-gateway",
+  "id": "jetbrains-gateway",
   "description": "Optional SSH server to support JetBrains Gateway / Connect to DevContainer",
   "options": {
     "start_sshd": {

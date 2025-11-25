@@ -1,7 +1,7 @@
 {
   "name": "codeserver-extensions",
   "version": "0.1.0",
-  "id": "jupyter-base/codeserver-extensions",
+  "id": "codeserver-extensions",
   "description": "Installs code-server extensions listed in Artefacts/codeserver_extensions",
   "options": {}
 }

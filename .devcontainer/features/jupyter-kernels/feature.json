@@ -1,7 +1,7 @@
 {
   "name": "jupyter-kernels",
   "version": "0.1.0",
-  "id": "jupyter-base/jupyter-kernels",
+  "id": "jupyter-kernels",
   "description": "Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel",
   "options": {}
 }

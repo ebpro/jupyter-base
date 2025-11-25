@@ -1,4 +1,5 @@
 
+
+@parent:20-01-quarto-lecture
 # Purpose: Interactive teaching profile — lecture materials plus Kubernetes exercises
-@profile:31-quarto-lecture
-@profile:40-k8s-dev
+@profile:30-00-k8s-dev

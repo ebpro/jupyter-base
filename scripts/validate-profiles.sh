@@ -65,6 +65,14 @@ for pf in "$PROFILES_DIR"/*; do
   name=$(basename "$pf")
   [ "$name" = "README.md" ] && continue
   echo "- Checking profile: $name"
+  # enforce filename prefix format when a numeric prefix is used
+  if printf '%s' "$name" | grep -qE '^[0-9]{2}-'; then
+    if ! printf '%s' "$name" | grep -qE '^[0-9]{2}(-[0-9]{2})?-[a-z0-9]'; then
+      echo "  ERROR: profile filename '$name' does not follow numeric-prefix naming (expected NN-... or NN-NN-... )" >&2
+      missing=1
+      continue
+    fi
+  fi
   # Quick static check: ensure at most one @parent: directive
   # use grep -c to return a numeric count and sanitize it
   parent_count=$(grep -c -E '^[[:space:]]*@parent:' "$PROFILES_DIR/$name" 2>/dev/null || true)
@@ -78,11 +86,45 @@ for pf in "$PROFILES_DIR"/*; do
     continue
   fi
 
+  # If filename indicates a child (NN-NN-...), require a @parent: directive
+  # Exception: allow NN-NN-base files to be parentless (explicit base profiles)
+  if printf '%s' "$name" | grep -qE '^[0-9]{2}-[0-9]{2}-'; then
+    if ! printf '%s' "$name" | grep -qE '-base$'; then
+      if [ "$parent_count" -eq 0 ]; then
+        echo "  ERROR: profile '$name' appears to be a child (numeric prefix) but has no @parent: directive" >&2
+        missing=1
+        continue
+      fi
+    fi
+  fi
+
   resolved=()
   expand_profile "$name" resolved
   if [ ${#resolved[@]} -eq 0 ]; then
     echo "  (no features found)"
     continue
+  fi
+  # If a parent is declared, expand parent-only features to detect duplicates
+  parent_provided=()
+  if [ "$parent_count" -eq 1 ]; then
+    parent_token=$(grep -E '^[[:space:]]*@parent:' "$PROFILES_DIR/$name" | sed -E 's/^[[:space:]]*@parent://;s/[[:space:]]+//g' | head -n1)
+    # find matching profile file for the token (exact or suffix match)
+    matched=""
+    for f in "$PROFILES_DIR"/*; do
+      bn=$(basename "$f")
+      if [ "$bn" = "$parent_token" ] || [ "${bn##*-}" = "$parent_token" ]; then
+        matched="$bn"
+        break
+      fi
+    done
+    if [ -n "$matched" ]; then
+      parent_provided=()
+      expand_profile "$matched" parent_provided
+    else
+      echo "  ERROR: parent profile token '$parent_token' referenced from '$name' not found" >&2
+      missing=1
+      continue
+    fi
   fi
   # check features exist and have install.sh or feature.json
   idx=0
@@ -106,6 +148,29 @@ for pf in "$PROFILES_DIR"/*; do
       warn=1
     fi
   done
+
+  # Detect duplicates: features explicitly listed in this profile that are provided by parent chain
+  if [ ${#parent_provided[@]} -ne 0 ]; then
+    # read explicit features from this file (non-directive, non-comment)
+    explicit=()
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="$(echo "$line" | sed -e 's/^\s*//' -e 's/\s*$//')"
+      [ -z "$line" ] && continue
+      case "$line" in
+        \#*) continue ;;
+        @*) continue ;;
+        *) explicit+=("$line") ;;
+      esac
+    done < "$PROFILES_DIR/$name"
+    for ef in "${explicit[@]}"; do
+      for pfv in "${parent_provided[@]}"; do
+        if [ "$ef" = "$pfv" ]; then
+          echo "  ERROR: feature '$ef' in profile '$name' is already provided by @parent chain" >&2
+          missing=1
+        fi
+      done
+    done
+  fi
 done
 
 if [ $missing -ne 0 ]; then

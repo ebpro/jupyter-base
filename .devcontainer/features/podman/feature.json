@@ -2,5 +2,6 @@
   "id": "podman",
   "name": "podman",
   "description": "Installs Podman client (user-space container runtime) via apt when available.",
-  "options": {}
+  "options": {},
+  "version": "0.1.0"
 }

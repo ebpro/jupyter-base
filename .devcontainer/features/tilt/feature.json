@@ -2,5 +2,6 @@
   "id": "tilt",
   "name": "tilt",
   "description": "Installs Tilt CLI (developer tool for iterative k8s development).",
-  "options": {}
+  "options": {},
+  "version": "0.1.0"
 }

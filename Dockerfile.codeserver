@@ -1,7 +1,7 @@
 # Dockerfile.codeserver
 # Builds a codeserver image. The base image is supplied via build arg `BASE_IMAGE`.
 # This allows your `build.sh` to build the devcontainer image and pass its tag here.
-ARG BASE_IMAGE="jupyter-base:dev"
+ARG BASE_IMAGE="solen:dev"
 FROM ${BASE_IMAGE}
 
 ARG NB_USER="jovyan"

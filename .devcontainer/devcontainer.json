@@ -1,5 +1,5 @@
 {
-  "name": "jupyter-base (devcontainer)",
+  "name": "solen (devcontainer)",
   "build": {
     "dockerfile": "../Dockerfile",
     "context": "..",
@@ -21,7 +21,7 @@
   }
 }
 {
-  "name": "jupyter-base — Quarto dev",
+  "name": "solen — Quarto dev",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",

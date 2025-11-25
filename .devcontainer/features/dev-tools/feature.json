@@ -1,7 +1,7 @@
 {
   "name": "dev-tools",
   "version": "0.1.0",
-  "id": "jupyter-base/dev-tools",
+  "id": "dev-tools",
   "description": "Installs compilers and monitoring utilities (build-essential, cmake, htop, strace)",
   "options": {}
 }

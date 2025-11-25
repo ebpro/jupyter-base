@@ -1,4 +1,4 @@
+@parent:10-00-dev
 
 # Purpose: Podman profile — include Podman for container runtime testing
-@profile:20-dev
 podman

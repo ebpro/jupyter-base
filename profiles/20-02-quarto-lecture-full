@@ -1,4 +1,4 @@
+@parent:20-01-quarto-lecture
  # Purpose: Quarto + full TeX for PDF outputs (heavy)
-@profile:31-quarto-lecture
 
 texlive

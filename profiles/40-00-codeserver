@@ -1,6 +1,6 @@
+@parent:10-00-dev
 
 # Purpose: Code Server profile — browser-based VS Code and its extensions
-@profile:20-dev
 
 code-server
 codeserver-extensions

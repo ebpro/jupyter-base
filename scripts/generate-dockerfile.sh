@@ -34,32 +34,35 @@ done
 declare -A VISITED
 
 expand_profile(){
-  p="$1"
-  out_name="$2"
-  if [ -n "${VISITED[$p]:-}" ]; then
+  local pname="$1"
+  local out_name="$2"
+  if [ -n "${VISITED[$pname]:-}" ]; then
     return
   fi
-  VISITED[$p]=1
-  f="$PROFILES_DIR/$p"
+  VISITED[$pname]=1
+  local f="$PROFILES_DIR/$pname"
   if [ ! -f "$f" ]; then
-    echo "Profile not found: $p" >&2; exit 3
+    echo "Profile not found: $pname" >&2; exit 3
   fi
+  local line local_trim parent sub
   while IFS= read -r line || [ -n "$line" ]; do
-    line="$(echo "$line" | sed -e 's/^\s*//' -e 's/\s*$//')"
-    [ -z "$line" ] && continue
-    case "$line" in
+    local_trim="$(echo "$line" | sed -e 's/^\s*//' -e 's/\s*$//')"
+    [ -z "$local_trim" ] && continue
+    case "$local_trim" in
       \#*) continue ;;
       @parent:*)
-        parent=${line#@parent:}
+        parent=${local_trim#@parent:}
+        parent="$(echo "$parent" | sed -e 's/^\s*//' -e 's/\s*$//')"
         expand_profile "$parent" "$out_name"
         ;;
       @profile:*)
-        sub=${line#@profile:}
+        sub=${local_trim#@profile:}
+        sub="$(echo "$sub" | sed -e 's/^\s*//' -e 's/\s*$//')"
         expand_profile "$sub" "$out_name"
         ;;
       *)
         # append to the array whose name is in out_name
-        eval "$out_name+=(\"$line\")"
+        eval "$out_name+=(\"$local_trim\")"
         ;;
     esac
   done < "$f"
@@ -72,6 +75,10 @@ collect_profiles(){
     [ "$name" = "README.md" ] && continue
     profiles+=("$name")
   done
+  # Sort profiles using version sort so numeric prefixes order naturally (00-01 before 10-00)
+  if [ ${#profiles[@]} -gt 0 ]; then
+    IFS=$'\n' read -r -d '' -a profiles < <(printf "%s\n" "${profiles[@]}" | sort -V && printf '\0')
+  fi
 }
 
 if [ "$ALL" = true ]; then
@@ -84,6 +91,7 @@ if [ "$ALL" = true ]; then
   # Expand each profile into resolved list and store as parallel arrays
   profile_features_strings=()
   i=0
+  declare -A full_features_map
   for p in "${profiles[@]}"; do
     arr=()
     expand_profile "$p" arr
@@ -97,6 +105,8 @@ if [ "$ALL" = true ]; then
       fi
     done
     profile_features_strings[$i]="${dedup[*]}"
+    # store full resolved features for this profile for later use
+    full_features_map[$p]="${dedup[*]}"
     i=$((i+1))
   done
 
@@ -136,23 +146,6 @@ if [ "$ALL" = true ]; then
   done
 
   # Compute per-profile unique features (features not present in parent)
-  declare -A full_features_map
-  for idx in "${!ordered_profiles[@]}"; do
-    p=${ordered_profiles[$idx]}
-    arr=()
-    expand_profile "$p" arr
-    # deduplicate
-    dedup=()
-    declare -A seen2
-    for item in "${arr[@]}"; do
-      if [ -z "${seen2[$item]:-}" ]; then
-        dedup+=("$item")
-        seen2[$item]=1
-      fi
-    done
-    full_features_map[$p]="${dedup[*]}"
-  done
-
   declare -A unique_features_map
   for p in "${ordered_profiles[@]}"; do
     par=${parent_map[$p]:-}
@@ -182,49 +175,95 @@ if [ "$ALL" = true ]; then
   fi
 
   # Emit Dockerfile with common stage if present
-  cat > "$OUT" <<EOF
+  cat > "$OUT" <<'EOF'
 # Generated multi-profile Dockerfile
 ARG VARIANT="ubuntu-24.04"
-FROM mcr.microsoft.com/devcontainers/base:
-
-ARG NB_USER=jovyan NB_UID=1001 NB_GID=1001
+# Use an explicit default base image tag to avoid buildx warnings when ARG has a default
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04 AS base
+ARG NB_USER=jovyan
+ARG NB_UID=1001
+ARG NB_GID=1001
 ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
 EOF
+    # Ensure shared helpers and Artefacts are available in base so feature scripts
+    # that run early (before a 'common' stage) can source helper functions.
+    echo "# Bake helper library and Artefacts into the base stage" >> "$OUT"
+    echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
+    echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
+    echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
+    echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
 
   if [ ${#common_features[@]} -gt 0 ]; then
     echo "# Common stage" >> "$OUT"
-    echo "FROM mcr.microsoft.com/devcontainers/base: AS common" >> "$OUT"
+    echo "FROM base AS common" >> "$OUT"
+    # bake helper scripts and Artefacts into the common stage so runtime features can source them
+    echo "# Bake helper library and Artefacts into image" >> "$OUT"
+    echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
+    echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
+    echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
+    echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
     for feat in "${common_features[@]}"; do
       echo "# Feature: $feat" >> "$OUT"
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-      cat >> "$OUT" <<RUNBLOCK
+        cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-    set -eux; \
-    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
-    rm -rf /tmp/features/$feat
+  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
   fi
 
   # Emit per-profile stages in topological order so parent stages are available
+  # reset visited map so expand_profile can be used again per-profile
+  unset VISITED || true
+  declare -A VISITED
   for p in "${ordered_profiles[@]}"; do
     echo "# Profile: $p" >> "$OUT"
     par=${parent_map[$p]:-}
     # determine base stage to inherit from (parent stage or common/base image)
     if [ -n "$par" ]; then
-      base_from="profile-$par"
+      # If parent had unique features a `profile-<parent>` stage was emitted;
+      # otherwise parent collapsed to `final-<parent>` and we should inherit from that.
+      parent_unique="${unique_features_map[$par]:-}"
+      if [ -n "$parent_unique" ]; then
+        base_from="profile-$par"
+      else
+        base_from="final-$par"
+      fi
     elif [ ${#common_features[@]} -gt 0 ]; then
       base_from="common"
     else
-      base_from="mcr.microsoft.com/devcontainers/base:"
+      base_from="base"
     fi
 
-    # emit only unique features for this profile (parent features already present)
-    prof_feats_string="${unique_features_map[$p]:-}"
-    IFS=' ' read -r -a prof_feats <<< "$prof_feats_string"
+    # Recompute resolved features for this profile and subtract parent features
+    arr=()
+    expand_profile "$p" arr
+    # deduplicate while preserving order
+    dedup=()
+    declare -A _seen_local
+    for item in "${arr[@]}"; do
+      if [ -z "${_seen_local[$item]:-}" ]; then
+        dedup+=("$item")
+        _seen_local[$item]=1
+      fi
+    done
+    # parent features
+    par_feats=()
+    if [ -n "$par" ]; then
+      IFS=' ' read -r -a par_feats <<< "${full_features_map[$par]:-}"
+    fi
+    # compute unique features for this profile (exclude parent features)
+    prof_feats=()
+    for f in "${dedup[@]}"; do
+      skip=false
+      for pf in "${par_feats[@]}"; do
+        if [ "$pf" = "$f" ]; then skip=true; break; fi
+      done
+      if [ "$skip" = false ]; then prof_feats+=("$f"); fi
+    done
 
     if [ ${#prof_feats[@]} -eq 0 ]; then
       # no unique features; collapse stage and alias final directly to base
@@ -244,11 +283,9 @@ RUNBLOCK
       if [ "$skip" = true ]; then continue; fi
       echo "# Feature: $feat" >> "$OUT"
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-      cat >> "$OUT" <<RUNBLOCK
+        cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-    set -eux; \
-    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
-    rm -rf /tmp/features/$feat
+  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
@@ -282,27 +319,24 @@ if [ "$DRY" = true ]; then
   exit 0
 fi
 
-cat > "$OUT" <<EOF
-# Generated Dockerfile for profile: $PROFILE
-ARG VARIANT="ubuntu-24.04"
-FROM mcr.microsoft.com/devcontainers/base:
-
-LABEL org.jupyter-base.profile="$PROFILE"
-
-ENV NB_USER=jovyan NB_UID=1001 NB_GID=1001 HOME=/home/jovyan
-
-WORKDIR /home/jovyan
-
-EOF
+# Emit header for single-profile Dockerfile. Use printf to insert the profile
+# but keep the VARIANT token literal (escaped) so the generated Dockerfile has
+# `ARG VARIANT` and `FROM ...:${VARIANT}` instead of expanding it here.
+: > "$OUT"
+printf "# Generated Dockerfile for profile: %s\n" "$PROFILE" >> "$OUT"
+printf 'ARG VARIANT="ubuntu-24.04"\n' >> "$OUT"
+printf '# Use the VARIANT in the FROM and name the stage so --target final-<profile> works\n' >> "$OUT"
+printf "FROM mcr.microsoft.com/devcontainers/base:\${VARIANT} AS final-%s\n\n" "$PROFILE" >> "$OUT"
+printf 'LABEL org.solen.profile="%s"\n\n' "$PROFILE" >> "$OUT"
+printf 'ENV NB_USER=jovyan NB_UID=1001 NB_GID=1001 HOME=/home/jovyan\n\n' >> "$OUT"
+printf 'WORKDIR /home/jovyan\n\n' >> "$OUT"
 
 for feat in "${RESOLVED[@]}"; do
   echo "# Feature: $feat" >> "$OUT"
   echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
   cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-    set -eux; \
-    if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; \
-    rm -rf /tmp/features/$feat
+  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
   echo >> "$OUT"
 done

@@ -71,7 +71,7 @@ fi
 # Build minimal devcontainer.json
 cat > "$OUT" <<JSON
 {
-  "name": "jupyter-base:$PROFILE",
+  "name": "solen:$PROFILE",
   "image": "",
   "features": {
 JSON

@@ -2,5 +2,6 @@
   "id": "code-server",
   "name": "code-server",
   "description": "Installs code-server (coder) from GitHub releases using Artefacts/versions.json",
-  "options": {}
+  "options": {},
+  "version": "0.1.0"
 }

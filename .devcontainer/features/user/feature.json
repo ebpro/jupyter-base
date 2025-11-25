@@ -1,0 +1,7 @@
+{
+  "name": "user",
+  "version": "0.1.0",
+  "id": "user",
+  "description": "Create the non-root user, group, sudoers entry and home directories",
+  "options": {}
+}

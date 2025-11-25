@@ -15,7 +15,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - name: Build Quarto dev image
         run: |
-          docker build --progress=plain -f .devcontainer/Dockerfile -t jupyter-base:quarto --build-arg QUARTO_VERSION=1.8.24 ..
+          docker build --progress=plain -f .devcontainer/Dockerfile -t solen:quarto --build-arg QUARTO_VERSION=1.8.24 ..
       - name: Run Quarto smoke checks
         run: |
-          docker run --rm jupyter-base:quarto sh -lc "quarto --version && quarto check install || true"
+          docker run --rm solen:quarto sh -lc "quarto --version && quarto check install || true"

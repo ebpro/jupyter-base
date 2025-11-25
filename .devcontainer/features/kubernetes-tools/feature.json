@@ -1,7 +1,7 @@
 {
   "name": "kubernetes-tools",
   "version": "0.1.0",
-  "id": "jupyter-base/kubernetes-tools",
+  "id": "kubernetes-tools",
   "description": "Installs kubectl, helm, k9s, kustomize and minikube using Artefacts/versions.json",
   "options": {}
 }

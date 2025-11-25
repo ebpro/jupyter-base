@@ -1,7 +1,7 @@
 {
   "name": "checksum-verify (internal)",
   "version": "0.1.0",
-  "id": "jupyter-base/checksum-verify",
+  "id": "solen/checksum-verify",
   "description": "Utility feature: verifies downloaded artifacts against Artefacts/checksums.json",
   "options": {}
 }

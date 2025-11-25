@@ -4,9 +4,9 @@ FROM mcr.microsoft.com/devcontainers/base:${VARIANT}
 
 LABEL org.opencontainers.image.authors="Emmanuel BRUNO <emmanuel.bruno@univ-tln.fr>" \
       org.opencontainers.image.description="A devcontainer image for development" \
-      org.opencontainers.image.documentation="https://github.com/ebpro/jupyter-base/" \
+    org.opencontainers.image.documentation="https://github.com/ebpro/solen/" \
       org.opencontainers.image.license="MIT" \
-      org.opencontainers.image.support="https://github.com/ebpro/jupyter-base/issues" \
+    org.opencontainers.image.support="https://github.com/ebpro/solen/issues" \
       org.opencontainers.image.title="Base Devcontainer" \
       org.opencontainers.image.vendor="UTLN"
 

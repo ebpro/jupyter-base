@@ -1,216 +1,203 @@
 group "all" {
   targets = [
-    "final-base",
-    "final-codeserver",
-    "final-containers-tools",
-    "final-data-science",
-    "final-dev",
-    "final-full",
-    "final-jetbrains-gateway",
-    "final-k8s-dev",
-    "final-k8s-sim",
-    "final-minimal",
-    "final-podman",
-    "final-quarto-lecture",
-    "final-quarto-lecture-full",
-    "final-teaching-interactive",
+    "final-00-00-base",
+    "final-00-01-minimal",
+    "final-10-00-dev",
+    "final-10-01-containers-tools",
+    "final-10-02-podman",
+    "final-20-00-data-science",
+    "final-20-01-quarto-lecture",
+    "final-20-02-quarto-lecture-full",
+    "final-20-03-teaching-interactive",
+    "final-30-00-k8s-dev",
+    "final-30-01-k8s-sim",
+    "final-40-00-codeserver",
+    "final-40-01-jetbrains-gateway",
+    "final-50-00-full",
   ]
 }
 
 targets = {
-  "final-base" = {
+  "final-00-00-base" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-base"
+    target = "final-00-00-base"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/solen:local",
+      "local/solen:latest",
     ]
   }
 
-  "final-codeserver" = {
+  "final-00-01-minimal" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-codeserver"
+    target = "final-00-01-minimal"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-containers-tools" = {
+  "final-10-00-dev" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-containers-tools"
+    target = "final-10-00-dev"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-data-science" = {
+  "final-10-01-containers-tools" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-data-science"
+    target = "final-10-01-containers-tools"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-dev" = {
+  "final-10-02-podman" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-dev"
+    target = "final-10-02-podman"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-full" = {
+  "final-20-00-data-science" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-full"
+    target = "final-20-00-data-science"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-jetbrains-gateway" = {
+  "final-20-01-quarto-lecture" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-jetbrains-gateway"
+    target = "final-20-01-quarto-lecture"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-k8s-dev" = {
+  "final-20-02-quarto-lecture-full" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-k8s-dev"
+    target = "final-20-02-quarto-lecture-full"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-k8s-sim" = {
+  "final-20-03-teaching-interactive" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-k8s-sim"
+    target = "final-20-03-teaching-interactive"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-minimal" = {
+  "final-30-00-k8s-dev" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-minimal"
+    target = "final-30-00-k8s-dev"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-podman" = {
+  "final-30-01-k8s-sim" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-podman"
+    target = "final-30-01-k8s-sim"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-quarto-lecture" = {
+  "final-40-00-codeserver" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-quarto-lecture"
+    target = "final-40-00-codeserver"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-quarto-lecture-full" = {
+  "final-40-01-jetbrains-gateway" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-quarto-lecture-full"
+    target = "final-40-01-jetbrains-gateway"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
-  "final-teaching-interactive" = {
+  "final-50-00-full" = {
     context = "."
     dockerfile = "Dockerfile.generated"
-    target = "final-teaching-interactive"
+    target = "final-50-00-full"
     platforms = [
       "linux/amd64",
-      "linux/arm64",
     ]
     tags = [
-      "ebpro/jupyter-base:latest",
-      "ebpro/jupyter-base:latest-sha",
+      "local/jupyter-base:local",
+      "local/jupyter-base:latest",
     ]
   }
 
+}

@@ -13,6 +13,10 @@ for f in "$PROFILES_DIR"/*; do
   [ "$name" = "README.md" ] && continue
   targets+=("$name")
 done
+# Sort targets using version sort so numeric prefixes order naturally
+if [ ${#targets[@]} -gt 0 ]; then
+  IFS=$'\n' read -r -d '' -a targets < <(printf "%s\n" "${targets[@]}" | sort -V && printf '\0')
+fi
 
 # BAKE_PLATFORMS should be a comma-separated list like linux/amd64,linux/arm64
 # BAKE_ARCHS should be comma-separated arch tokens like amd64,arm64
@@ -66,4 +70,8 @@ done
 echo "Generated bake file: $OUT"
 echo "Bake platforms: $BAKE_PLATFORMS"
 echo "Bake arch tags: $BAKE_ARCHS"
+# close the targets map
+cat >> "$OUT" <<HCL
+}
+HCL
 exit 0
