@@ -1,6 +1,6 @@
 **Codeserver + Traefik Compose**
 
-- **Purpose:** run the built `brunoe/solen:<tag>-codeserver` image behind Traefik with TLS.
+- **Purpose:** run the built `ghcr.io/ebpro/solen:<tag>-codeserver` image behind Traefik with TLS.
 - **File:** `docker-compose.codeserver.yml`
 
 Quick start

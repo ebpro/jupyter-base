@@ -79,7 +79,7 @@ check_git_state() {
 }
 
 # Default values
-REPO=${REPO:-$(docker info 2>/dev/null | grep Username |tr -d ' '| cut -d':' -f2 || echo "brunoe")}
+REPO=${REPO:-ghcr.io/ebpro}
 IMAGE_NAME=${PWD##*/}
 read -r TAG1 TAG2 <<< "$(get_version_tags)"
 GIT_SHA=$(get_git_sha)

@@ -115,7 +115,7 @@ case "$cmd" in
     # derive arch tokens
     BAKE_ARCHS="${PLAT//linux\//}"
     export BAKE_ARCHS
-    export REPO=${REPO:-${REPO:-}}
+    export REPO=${REPO:-$(basename "$PWD")}
     export IMAGE_NAME=${IMAGE_NAME:-solen}
     export TAG1=${TAG1:-latest}
     export TAG2=${TAG2:-latest-sha}

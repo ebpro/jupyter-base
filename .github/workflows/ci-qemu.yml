@@ -10,9 +10,24 @@ jobs:
   build:
     name: build-push-updaterepo
     uses: ebpro/gh-actions-shared-docker/.github/workflows/ci-shareable-docker-qemu.yml@develop
+    permissions:
+      contents: read
+      packages: write
     with:
+        # Runner label / machine pool used by the reusable workflow
         runs-on: arc-runner-set-compute-lsis
+        # Keep existing env-list usage (stringified list). The reusable workflow
+        # may parse this and set environment variables for the job.
         env-list: >
           [ "" ]
+        # Explicit publishing inputs for the reusable workflow. These keys are
+        # passed as inputs; the reusable workflow should use them if supported.
+        REPO: ghcr.io/ebpro
+        IMAGE_NAME: solen
+        BAKE_PLATFORMS: linux/amd64,linux/arm64
+        BAKE_ARCHS: amd64,arm64
+        TAG1: latest
+        TAG2: latest-sha
+        PUBLISH: 'true'
     secrets: inherit
     

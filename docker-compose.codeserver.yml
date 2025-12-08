@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
 
   codeserver:
-    image: brunoe/solen:feature-minimal-codeserver
+    image: ghcr.io/ebpro/solen:feature-minimal-codeserver
     user: "1001:1001"
     volumes:
       - ./:/workspace:rw

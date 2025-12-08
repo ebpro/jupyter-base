@@ -17,43 +17,43 @@ RUN mkdir -p /opt/.features || true
 FROM base AS profile-00-00-base
 # Feature: user
 COPY .devcontainer/features/user /tmp/features/user
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/user/install.sh ]; then /tmp/features/user/install.sh; else echo "No install.sh for user"; fi; rm -rf /tmp/features/user'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/user/install.sh ]; then /tmp/features/user/install.sh; else echo "No install.sh for user"; fi; rm -rf /tmp/features/user'
 
 # Feature: base-apt
 COPY .devcontainer/features/base-apt /tmp/features/base-apt
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/base-apt/install.sh ]; then /tmp/features/base-apt/install.sh; else echo "No install.sh for base-apt"; fi; rm -rf /tmp/features/base-apt'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/base-apt/install.sh ]; then /tmp/features/base-apt/install.sh; else echo "No install.sh for base-apt"; fi; rm -rf /tmp/features/base-apt'
 
 # Feature: zsh-config
 COPY .devcontainer/features/zsh-config /tmp/features/zsh-config
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/zsh-config/install.sh ]; then /tmp/features/zsh-config/install.sh; else echo "No install.sh for zsh-config"; fi; rm -rf /tmp/features/zsh-config'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/zsh-config/install.sh ]; then /tmp/features/zsh-config/install.sh; else echo "No install.sh for zsh-config"; fi; rm -rf /tmp/features/zsh-config'
 
 # Feature: prompt-helpers
 COPY .devcontainer/features/prompt-helpers /tmp/features/prompt-helpers
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/prompt-helpers/install.sh ]; then /tmp/features/prompt-helpers/install.sh; else echo "No install.sh for prompt-helpers"; fi; rm -rf /tmp/features/prompt-helpers'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/prompt-helpers/install.sh ]; then /tmp/features/prompt-helpers/install.sh; else echo "No install.sh for prompt-helpers"; fi; rm -rf /tmp/features/prompt-helpers'
 
 # Feature: startup
 COPY .devcontainer/features/startup /tmp/features/startup
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/startup/install.sh ]; then /tmp/features/startup/install.sh; else echo "No install.sh for startup"; fi; rm -rf /tmp/features/startup'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/startup/install.sh ]; then /tmp/features/startup/install.sh; else echo "No install.sh for startup"; fi; rm -rf /tmp/features/startup'
 
 # Feature: gh-cli
 COPY .devcontainer/features/gh-cli /tmp/features/gh-cli
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/gh-cli/install.sh ]; then /tmp/features/gh-cli/install.sh; else echo "No install.sh for gh-cli"; fi; rm -rf /tmp/features/gh-cli'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/gh-cli/install.sh ]; then /tmp/features/gh-cli/install.sh; else echo "No install.sh for gh-cli"; fi; rm -rf /tmp/features/gh-cli'
 
 # Feature: git-lfs
 COPY .devcontainer/features/git-lfs /tmp/features/git-lfs
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/git-lfs/install.sh ]; then /tmp/features/git-lfs/install.sh; else echo "No install.sh for git-lfs"; fi; rm -rf /tmp/features/git-lfs'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/git-lfs/install.sh ]; then /tmp/features/git-lfs/install.sh; else echo "No install.sh for git-lfs"; fi; rm -rf /tmp/features/git-lfs'
 
 # Feature: docker-cli-helper
 COPY .devcontainer/features/docker-cli-helper /tmp/features/docker-cli-helper
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/docker-cli-helper/install.sh ]; then /tmp/features/docker-cli-helper/install.sh; else echo "No install.sh for docker-cli-helper"; fi; rm -rf /tmp/features/docker-cli-helper'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/docker-cli-helper/install.sh ]; then /tmp/features/docker-cli-helper/install.sh; else echo "No install.sh for docker-cli-helper"; fi; rm -rf /tmp/features/docker-cli-helper'
 
 # Feature: _lib/checksum-verify
 COPY .devcontainer/features/_lib/checksum-verify /tmp/features/_lib/checksum-verify
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/_lib/checksum-verify/install.sh ]; then /tmp/features/_lib/checksum-verify/install.sh; else echo "No install.sh for _lib/checksum-verify"; fi; rm -rf /tmp/features/_lib/checksum-verify'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/_lib/checksum-verify/install.sh ]; then /tmp/features/_lib/checksum-verify/install.sh; else echo "No install.sh for _lib/checksum-verify"; fi; rm -rf /tmp/features/_lib/checksum-verify'
 
 # Feature: _lib/toolcache
 COPY .devcontainer/features/_lib/toolcache /tmp/features/_lib/toolcache
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/_lib/toolcache/install.sh ]; then /tmp/features/_lib/toolcache/install.sh; else echo "No install.sh for _lib/toolcache"; fi; rm -rf /tmp/features/_lib/toolcache'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/_lib/toolcache/install.sh ]; then /tmp/features/_lib/toolcache/install.sh; else echo "No install.sh for _lib/toolcache"; fi; rm -rf /tmp/features/_lib/toolcache'
 
 FROM profile-00-00-base AS final-00-00-base
 
@@ -61,11 +61,11 @@ FROM profile-00-00-base AS final-00-00-base
 FROM profile-00-00-base AS profile-00-01-minimal
 # Feature: python-base
 COPY .devcontainer/features/python-base /tmp/features/python-base
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/python-base/install.sh ]; then /tmp/features/python-base/install.sh; else echo "No install.sh for python-base"; fi; rm -rf /tmp/features/python-base'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/python-base/install.sh ]; then /tmp/features/python-base/install.sh; else echo "No install.sh for python-base"; fi; rm -rf /tmp/features/python-base'
 
 # Feature: dev-tools
 COPY .devcontainer/features/dev-tools /tmp/features/dev-tools
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/dev-tools/install.sh ]; then /tmp/features/dev-tools/install.sh; else echo "No install.sh for dev-tools"; fi; rm -rf /tmp/features/dev-tools'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/dev-tools/install.sh ]; then /tmp/features/dev-tools/install.sh; else echo "No install.sh for dev-tools"; fi; rm -rf /tmp/features/dev-tools'
 
 FROM profile-00-01-minimal AS final-00-01-minimal
 
@@ -73,15 +73,15 @@ FROM profile-00-01-minimal AS final-00-01-minimal
 FROM profile-00-01-minimal AS profile-10-00-dev
 # Feature: node
 COPY .devcontainer/features/node /tmp/features/node
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/node/install.sh ]; then /tmp/features/node/install.sh; else echo "No install.sh for node"; fi; rm -rf /tmp/features/node'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/node/install.sh ]; then /tmp/features/node/install.sh; else echo "No install.sh for node"; fi; rm -rf /tmp/features/node'
 
 # Feature: lsp-tools
 COPY .devcontainer/features/lsp-tools /tmp/features/lsp-tools
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/lsp-tools/install.sh ]; then /tmp/features/lsp-tools/install.sh; else echo "No install.sh for lsp-tools"; fi; rm -rf /tmp/features/lsp-tools'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/lsp-tools/install.sh ]; then /tmp/features/lsp-tools/install.sh; else echo "No install.sh for lsp-tools"; fi; rm -rf /tmp/features/lsp-tools'
 
 # Feature: pip-requirements
 COPY .devcontainer/features/pip-requirements /tmp/features/pip-requirements
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/pip-requirements/install.sh ]; then /tmp/features/pip-requirements/install.sh; else echo "No install.sh for pip-requirements"; fi; rm -rf /tmp/features/pip-requirements'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/pip-requirements/install.sh ]; then /tmp/features/pip-requirements/install.sh; else echo "No install.sh for pip-requirements"; fi; rm -rf /tmp/features/pip-requirements'
 
 FROM profile-10-00-dev AS final-10-00-dev
 
@@ -89,11 +89,11 @@ FROM profile-10-00-dev AS final-10-00-dev
 FROM profile-10-00-dev AS profile-10-01-containers-tools
 # Feature: tilt
 COPY .devcontainer/features/tilt /tmp/features/tilt
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/tilt/install.sh ]; then /tmp/features/tilt/install.sh; else echo "No install.sh for tilt"; fi; rm -rf /tmp/features/tilt'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/tilt/install.sh ]; then /tmp/features/tilt/install.sh; else echo "No install.sh for tilt"; fi; rm -rf /tmp/features/tilt'
 
 # Feature: podman
 COPY .devcontainer/features/podman /tmp/features/podman
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/podman/install.sh ]; then /tmp/features/podman/install.sh; else echo "No install.sh for podman"; fi; rm -rf /tmp/features/podman'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/podman/install.sh ]; then /tmp/features/podman/install.sh; else echo "No install.sh for podman"; fi; rm -rf /tmp/features/podman'
 
 FROM profile-10-01-containers-tools AS final-10-01-containers-tools
 
@@ -104,11 +104,11 @@ FROM profile-10-00-dev AS final-10-02-podman
 FROM profile-10-00-dev AS profile-20-00-data-science
 # Feature: python-conda
 COPY .devcontainer/features/python-conda /tmp/features/python-conda
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/python-conda/install.sh ]; then /tmp/features/python-conda/install.sh; else echo "No install.sh for python-conda"; fi; rm -rf /tmp/features/python-conda'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/python-conda/install.sh ]; then /tmp/features/python-conda/install.sh; else echo "No install.sh for python-conda"; fi; rm -rf /tmp/features/python-conda'
 
 # Feature: jupyter-kernels
 COPY .devcontainer/features/jupyter-kernels /tmp/features/jupyter-kernels
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/jupyter-kernels/install.sh ]; then /tmp/features/jupyter-kernels/install.sh; else echo "No install.sh for jupyter-kernels"; fi; rm -rf /tmp/features/jupyter-kernels'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/jupyter-kernels/install.sh ]; then /tmp/features/jupyter-kernels/install.sh; else echo "No install.sh for jupyter-kernels"; fi; rm -rf /tmp/features/jupyter-kernels'
 
 FROM profile-20-00-data-science AS final-20-00-data-science
 
@@ -116,7 +116,7 @@ FROM profile-20-00-data-science AS final-20-00-data-science
 FROM profile-20-00-data-science AS profile-20-01-quarto-lecture
 # Feature: quarto
 COPY .devcontainer/features/quarto /tmp/features/quarto
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/quarto/install.sh ]; then /tmp/features/quarto/install.sh; else echo "No install.sh for quarto"; fi; rm -rf /tmp/features/quarto'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/quarto/install.sh ]; then /tmp/features/quarto/install.sh; else echo "No install.sh for quarto"; fi; rm -rf /tmp/features/quarto'
 
 FROM profile-20-01-quarto-lecture AS final-20-01-quarto-lecture
 
@@ -124,7 +124,7 @@ FROM profile-20-01-quarto-lecture AS final-20-01-quarto-lecture
 FROM profile-20-01-quarto-lecture AS profile-20-02-quarto-lecture-full
 # Feature: texlive
 COPY .devcontainer/features/texlive /tmp/features/texlive
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/texlive/install.sh ]; then /tmp/features/texlive/install.sh; else echo "No install.sh for texlive"; fi; rm -rf /tmp/features/texlive'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/texlive/install.sh ]; then /tmp/features/texlive/install.sh; else echo "No install.sh for texlive"; fi; rm -rf /tmp/features/texlive'
 
 FROM profile-20-02-quarto-lecture-full AS final-20-02-quarto-lecture-full
 
@@ -132,7 +132,7 @@ FROM profile-20-02-quarto-lecture-full AS final-20-02-quarto-lecture-full
 FROM profile-20-01-quarto-lecture AS profile-20-03-teaching-interactive
 # Feature: kubernetes-tools
 COPY .devcontainer/features/kubernetes-tools /tmp/features/kubernetes-tools
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/kubernetes-tools/install.sh ]; then /tmp/features/kubernetes-tools/install.sh; else echo "No install.sh for kubernetes-tools"; fi; rm -rf /tmp/features/kubernetes-tools'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/kubernetes-tools/install.sh ]; then /tmp/features/kubernetes-tools/install.sh; else echo "No install.sh for kubernetes-tools"; fi; rm -rf /tmp/features/kubernetes-tools'
 
 FROM profile-20-03-teaching-interactive AS final-20-03-teaching-interactive
 
@@ -146,11 +146,11 @@ FROM final-30-00-k8s-dev AS final-30-01-k8s-sim
 FROM profile-10-00-dev AS profile-40-00-codeserver
 # Feature: code-server
 COPY .devcontainer/features/code-server /tmp/features/code-server
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/code-server/install.sh ]; then /tmp/features/code-server/install.sh; else echo "No install.sh for code-server"; fi; rm -rf /tmp/features/code-server'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/code-server/install.sh ]; then /tmp/features/code-server/install.sh; else echo "No install.sh for code-server"; fi; rm -rf /tmp/features/code-server'
 
 # Feature: codeserver-extensions
 COPY .devcontainer/features/codeserver-extensions /tmp/features/codeserver-extensions
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/codeserver-extensions/install.sh ]; then /tmp/features/codeserver-extensions/install.sh; else echo "No install.sh for codeserver-extensions"; fi; rm -rf /tmp/features/codeserver-extensions'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/codeserver-extensions/install.sh ]; then /tmp/features/codeserver-extensions/install.sh; else echo "No install.sh for codeserver-extensions"; fi; rm -rf /tmp/features/codeserver-extensions'
 
 FROM profile-40-00-codeserver AS final-40-00-codeserver
 
@@ -158,7 +158,7 @@ FROM profile-40-00-codeserver AS final-40-00-codeserver
 FROM profile-10-00-dev AS profile-40-01-jetbrains-gateway
 # Feature: jetbrains-gateway
 COPY .devcontainer/features/jetbrains-gateway /tmp/features/jetbrains-gateway
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'if [ -x /tmp/features/jetbrains-gateway/install.sh ]; then /tmp/features/jetbrains-gateway/install.sh; else echo "No install.sh for jetbrains-gateway"; fi; rm -rf /tmp/features/jetbrains-gateway'
+RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts   bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/jetbrains-gateway/install.sh ]; then /tmp/features/jetbrains-gateway/install.sh; else echo "No install.sh for jetbrains-gateway"; fi; rm -rf /tmp/features/jetbrains-gateway'
 
 FROM profile-40-01-jetbrains-gateway AS final-40-01-jetbrains-gateway
 

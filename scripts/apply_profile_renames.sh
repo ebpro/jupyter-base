@@ -56,7 +56,7 @@ echo "Running profile validator..."
 
 echo "Generating Dockerfile and bake HCL..."
 bash ./scripts/generate-dockerfile.sh --all-profiles --out Dockerfile.generated
-BAKE_PLATFORMS=linux/amd64,linux/arm64 BAKE_ARCHS=amd64,arm64 REPO=ebpro IMAGE_NAME=solen TAG1=latest TAG2=latest-sha ./scripts/generate-bake.sh
+BAKE_PLATFORMS=linux/amd64,linux/arm64 BAKE_ARCHS=amd64,arm64 REPO=ghcr.io/ebpro IMAGE_NAME=solen TAG1=latest TAG2=latest-sha ./scripts/generate-bake.sh
 
 # Commit changes
 git add -A

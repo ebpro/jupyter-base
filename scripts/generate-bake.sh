@@ -23,9 +23,19 @@ fi
 BAKE_PLATFORMS=${BAKE_PLATFORMS:-"linux/amd64"}
 BAKE_ARCHS=${BAKE_ARCHS:-"amd64"}
 
+# Defaults for image tagging and repository. These can be overridden by
+# exporting environment variables when invoking the script (e.g. from
+# `build.sh` or CI). Default to GitHub Container Registry under the org
+# `ebpro` and the `solen` image name.
+REPO=${REPO:-ghcr.io/ebpro}
+IMAGE_NAME=${IMAGE_NAME:-solen}
+TAG1=${TAG1:-latest}
+TAG2=${TAG2:-latest-sha}
+
 IFS=',' read -r -a PLAT_ARR <<< "$BAKE_PLATFORMS"
 IFS=',' read -r -a ARCH_ARR <<< "$BAKE_ARCHS"
 
+# Write the group listing all final-<profile> targets
 cat > "$OUT" <<HCL
 group "all" {
   targets = [
@@ -39,30 +49,27 @@ cat >> "$OUT" <<HCL
   ]
 }
 
-targets = {
 HCL
 
+# Emit one HCL target block per profile
 for t in "${targets[@]}"; do
   cat >> "$OUT" <<HCL
-  "final-$t" = {
-    context = "."
-    dockerfile = "Dockerfile.generated"
-    target = "final-$t"
-    platforms = [
+target "final-$t" {
+  context = "."
+  dockerfile = "Dockerfile.generated"
+  target = "final-$t"
+  platforms = [
 HCL
   for p in "${PLAT_ARR[@]}"; do
-    echo "      \"$p\"," >> "$OUT"
+    echo "    \"$p\"," >> "$OUT"
   done
   cat >> "$OUT" <<HCL
-    ]
-    tags = [
-HCL
-  # Emit canonical (manifest-list) tags only: TAG1 and TAG2
-  echo "      \"${REPO}/${IMAGE_NAME}:${TAG1}\"," >> "$OUT"
-  echo "      \"${REPO}/${IMAGE_NAME}:${TAG2}\"," >> "$OUT"
-  cat >> "$OUT" <<HCL
-    ]
-  }
+  ]
+  tags = [
+    "${REPO}/${IMAGE_NAME}:${TAG1}",
+    "${REPO}/${IMAGE_NAME}:${TAG2}",
+  ]
+}
 
 HCL
 done
@@ -70,8 +77,5 @@ done
 echo "Generated bake file: $OUT"
 echo "Bake platforms: $BAKE_PLATFORMS"
 echo "Bake arch tags: $BAKE_ARCHS"
-# close the targets map
-cat >> "$OUT" <<HCL
-}
-HCL
+# end
 exit 0
