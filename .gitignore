@@ -4,3 +4,8 @@ local
 Dockerfile.generated
 docker-bake.generated.hcl
 devcontainer.generated.json
+
+# Ignore packed artefacts and tool caches (these are large binaries; keep checksums only)
+/Artefacts/**/toolcache/
+/Artefacts/toolcache/
+/Artefacts/**/toolcache/**

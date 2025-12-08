@@ -1,0 +1,170 @@
+name: GHCR Cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'If true, do not actually delete, only show candidates'
+        required: false
+        default: 'true'
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq gh
+
+      - name: GHCR cleanup script
+        env:
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: ${{ github.event.repository.name }}
+          KEEP_DAYS_PR: 7
+          KEEP_COUNT_FEATURE: 5
+          KEEP_COUNT_DEV: 5
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+        run: |
+          set -euo pipefail
+          echo "Owner: $OWNER, Package: $PACKAGE"
+
+          page=1
+          per_page=100
+          tmpfile=$(mktemp)
+          echo "[]" > $tmpfile
+
+          echo "Fetching package versions..."
+          while :; do
+            resp=$(gh api -H "Accept: application/vnd.github+json" \
+              "/orgs/${OWNER}/packages/container/${PACKAGE}/versions?per_page=${per_page}&page=${page}" || true)
+            len=$(echo "$resp" | jq 'length')
+            if [ "$len" = "0" ]; then
+              break
+            fi
+            echo "$resp" | jq '.[] | {id: .id, created_at: .created_at, tags: (.metadata.container.tags // [])}' >> $tmpfile
+            page=$((page+1))
+          done
+
+          # Consolidate into NDJSON file
+          ndfile=$(mktemp)
+          jq -s '. | flatten' $tmpfile > ${tmpfile}.json || true
+          jq -c '.[]' ${tmpfile}.json > $ndfile
+
+          echo "Processing candidates..."
+
+          # Helper: normalize tag to base for grouping
+          normalize_tag() {
+            t="$1"
+            # remove trailing -<shortsha> or -c<shortsha>
+            t=$(echo "$t" | sed -E 's/-c?[0-9a-f]{6,}$//')
+            # remove -build-xxx
+            t=$(echo "$t" | sed -E 's/-build-.*$//')
+            # remove trailing date-like suffix
+            t=$(echo "$t" | sed -E 's/-[0-9]{8}T[0-9]{6}Z$//')
+            echo "$t"
+          }
+
+          # Collect deletion candidates per policy
+          declare -A groups
+          # We'll store lines as: id|created_at|tag
+          while IFS= read -r line; do
+            id=$(echo "$line" | jq -r '.id')
+            created_at=$(echo "$line" | jq -r '.created_at')
+            tags=$(echo "$line" | jq -r '.tags[]?') || true
+            for tag in $tags; do
+              # skip empty
+              [ -z "$tag" ] && continue
+              # skip release or prod tags
+              if echo "$tag" | grep -E -q '(^v[0-9]+|[-]v[0-9]+|prod$|stable$)'; then
+                continue
+              fi
+
+              # classify
+              if echo "$tag" | grep -E -q 'pr-|PR-|feature-'; then
+                base=$(normalize_tag "$tag")
+                key="feature::$base"
+                groups["$key"]+="$id|$created_at|$tag\n"
+              elif echo "$tag" | grep -E -q '(-dev$|-staging$)'; then
+                base=$(normalize_tag "$tag")
+                key="channel::$base"
+                groups["$key"]+="$id|$created_at|$tag\n"
+              else
+                # other ephemeral-like tags (sha builds)
+                if echo "$tag" | grep -E -q '-[0-9a-f]{6,}$|-build-'; then
+                  base=$(normalize_tag "$tag")
+                  key="feature::$base"
+                  groups["$key"]+="$id|$created_at|$tag\n"
+                fi
+              fi
+            done
+          done < $ndfile
+
+          deletions=()
+
+          now=$(date -u +%s)
+          cutoff_seconds=$((KEEP_DAYS_PR * 24 * 3600))
+
+          for k in "${!groups[@]}"; do
+            echo "Processing group: $k"
+            IFS=$'\n' read -r -d '' -a items <<< "${groups[$k]}" || true
+            # sort by created_at desc
+            IFS=$'\n' sorted=($(for it in "${items[@]}"; do echo "$it"; done | sort -t'|' -k2 -r))
+            # determine keep count
+            if echo "$k" | grep -q '^feature::'; then
+              keep=${KEEP_COUNT_FEATURE}
+            else
+              keep=${KEEP_COUNT_DEV}
+            fi
+            # keep first $keep, mark rest for deletion
+            idx=0
+            for it in "${sorted[@]}"; do
+              idx=$((idx+1))
+              if [ $idx -le $keep ]; then
+                continue
+              fi
+              id=$(echo "$it" | cut -d'|' -f1)
+              created_at=$(echo "$it" | cut -d'|' -f2)
+              tag=$(echo "$it" | cut -d'|' -f3)
+              # check age for PRs: only delete if older than KEEP_DAYS_PR
+              created_ts=$(date -u -d "$created_at" +%s)
+              age=$((now - created_ts))
+              if [ $age -lt $cutoff_seconds ]; then
+                echo "Skipping $tag (not old enough)"
+                continue
+              fi
+              deletions+=("$id|$tag|$created_at")
+            done
+          done
+
+          if [ ${#deletions[@]} -eq 0 ]; then
+            echo "No candidates for deletion"
+            exit 0
+          fi
+
+          echo "Candidates to delete:"
+          for d in "${deletions[@]}"; do
+            echo "$d"
+          done
+
+          if [ "$DRY_RUN" = 'true' ]; then
+            echo "Dry run enabled: not deleting"
+            exit 0
+          fi
+
+          echo "Deleting..."
+          for d in "${deletions[@]}"; do
+            id=$(echo "$d" | cut -d'|' -f1)
+            tag=$(echo "$d" | cut -d'|' -f2)
+            echo "Deleting id=$id tag=$tag"
+            gh api --method DELETE -H "Accept: application/vnd.github+json" "/orgs/${OWNER}/packages/container/${PACKAGE}/versions/${id}"
+          done

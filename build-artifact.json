@@ -1,0 +1,15 @@
+{
+  "repository": "ghcr.io/ebpro",
+  "image_name": "jupyter-base",
+  "profile": "",
+  "profile_slug": "",
+  "tags": ["ghcr.io/ebpro/jupyter-base:feature-solen","ghcr.io/ebpro/jupyter-base:feature-solen-c150450","ghcr.io/ebpro/jupyter-base:feature-solen-c150450","ghcr.io/ebpro/jupyter-base:c150450","ghcr.io/ebpro/jupyter-base:build-20251208T161038Z"],
+  "digest": "sha256:22893408f6d94625505c30c4367975ff874fe9c866111555b8bd9235ba2cc417",
+  "image_by_digest": "ghcr.io/ebpro/jupyter-base@sha256:22893408f6d94625505c30c4367975ff874fe9c866111555b8bd9235ba2cc417",
+  "git": {
+    "branch": "feature-solen",
+    "sha": "c150450",
+    "full_sha": "c15045014da5890fb292e9a16ca27bde97db90cf"
+  },
+  "created": "20251208T161038Z"
+}

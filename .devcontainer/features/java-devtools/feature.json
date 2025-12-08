@@ -1,0 +1,11 @@
+{
+  "id": "java-devtools",
+  "name": "java-devtools",
+  "version": "0.1.0",
+  "description": "Installs Java developer tooling: Maven/Gradle and optional JDTLS for editor support",
+  "options": {
+    "install_maven": {"type": "boolean", "default": true},
+    "install_gradle": {"type": "boolean", "default": false},
+    "jdtls": {"type": "boolean", "default": false}
+  }
+}

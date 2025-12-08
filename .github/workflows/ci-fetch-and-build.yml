@@ -1,0 +1,93 @@
+name: CI Fetch Artefacts and Build
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GHCR (optional)
+        if: ${{ secrets.CR_PAT != '' }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq curl tar
+
+      - name: Fetch artefacts
+        env:
+          ARTIFACTS_BASE_URL: ${{ secrets.ARTIFACTS_BASE_URL }}
+          ARTEFACT_URL: ${{ secrets.ARTEFACT_URL }}
+          ARTEFACT_SHA256: ${{ secrets.ARTEFACT_SHA256 }}
+        run: |
+          chmod +x ./scripts/fetch-artefacts.sh
+          ./scripts/fetch-artefacts.sh --manifest Artefacts/offload/toolcache-manifest-latest.json || true
+
+      - name: Build and push images
+        env:
+          CR_PAT: ${{ secrets.CR_PAT }}
+        run: |
+          bash ./build.sh --all --push || (bash ./build.sh --all && exit 0)
+
+      - name: Determine built image reference
+        if: always()
+        run: |
+          if [ -f build-artifact.json ]; then
+            IMAGE_REF=$(jq -r '.tags[0] // .image_by_digest[0] // .digest' build-artifact.json)
+            echo "IMAGE_REF=$IMAGE_REF" >> $GITHUB_ENV
+            echo "Found image ref: $IMAGE_REF"
+          else
+            echo "build-artifact.json not found, skipping SBOM and Trivy steps" >&2
+          fi
+
+      - name: Generate SBOM (Syft)
+        if: env.IMAGE_REF != ''
+        run: |
+          echo "Generating SBOM for $IMAGE_REF"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:0.71.0 "$IMAGE_REF" -o json > sbom.json
+        shell: bash
+
+      - name: Upload SBOM
+        if: env.IMAGE_REF != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Run Trivy vulnerability scan
+        if: env.IMAGE_REF != ''
+        run: |
+          echo "Running Trivy on $IMAGE_REF"
+          # continue even if Trivy finds vulnerabilities
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.43.1 image --format json -o trivy.json "$IMAGE_REF" || true
+        shell: bash
+
+      - name: Upload Trivy report
+        if: env.IMAGE_REF != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy
+          path: trivy.json
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact
+          path: build-artifact.json

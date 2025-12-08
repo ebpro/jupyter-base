@@ -1,0 +1,12 @@
+{
+  "slug": "java-lts",
+  "description": "Java profile with LTS JDK (e.g. 17) and Java kernel",
+  "features": [
+    "java-kernel",
+    "java-devtools"
+  ],
+  "options": {
+    "java-kernel": { "kernel_source": "release", "kernel_version": "" },
+    "java-devtools": { "install_maven": true }
+  }
+}

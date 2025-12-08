@@ -1,0 +1,23 @@
+{
+  "id": "java-kernel",
+  "name": "java-kernel",
+  "version": "0.1.0",
+  "description": "Installs a Java Jupyter kernel (IJava) from release or submodule and registers kernelspec.",
+  "options": {
+    "kernel_source": {
+      "type": "string",
+      "description": "Where to get the kernel artifacts: 'release' or 'submodule'",
+      "default": "release"
+    },
+    "kernel_version": {
+      "type": "string",
+      "description": "Kernel release version to download when using 'release' source",
+      "default": ""
+    },
+    "jdk_version": {
+      "type": "string",
+      "description": "JDK version to install (e.g., 17, 21)",
+      "default": "17"
+    }
+  }
+}

@@ -1,0 +1,119 @@
+name: CI Build & SBOM
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      profiles:
+        description: 'Comma-separated list of profiles to build (defaults to 20-00-data-science)'
+        required: false
+        default: '20-00-data-science'
+      push:
+        description: 'Whether to push images to GHCR'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      REPO: ghcr.io/${{ github.repository_owner }}
+      IMAGE_NAME: ${{ github.event.repository.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure build script is executable
+        run: |
+          chmod +x ./build.sh
+
+      - name: Build profiles, push (optional), generate SBOM and scan
+        id: build_loop
+        run: |
+          set -euo pipefail
+          # ensure jq is available to parse build-artifact.json
+          sudo apt-get update && sudo apt-get install -y jq
+
+          PROFILES="${{ github.event.inputs.profiles || github.inputs.profiles || '20-00-data-science' }}"
+          PUSH_FLAG=""
+          if [ "${{ github.event.inputs.push || github.inputs.push || 'false' }}" = 'true' ]; then
+            PUSH_FLAG="--push"
+          fi
+
+          IFS=',' read -r -a arr <<< "$PROFILES"
+          for profile in "${arr[@]}"; do
+            profile_trimmed=$(echo "$profile" | xargs)
+            echo "Building profile: $profile_trimmed"
+
+            # Run build script which will generate Dockerfile.generated and build-artifact.json
+            ./build.sh --profile "$profile_trimmed" ${PUSH_FLAG}
+
+            # Verify build-artifact.json exists
+            if [ ! -f build-artifact.json ]; then
+              echo "ERROR: build-artifact.json not found after build for $profile_trimmed" >&2
+              ls -la || true
+              exit 1
+            fi
+
+            # Parse build-artifact.json
+            profile_slug=$(jq -r '.profile_slug // empty' build-artifact.json)
+            digest=$(jq -r '.digest // empty' build-artifact.json)
+            # Prefer image_by_digest if present; otherwise use the first tag
+            image_by_digest=$(jq -r '.image_by_digest // empty' build-artifact.json)
+            first_tag=$(jq -r '.tags[0] // empty' build-artifact.json)
+
+            if [ -n "$image_by_digest" ]; then
+              image_ref="$image_by_digest"
+            elif [ -n "$digest" ]; then
+              image_ref="${REPO}/${IMAGE_NAME}@${digest}"
+            elif [ -n "$first_tag" ]; then
+              image_ref="$first_tag"
+            else
+              echo "No image reference found in build-artifact.json" >&2
+              exit 1
+            fi
+
+            echo "Using image reference: $image_ref"
+
+            # Generate SBOM and Trivy scan for the image reference
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:latest "$image_ref" -o json > sbom-${profile_slug}.json || true
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasecurity/trivy:latest image --format json --output trivy-${profile_slug}.json "$image_ref" || true
+
+            # Save build-artifact.json per-profile for CI
+            shortsha=$(jq -r '.git.sha // empty' build-artifact.json)
+            cp build-artifact.json build-artifact-${profile_slug}-${shortsha}.json
+
+            echo "Profile=$profile_trimmed" >> profiles-built.txt
+          done
+
+      - name: Upload built profiles list
+        uses: actions/upload-artifact@v4
+        with:
+          name: profiles-built
+          path: profiles-built.txt
+
+      - name: Upload SBOMs and scans
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-and-scans
+          path: |
+            sbom-*.json
+            trivy-*.json

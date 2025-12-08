@@ -332,6 +332,93 @@ docker buildx build \
     "$@" \
     .
 
+# Attempt to determine the resulting image digest for CI/promotion workflows.
+# We prefer to read the digest via `docker buildx imagetools inspect` (works for registry refs)
+# and fall back to the local image RepoDigests when available.
+PRIMARY_TAG=""
+if [ -n "${PROFILE:-}" ]; then
+    # PROFILE_SLUG may have been computed earlier; recompute guardingly
+    PROFILE_SLUG=${PROFILE_SLUG:-$(echo "${PROFILE}" | sed -E 's/^[0-9]+(-[0-9]+)*-//')}
+    PRIMARY_TAG="${REPO}/${IMAGE_NAME}:${PROFILE_SLUG}-${TAGS_LIST[0]}"
+else
+    PRIMARY_TAG="${REPO}/${IMAGE_NAME}:${TAGS_LIST[0]}"
+fi
+
+IMAGE_DIGEST=""
+if command -v docker >/dev/null 2>&1; then
+    # Try imagetools inspect first (works when the tag is pushed or present in registry)
+    if docker buildx imagetools inspect "${PRIMARY_TAG}" >/dev/null 2>&1; then
+        IMAGE_DIGEST=$(docker buildx imagetools inspect "${PRIMARY_TAG}" 2>/dev/null | awk -F': ' '/Digest:/ {print $2; exit}') || true
+    fi
+
+    # Fallback: try to read RepoDigests from local image store
+    if [ -z "${IMAGE_DIGEST}" ]; then
+        repo_digest=$(docker image inspect "${PRIMARY_TAG}" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+        if [ -n "${repo_digest}" ]; then
+            IMAGE_DIGEST=${repo_digest#*@}
+        fi
+    fi
+fi
+
+if [ -n "${IMAGE_DIGEST}" ]; then
+    echo "${IMAGE_DIGEST}" > image-digest.txt
+    export IMAGE_DIGEST
+    log_info "Image digest: ${IMAGE_DIGEST} (saved to image-digest.txt)"
+else
+    log_warn "Could not determine image digest. If you need an immutable digest, run with --push or inspect the registry after pushing."
+fi
+
+# Emit a structured build artifact for CI consumption
+BUILD_ARTIFACT_FILE=${BUILD_ARTIFACT_FILE:-build-artifact.json}
+profile_name=""
+profile_slug_json=""
+if [ -n "${PROFILE:-}" ]; then
+    profile_name="${PROFILE}"
+    PROFILE_SLUG=${PROFILE_SLUG:-$(echo "${PROFILE}" | sed -E 's/^[0-9]+(-[0-9]+)*-//')}
+    profile_slug_json="${PROFILE_SLUG}"
+fi
+
+# Build full tag list as applied to the image
+TAGS_JSON=""
+for t in "${TAGS_LIST[@]}"; do
+    if [ -n "${PROFILE}" ]; then
+        full_tag="${REPO}/${IMAGE_NAME}:${PROFILE_SLUG}-${t}"
+    else
+        full_tag="${REPO}/${IMAGE_NAME}:${t}"
+    fi
+    # escape double quotes just in case (tags shouldn't contain quotes)
+    full_tag_escaped=$(printf '%s' "$full_tag" | sed 's/"/\\"/g')
+    TAGS_JSON+="\"${full_tag_escaped}\","
+done
+# strip trailing comma
+TAGS_JSON="${TAGS_JSON%,}"
+
+IMAGE_BY_DIGEST=""
+if [ -n "${IMAGE_DIGEST}" ]; then
+    IMAGE_BY_DIGEST="${REPO}/${IMAGE_NAME}@${IMAGE_DIGEST}"
+fi
+
+# compose JSON
+cat > "${BUILD_ARTIFACT_FILE}" <<JSON
+{
+  "repository": "${REPO}",
+  "image_name": "${IMAGE_NAME}",
+  "profile": "${profile_name}",
+  "profile_slug": "${profile_slug_json}",
+  "tags": [${TAGS_JSON}],
+  "digest": "${IMAGE_DIGEST}",
+  "image_by_digest": "${IMAGE_BY_DIGEST}",
+  "git": {
+    "branch": "${GIT_BRANCH}",
+    "sha": "${GIT_SHA_SHORT}",
+    "full_sha": "${FULL_GIT_SHA}"
+  },
+  "created": "${BUILD_DATE_UTC}"
+}
+JSON
+
+log_info "Wrote build artifact: ${BUILD_ARTIFACT_FILE}"
+
 # Optionally build a codeserver image that uses the just-built image as its base.
 if [[ "${BUILD_CODESERVER}" == "true" ]]; then
         CODESERVER_TAG="${REPO}/${IMAGE_NAME}:${TAG1}-codeserver"
