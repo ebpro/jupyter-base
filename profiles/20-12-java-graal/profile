@@ -1,0 +1,6 @@
+@parent:10-00-dev
+
+# Java Graal profile: installs GraalVM + devtools and Java kernel
+java-devtools
+graalvm
+java-kernel

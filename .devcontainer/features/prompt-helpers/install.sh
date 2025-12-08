@@ -74,7 +74,7 @@ resolve_checksum() {
 }
 
 # Resolve checksum from per-feature, central, or /tmp
-CHKSUM=$(resolve_checksum "gitstatus" "${GITSTATUS_VERSION}" "${ARCH}")
+CHKSUM=$(resolve_checksum "gitstatus" "${GITSTATUS_VERSION}" "${DL_ARCH:-${ARCH:-}}")
 
 # Try toolcache-get (with checksum) to avoid repeated downloads and extraction
 if command -v toolcache-get >/dev/null 2>&1; then
@@ -85,7 +85,7 @@ if command -v toolcache-get >/dev/null 2>&1; then
     echo "prompt-helpers: local artefact found at ${LOCAL_PREFIX_ARCH} (arch-specific cache hit)"
     mkdir -p "${HOME_DIR}/.cache/gitstatus"
     cp -a "$LOCAL_PREFIX_ARCH/"* "${HOME_DIR}/.cache/gitstatus/" || true
-    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/gitstatus" || true
+    chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.cache/gitstatus" || true
     echo "prompt-helpers: installed gitstatusd from local artefacts (${ARCH})"
     echo "prompt-helpers: done"
     exit 0
@@ -95,7 +95,7 @@ if command -v toolcache-get >/dev/null 2>&1; then
     echo "prompt-helpers: local artefact found at ${LOCAL_PREFIX_BASE} (generic cache hit)"
     mkdir -p "${HOME_DIR}/.cache/gitstatus"
     cp -a "$LOCAL_PREFIX_BASE/"* "${HOME_DIR}/.cache/gitstatus/" || true
-    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/gitstatus" || true
+    chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.cache/gitstatus" || true
     echo "prompt-helpers: installed gitstatusd from local artefacts"
     echo "prompt-helpers: done"
     exit 0
@@ -167,7 +167,7 @@ download_with_backoff() {
       fi
       if [ -n "$retry_after" ]; then
         echo "prompt-helpers: rate limited (HTTP ${status}), sleeping for ${retry_after}s before retry"
-        sleep $retry_after
+          sleep "$retry_after"
         rm -f "$headers" || true
         continue
       fi
@@ -191,7 +191,9 @@ fi
 
 # verify checksum if present
 if [ -n "$CHKSUM" ]; then
-  if command -v verify-artifact >/dev/null 2>&1; then
+  if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+    fh_verify_from_checksums "gitstatus" "${GITSTATUS_VERSION}" "${DL_ARCH:-${ARCH:-}}" "$TMP_FILE" || { echo "prompt-helpers: checksum verification failed" >&2; exit 1; }
+  elif command -v verify-artifact >/dev/null 2>&1; then
     if ! verify-artifact "$CHKSUM" "$TMP_FILE"; then
       echo "prompt-helpers: checksum verification failed" >&2
       exit 1
@@ -212,6 +214,6 @@ fi
 mkdir -p "${HOME_DIR}/.cache/gitstatus"
 tar -C "${HOME_DIR}/.cache/gitstatus" -zx -f "$TMP_FILE"
 rm -f "$TMP_FILE" || true
-chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/gitstatus" || true
+chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.cache/gitstatus" || true
 
 echo "prompt-helpers: done"

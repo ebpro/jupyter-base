@@ -1,0 +1,6 @@
+@parent:10-00-dev
+
+# Java + Kotlin profile: installs JDK, Kotlin support, and Java kernel
+java-devtools
+kotlin
+java-kernel

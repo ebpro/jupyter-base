@@ -88,29 +88,48 @@ if [ ! -x "${CONDA_DIR}/bin/conda" ]; then
 
   if command -v toolcache-get >/dev/null 2>&1; then
     PREFIX=$(toolcache-get "miniforge" "${MINIFORGE_VER}" "${installer_url}" "${CHKSUM}" || true)
-    if [ -n "${PREFIX}" ] && [ -f "${PREFIX}/bin/$(basename ${installer_url})" ]; then
-      installer_path="${PREFIX}/bin/$(basename ${installer_url})"
-    elif [ -n "${PREFIX}" ] && [ -f "${PREFIX}/$(basename ${installer_url})" ]; then
-      installer_path="${PREFIX}/$(basename ${installer_url})"
+    if [ -n "${PREFIX}" ] && [ -f "${PREFIX}/bin/$(basename "${installer_url}")" ]; then
+      installer_path="${PREFIX}/bin/$(basename "${installer_url}")"
+    elif [ -n "${PREFIX}" ] && [ -f "${PREFIX}/$(basename "${installer_url}")" ]; then
+      installer_path="${PREFIX}/$(basename "${installer_url}")"
     else
       installer_path="/tmp/miniforge.sh"
       curl -sL "${installer_url}" -o "${installer_path}"
-      if [ -n "${CHKSUM}" ]; then
-        if command -v verify-artifact >/dev/null 2>&1; then
-          verify-artifact "${CHKSUM}" "${installer_path}"
+      if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+        # Try both canonical downloader arch and uname-based ARCH_STR
+        if fh_verify_from_checksums "miniforge" "${MINIFORGE_VER}" "${DL_ARCH}" "${installer_path}" || fh_verify_from_checksums "miniforge" "${MINIFORGE_VER}" "${ARCH_STR}" "${installer_path}"; then
+          :
         else
-          echo "${CHKSUM}  ${installer_path}" > "${installer_path}.sha256" && sha256sum -c "${installer_path}.sha256" && rm -f "${installer_path}.sha256"
+          echo "python-conda: checksum verification failed" >&2
+          exit 1
+        fi
+      else
+        if [ -n "${CHKSUM}" ]; then
+          if command -v verify-artifact >/dev/null 2>&1; then
+            verify-artifact "${CHKSUM}" "${installer_path}"
+          else
+            echo "${CHKSUM}  ${installer_path}" > "${installer_path}.sha256" && sha256sum -c "${installer_path}.sha256" && rm -f "${installer_path}.sha256"
+          fi
         fi
       fi
     fi
   else
     installer_path="/tmp/miniforge.sh"
     curl -sL "${installer_url}" -o "${installer_path}"
-    if [ -n "${CHKSUM}" ]; then
-      if command -v verify-artifact >/dev/null 2>&1; then
-        verify-artifact "${CHKSUM}" "${installer_path}"
+    if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+      if fh_verify_from_checksums "miniforge" "${MINIFORGE_VER}" "${DL_ARCH}" "${installer_path}" || fh_verify_from_checksums "miniforge" "${MINIFORGE_VER}" "${ARCH_STR}" "${installer_path}"; then
+        :
       else
-        echo "${CHKSUM}  ${installer_path}" > "${installer_path}.sha256" && sha256sum -c "${installer_path}.sha256" && rm -f "${installer_path}.sha256"
+        echo "python-conda: checksum verification failed" >&2
+        exit 1
+      fi
+    else
+      if [ -n "${CHKSUM}" ]; then
+        if command -v verify-artifact >/dev/null 2>&1; then
+          verify-artifact "${CHKSUM}" "${installer_path}"
+        else
+          echo "${CHKSUM}  ${installer_path}" > "${installer_path}.sha256" && sha256sum -c "${installer_path}.sha256" && rm -f "${installer_path}.sha256"
+        fi
       fi
     fi
   fi
@@ -133,5 +152,5 @@ if [ -f /tmp/environment.yml ]; then
   mamba env update -n base -f /tmp/environment.yml || true
 fi
 
-chown -R ${NB_UID}:${NB_GID} "${CONDA_DIR}" || true
+  chown -R "${NB_UID}":"${NB_GID}" "${CONDA_DIR}" || true
 echo "python-conda: done"

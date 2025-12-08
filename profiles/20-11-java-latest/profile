@@ -1,0 +1,5 @@
+@parent:10-00-dev
+
+# Java Latest profile: installs latest stable JDK and the Java kernel
+java-devtools
+java-kernel

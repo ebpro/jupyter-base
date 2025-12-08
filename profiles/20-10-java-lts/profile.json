@@ -1,12 +1,16 @@
 {
   "slug": "java-lts",
-  "description": "Java profile with LTS JDK (e.g. 17) and Java kernel",
+  "description": "Java profile that installs LTS JDK(s) and the Java kernel",
   "features": [
     "java-kernel",
     "java-devtools"
   ],
   "options": {
-    "java-kernel": { "kernel_source": "release", "kernel_version": "" },
-    "java-devtools": { "install_maven": true }
+    "java-kernel": {
+      "kernel_source": "release",
+      "kernel_version": "lts",
+      "notes": "Using 'lts' instructs the installer to prefer the SDKMAN default LTS (see jupyter-java Dockerfile JAVA_LTS regex)."
+    },
+    "java-devtools": { "install_maven": true, "install_gradle": true }
   }
 }

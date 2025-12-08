@@ -86,10 +86,21 @@ if command -v toolcache-get >/dev/null 2>&1; then
   else
     echo "texlive: toolcache-get failed, falling back to direct download"
     curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz
-    if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
-      verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
-    elif [ -n "${CHKSUM}" ]; then
-      echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
+    if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+      if fh_verify_from_checksums "tinytex" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
+        :
+      elif fh_verify_from_checksums "tinytex-installer" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
+        :
+      else
+        echo "texlive: checksum verification failed" >&2
+        exit 1
+      fi
+    else
+      if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
+        verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
+      elif [ -n "${CHKSUM}" ]; then
+        echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
+      fi
     fi
     tar xf /tmp/${INSTALLER}.tar.gz -C /tmp
     pushd /tmp
@@ -99,10 +110,21 @@ if command -v toolcache-get >/dev/null 2>&1; then
   fi
 else
   curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz
-  if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
-    verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
-  elif [ -n "${CHKSUM}" ]; then
-    echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
+  if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+    if fh_verify_from_checksums "tinytex" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
+      :
+    elif fh_verify_from_checksums "tinytex-installer" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
+      :
+    else
+      echo "texlive: checksum verification failed" >&2
+      exit 1
+    fi
+  else
+    if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
+      verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
+    elif [ -n "${CHKSUM}" ]; then
+      echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
+    fi
   fi
   tar xf /tmp/${INSTALLER}.tar.gz -C /tmp
   pushd /tmp
@@ -116,8 +138,12 @@ rm -rf texlive || true
 
 # Configure tlmgr repository from Dockerfile default if present
 if [ -n "${CTAN_REPO:-}" ]; then
-  ${TEXDIR}/bin/*/tlmgr option repository "${CTAN_REPO}" || true
+  for tl in "${TEXDIR}"/bin/*/tlmgr; do
+    if [ -x "${tl}" ]; then
+      "${tl}" option repository "${CTAN_REPO}" || true
+    fi
+  done
 fi
 
-chown -R ${NB_UID}:${NB_GID} "${TEXDIR}" || true
+chown -R "${NB_UID}":"${NB_GID}" "${TEXDIR}" || true
 echo "texlive: done"

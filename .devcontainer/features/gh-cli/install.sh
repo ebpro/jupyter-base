@@ -80,7 +80,7 @@ if command -v toolcache-get >/dev/null 2>&1; then
     if [ -n "${gh_bin}" ]; then
       cp -a "${gh_bin}" "${LOCAL_BIN}/gh"
       chmod +x "${LOCAL_BIN}/gh" || true
-      chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}"
+      chown -R "${NB_UID}":"${NB_GID}" "${LOCAL_BIN}"
       echo "gh-cli: installed gh to ${LOCAL_BIN}/gh"
       exit 0
     fi
@@ -89,7 +89,7 @@ if command -v toolcache-get >/dev/null 2>&1; then
     if [ -n "${nested}" ]; then
       cp -a "${nested}" "${LOCAL_BIN}/gh"
       chmod +x "${LOCAL_BIN}/gh" || true
-      chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}"
+      chown -R "${NB_UID}":"${NB_GID}" "${LOCAL_BIN}"
       echo "gh-cli: installed gh to ${LOCAL_BIN}/gh"
       exit 0
     fi
@@ -99,13 +99,18 @@ fi
 
 # Fallback: download and verify
 curl -fsSL "${GH_URL}" -o /tmp/gh.tar.gz
-if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
-  verify-artifact "${CHKSUM}" /tmp/gh.tar.gz
-elif [ -n "${CHKSUM}" ]; then
-  echo "${CHKSUM}  /tmp/gh.tar.gz" > /tmp/gh.sha256 && sha256sum -c /tmp/gh.sha256
+# Prefer centralized verification helper when available
+if [ -n "${CHKSUM}" ]; then
+  if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+    fh_verify_from_checksums "gh" "${GH_VERSION}" "${ARCH}" /tmp/gh.tar.gz || { echo "gh-cli: checksum verification failed" >&2; exit 1; }
+  elif command -v verify-artifact >/dev/null 2>&1; then
+    verify-artifact "${CHKSUM}" /tmp/gh.tar.gz
+  else
+    echo "${CHKSUM}  /tmp/gh.tar.gz" > /tmp/gh.sha256 && sha256sum -c /tmp/gh.sha256
+  fi
 fi
-tar xz --strip-components=2 -C "${LOCAL_BIN}" gh_${GH_VERSION}_linux_${ARCH}/bin/gh -f /tmp/gh.tar.gz
+tar xz --strip-components=2 -C "${LOCAL_BIN}" -f /tmp/gh.tar.gz "gh_${GH_VERSION}_linux_${ARCH}/bin/gh"
 rm -f /tmp/gh.tar.gz
 chmod +x "${LOCAL_BIN}/gh" || true
-chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}"
+  chown -R "${NB_UID}":"${NB_GID}" "${LOCAL_BIN}"
 echo "gh-cli: installed gh to ${LOCAL_BIN}/gh"

@@ -69,6 +69,64 @@ fh_mkdir_for_file() {
 }
 
 export -f fh_log feature_is_installed feature_mark_installed apt_install apk_install dnf_install fh_assert_root fh_mkdir_for_file
+
+# Lookup checksum and verify a file using repository checksums.json or /tmp/checksums.json.
+# Usage: fh_verify_from_checksums <tool> <version> <arch> <file>
+fh_verify_from_checksums() {
+  local tool=${1:-}
+  local ver=${2:-}
+  local arch=${3:-}
+  local file=${4:-}
+  if [ -z "$tool" ] || [ -z "$ver" ] || [ -z "$arch" ] || [ -z "$file" ]; then
+    fh_log "fh_verify_from_checksums requires 4 args: tool version arch file"
+    return 2
+  fi
+
+  local checksums
+  if [ -f /tmp/checksums.json ]; then
+    checksums=/tmp/checksums.json
+  elif [ -f "${PWD}/Artefacts/checksums.json" ]; then
+    checksums="${PWD}/Artefacts/checksums.json"
+  else
+    fh_log "No checksums.json found (/tmp/checksums.json or Artefacts/checksums.json)"
+    return 3
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    fh_log "jq not available; cannot lookup checksum in ${checksums}"
+    return 4
+  fi
+
+  local sha
+  sha=$(jq -r --arg t "$tool" --arg ver "$ver" --arg arch "$arch" '.tools[$t].checksums[$ver][$arch] // empty' "$checksums" 2>/dev/null || true)
+  if [ -z "$sha" ]; then
+    fh_log "Checksum missing for ${tool}@${ver} ${arch} in ${checksums}"
+    return 5
+  fi
+
+  # If a verify-from-checksums helper is available, use it (it handles file lookup).
+  if command -v verify-from-checksums >/dev/null 2>&1; then
+    verify-from-checksums "$tool" "$ver" "$arch" "$file"
+    return $?
+  fi
+
+  # Fallback to verify-artifact if present
+  if command -v verify-artifact >/dev/null 2>&1; then
+    verify-artifact "$sha" "$file"
+    return $?
+  fi
+
+  # Final fallback: write temporary sha file and run sha256sum -c
+  local tmp
+  tmp=$(mktemp)
+  echo "$sha  $file" > "$tmp"
+  sha256sum -c "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return $rc
+}
+
+export -f fh_verify_from_checksums
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -100,7 +158,7 @@ feature_mark_installed() {
 apt_install() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update || true
-  for i in 1 2 3; do
+  for _ in 1 2 3; do
     if DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"; then
       return 0
     fi

@@ -88,12 +88,53 @@ if ! download_with_backoff "${url}" "${tmpfile}"; then
 fi
 
 if [ -n "${sha}" ]; then
-  if command -v verify-artifact >/dev/null 2>&1; then
-    verify-artifact "${sha}" "${tmpfile}"
+  if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+    # Try to infer an arch token from the URL to lookup checksums.json entries
+    infer_arch_from_url() {
+      local u="$1"
+      local a=""
+      if [[ "$u" =~ linux[_-](amd64|x86_64) ]]; then a="${BASH_REMATCH[1]}"; fi
+      if [[ -z "$a" && "$u" =~ linux[_-](arm64|aarch64) ]]; then a="${BASH_REMATCH[1]}"; fi
+      if [[ -z "$a" && "$u" =~ _([a-zA-Z0-9_]+)\.tar\.gz ]]; then a="${BASH_REMATCH[1]}"; fi
+      case "$a" in
+        x86_64) echo "amd64" ;;
+        amd64) echo "amd64" ;;
+        aarch64) echo "arm64" ;;
+        arm64) echo "arm64" ;;
+        *) echo "" ;;
+      esac
+    }
+
+    cand_arch=$(infer_arch_from_url "${url}") || cand_arch=""
+    if [ -n "${cand_arch}" ]; then
+      if ! fh_verify_from_checksums "${name}" "${ver}" "${cand_arch}" "${tmpfile}"; then
+        # fall back to verify-artifact or sha256sum if centralized verification fails
+        if command -v verify-artifact >/dev/null 2>&1; then
+          verify-artifact "${sha}" "${tmpfile}"
+        else
+          echo "${sha}  ${tmpfile}" > "${tmpfile}.sha256"
+          sha256sum -c "${tmpfile}.sha256"
+          rm -f "${tmpfile}.sha256"
+        fi
+      fi
+    else
+      # Couldn't infer arch; fall back to existing verification strategy
+      if command -v verify-artifact >/dev/null 2>&1; then
+        verify-artifact "${sha}" "${tmpfile}"
+      else
+        echo "${sha}  ${tmpfile}" > "${tmpfile}.sha256"
+        sha256sum -c "${tmpfile}.sha256"
+        rm -f "${tmpfile}.sha256"
+      fi
+    fi
   else
-    echo "${sha}  ${tmpfile}" > "${tmpfile}.sha256"
-    sha256sum -c "${tmpfile}.sha256"
-    rm -f "${tmpfile}.sha256"
+    if command -v verify-artifact >/dev/null 2>&1; then
+      verify-artifact "${sha}" "${tmpfile}"
+    else
+      echo "${sha}  ${tmpfile}" > "${tmpfile}.sha256"
+      sha256sum -c "${tmpfile}.sha256"
+      rm -f "${tmpfile}.sha256"
+    fi
   fi
 fi
 

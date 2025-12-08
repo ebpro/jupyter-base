@@ -52,23 +52,27 @@ CODE_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_
 echo "code-server: downloading ${CODE_URL}"
 curl -fsSLo /tmp/code-server.tar.gz "${CODE_URL}"
 
-# Verify checksum if available
-CHKSUM=""
-if [ -f "${PWD}/Artefacts/checksums.json" ]; then
-  CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' "${PWD}/Artefacts/checksums.json" 2>/dev/null || true)
-fi
-if [ -z "${CHKSUM}" ] && [ -f /tmp/checksums.json ]; then
-  CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json 2>/dev/null || true)
-fi
-if [ -n "${CHKSUM}" ]; then
-  echo "${CHKSUM}  /tmp/code-server.tar.gz" > /tmp/code-server.sha256 && sha256sum -c /tmp/code-server.sha256 || true
+# Verify checksum if available (prefer centralized helper)
+if command -v fh_verify_from_checksums >/dev/null 2>&1; then
+  fh_verify_from_checksums "code-server" "${CODE_SERVER_VERSION}" "${ARCH}" /tmp/code-server.tar.gz || echo "code-server: checksum verification failed (continuing)" >&2
+else
+  CHKSUM=""
+  if [ -f "${PWD}/Artefacts/checksums.json" ]; then
+    CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' "${PWD}/Artefacts/checksums.json" 2>/dev/null || true)
+  fi
+  if [ -z "${CHKSUM}" ] && [ -f /tmp/checksums.json ]; then
+    CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json 2>/dev/null || true)
+  fi
+  if [ -n "${CHKSUM}" ]; then
+    echo "${CHKSUM}  /tmp/code-server.tar.gz" > /tmp/code-server.sha256 && sha256sum -c /tmp/code-server.sha256 || true
+  fi
 fi
 
 mkdir -p /opt/code-server
 tar -xzf /tmp/code-server.tar.gz -C /opt/code-server --strip-components=1
 rm -f /tmp/code-server.tar.gz
 ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server || true
-chown -R ${NB_UID}:${NB_GID} /opt/code-server || true
+chown -R "${NB_UID}":"${NB_GID}" /opt/code-server || true
 
 echo "code-server: installed to /opt/code-server"
 
