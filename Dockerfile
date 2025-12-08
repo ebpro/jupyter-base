@@ -22,7 +22,7 @@ ARG BUILDPLATFORM
 ENV USER=${NB_USER} \
     NB_USER=${NB_USER} \
     HOME=/home/${NB_USER} \
-    WORK_DIR=/home/${NB_USER}/work 
+    WORK_DIR=/home/${NB_USER}/work
 ENV MATERIALS_DIR=${WORK_DIR}/materials \
     NOTEBOOKS_DIR=${WORK_DIR}/local \
     PATH=${HOME}/bin:/opt/bin:${PATH}
@@ -71,7 +71,7 @@ COPY --chown=root:root Artefacts/checksums.json /tmp/checksums.json
 # Install Docker tools with latest versions
 
 # Copy Docker CLI and plugins from official images
-COPY --from=docker:latest /usr/local/bin/docker* /usr/local/bin/
+COPY --from=docker:27-cli /usr/local/bin/docker* /usr/local/bin/
 COPY --from=docker/buildx-bin:latest /buildx /usr/libexec/docker/cli-plugins/docker-buildx
 COPY --from=docker/compose-bin:latest /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
 COPY --from=docker/scout-cli:latest /docker-scout /usr/libexec/docker/cli-plugins/docker-scout
@@ -160,7 +160,7 @@ ENV MINIKUBE_HOME=${HOME}/.minikube \
     MINIKUBE_IN_STYLE=true \
     MINIKUBE_WANTUPDATENOTIFICATION=false \
     CHANGE_MINIKUBE_NONE_USER=true
-    
+
 
 # ZSH Configuration
 ARG PREZTO_REPO="https://github.com/sorin-ionescu/prezto.git"
@@ -190,7 +190,7 @@ RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
 # Install and configure gitstatusd
 RUN --mount=type=bind,source=Artefacts/versions.json,target=/tmp/versions.json \
     set -ex && \
-    export GITSTATUS_VERSION=$(jq -r '.tools.gitstatus' /tmp/versions.json) && \    
+    export GITSTATUS_VERSION=$(jq -r '.tools.gitstatus' /tmp/versions.json) && \
     echo "GITSTATUS_VERSION=${GITSTATUS_VERSION}" && \
     echo "Installing gitstatusd..." && \
     # Determine architecture
@@ -219,7 +219,7 @@ ENV TINYTEX_INSTALLER="installer-unix"
 ENV TINYTEX_VERSION=2025.05
 ENV TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v$TINYTEX_VERSION/$TINYTEX_INSTALLER-v$TINYTEX_VERSION"
 ENV CTAN_REPO="https://distrib-coffee.ipsl.jussieu.fr/pub/mirrors/ctan/systems/texlive/tlnet"
-RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \ 
+RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \
     curl -fsSL ${TINYTEX_URL}.tar.gz -o ${TINYTEX_INSTALLER}.tar.gz && \
     tar xf ${TINYTEX_INSTALLER}.tar.gz && \
     ./install.sh && \
@@ -241,8 +241,8 @@ ENV CONDA_DIR=${HOME}/miniforge3 \
 ENV CONDA_DEFAULT_ENV=base
 
 # Install Miniforge and configure base environment
-RUN --mount=type=bind,source=Artefacts/environment.yml,target=/tmp/environment.yml \ 
-    --mount=type=bind,source=Artefacts/requirements.txt,target=/tmp/requirements.txt \ 
+RUN --mount=type=bind,source=Artefacts/environment.yml,target=/tmp/environment.yml \
+    --mount=type=bind,source=Artefacts/requirements.txt,target=/tmp/requirements.txt \
     curl -sL "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" -o miniforge.sh && \
     bash miniforge.sh -b -p ${CONDA_DIR} && \
     rm miniforge.sh && \

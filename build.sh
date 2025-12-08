@@ -21,19 +21,20 @@ get_git_branch() {
 }
 
 get_version_tags() {
+    # Return primary tags (primary, secondary) derived from git state
     local git_tag=$(get_git_tag)
-    local git_sha=$(get_git_sha)
+    local git_sha_short=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
     local git_branch=$(get_git_branch)
-    
+
     if [[ -n "${git_tag}" ]]; then
-        # For tags, use tag and tag-sha
-        echo "${git_tag} ${git_tag}-${git_sha}"
+        # For annotated tags, use tag and tag-sha
+        echo "${git_tag} ${git_tag}-${git_sha_short}"
     elif [[ "${git_branch}" == "main" || "${git_branch}" == "master" ]]; then
-        # For main/master, use latest and branch-sha
-        echo "latest ${git_branch}-${git_sha}"
+        # For main/master, prefer 'latest' and branch-sha
+        echo "latest ${git_branch}-${git_sha_short}"
     else
         # For feature branches, use branch and branch-sha
-        echo "${git_branch} ${git_branch}-${git_sha}"
+        echo "${git_branch} ${git_branch}-${git_sha_short}"
     fi
 }
 
@@ -83,6 +84,9 @@ REPO=${REPO:-ghcr.io/ebpro}
 IMAGE_NAME=${PWD##*/}
 read -r TAG1 TAG2 <<< "$(get_version_tags)"
 GIT_SHA=$(get_git_sha)
+GIT_SHA_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(get_git_branch)
+FULL_GIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 BUILD_PLATFORM=$(detect_build_platform)
 # If PLATFORM env provided, normalize it. Otherwise default to host build platform
 if [ -n "${PLATFORM:-}" ]; then
@@ -93,6 +97,21 @@ fi
 
 # Multi-arch flag (set via CLI) or env `ARCHS` to choose explicit architectures when requested
 ALL_ARCHS=false
+
+# Build tag canonicalization: include commit and build metadata as additional tags
+BUILD_DATE_UTC=$(date -u +'%Y%m%dT%H%M%SZ')
+# Compose a list of tags we will apply to the final image(s). Keep them ordered by usefulness.
+TAGS_LIST=()
+# Primary tags from get_version_tags are already in TAG1 and TAG2
+TAGS_LIST+=("${TAG1}")
+if [ -n "${TAG2}" ]; then
+    TAGS_LIST+=("${TAG2}")
+fi
+# Add branch-shortsha and short sha tags for traceability
+TAGS_LIST+=("${GIT_BRANCH}-${GIT_SHA_SHORT}")
+TAGS_LIST+=("${GIT_SHA_SHORT}")
+# Add a build-date tag to help identify the build
+TAGS_LIST+=("build-${BUILD_DATE_UTC}")
 
 # Logging functions
 log_info() { echo -e "${GREEN}INFO: $1${NC}"; }
@@ -194,7 +213,9 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
             BAKE_ARCHS+=",$arch"
         fi
     done
-    export REPO IMAGE_NAME TAG1 TAG2 BAKE_PLATFORMS BAKE_ARCHS
+    # Export variables used by the bake generator (include TAGS_CSV for tagging guidance)
+    TAGS_CSV=$(IFS=,; echo "${TAGS_LIST[*]}")
+    export REPO IMAGE_NAME TAG1 TAG2 BAKE_PLATFORMS BAKE_ARCHS TAGS_CSV
     bash "${PWD}/scripts/generate-bake.sh" || true
     DOCKERFILE="Dockerfile.generated"
     if [ "${GENERATE_ONLY}" = true ]; then
@@ -204,9 +225,17 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
     # Build via bake if available
     if command -v docker-buildx >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
         log_info "Attempting to build all profiles via docker buildx bake"
-        BAKE_CMD=(docker buildx bake -f docker-bake.generated.hcl --set "*.platform=${TARGET_PLATFORM}")
+        # Explicitly target the generated "all" group so `bake` doesn't look for a missing default
+        # Use the bake platforms computed earlier (BAKE_PLATFORMS) so generated HCL gets correct platforms
+        BAKE_CMD=(docker buildx bake -f docker-bake.generated.hcl all --set "*.platform=${BAKE_PLATFORMS}")
         if [ "${PUSH}" = true ]; then
             BAKE_CMD+=(--push)
+        fi
+        # If the user requested --load, instruct bake to output to the local docker daemon
+        # Note: loading multi-platform builds into the local daemon only works for single-arch
+        # builds or on compatible setups. This tells bake to use the docker output driver.
+        if [ "${LOAD}" = true ]; then
+            BAKE_CMD+=(--set "*.output=type=docker")
         fi
         "${BAKE_CMD[@]}"
         log_info "Bake completed"
@@ -233,7 +262,7 @@ fi
 # Setup buildx builder for multi-platform builds if needed
 if [[ "${TARGET_PLATFORM}" == *","* ]]; then
     log_info "Multi-platform build detected: ${TARGET_PLATFORM}"
-    
+
     # Check if we have a suitable builder
     BUILDER_NAME="multi-platform-builder"
     if ! docker buildx inspect "${BUILDER_NAME}" &>/dev/null; then
@@ -243,7 +272,7 @@ if [[ "${TARGET_PLATFORM}" == *","* ]]; then
         log_info "Using existing buildx builder: ${BUILDER_NAME}"
         docker buildx use "${BUILDER_NAME}"
     fi
-    
+
     # For multi-platform, we need to either push or use a local cache
     BUILD_ARGS=("--platform=${TARGET_PLATFORM}")
     if [[ "${PUSH}" == "true" ]]; then
@@ -261,7 +290,7 @@ if [[ "${TARGET_PLATFORM}" == *","* ]]; then
 else
     # Single platform build
     BUILD_ARGS=("--platform=${TARGET_PLATFORM}")
-    
+
     # For single platform, we can always load unless push is specified
     if [[ "${PUSH}" == "true" ]]; then
         BUILD_ARGS+=("--push")
@@ -271,7 +300,25 @@ else
 fi
 
 # Build image with both tags
-log_info "Building image ${REPO}/${IMAGE_NAME} with tags: ${TAG1}, ${TAG2}"
+if [ -n "${PROFILE}" ]; then
+    log_info "Building profile image ${REPO}/${IMAGE_NAME} (profile=${PROFILE}) with tags: ${TAG1}, ${TAG2}"
+else
+    log_info "Building image ${REPO}/${IMAGE_NAME} with tags: ${TAG1}, ${TAG2}"
+fi
+BUILD_TAG_FLAGS=()
+# If a profile build is requested, prefix tags with the profile to avoid collisions
+if [ -n "${PROFILE}" ]; then
+    # Create a human-friendly profile slug by stripping leading numeric prefixes like "20-00-"
+    PROFILE_SLUG=$(echo "${PROFILE}" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
+    for t in "${TAGS_LIST[@]}"; do
+        BUILD_TAG_FLAGS+=("-t" "${REPO}/${IMAGE_NAME}:${PROFILE_SLUG}-${t}")
+    done
+else
+    for t in "${TAGS_LIST[@]}"; do
+        BUILD_TAG_FLAGS+=("-t" "${REPO}/${IMAGE_NAME}:${t}")
+    done
+fi
+
 docker buildx build \
     "${BUILD_ARGS[@]}" \
     --build-arg GIT_SHA="${GIT_SHA}" \
@@ -281,8 +328,7 @@ docker buildx build \
     --label org.opencontainers.image.revision="${GIT_SHA}" \
     -f "${DOCKERFILE}" \
     --progress=plain \
-    -t "${REPO}/${IMAGE_NAME}:${TAG1}" \
-    -t "${REPO}/${IMAGE_NAME}:${TAG2}" \
+    "${BUILD_TAG_FLAGS[@]}" \
     "$@" \
     .
 

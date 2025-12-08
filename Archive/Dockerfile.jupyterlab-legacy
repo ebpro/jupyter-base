@@ -5,7 +5,7 @@
 # THE BASE IMAGE
 ARG LAB_BASE=quay.io/jupyter/base-notebook:lab-4.3.5
 
-# minimal, default (empty), full 
+# minimal, default (empty), full
 ARG ENV
 
 ## GENERAL
@@ -34,7 +34,7 @@ RUN useradd -ms /bin/bash jovyan
 USER jovyan
 WORKDIR /home/jovyan
 
-RUN --mount=type=bind,source=zsh/initzsh.sh,target=/tmp/initzsh.sh \ 
+RUN --mount=type=bind,source=zsh/initzsh.sh,target=/tmp/initzsh.sh \
     echo -e "\e[93m**** Configure a nice zsh environment ****\e[38;5;241m" && \
     git clone --recursive https://github.com/sorin-ionescu/prezto.git "$HOME/.zprezto" && \
     zsh -c /tmp/initzsh.sh && \
@@ -64,7 +64,7 @@ USER root
 
 ARG QUARTO_VERSION=1.6.32
 ARG TURBOVNC_VERSION=3.0.3
-ARG CODE_SERVER_VERSION=4.95.1-rc.2 
+ARG CODE_SERVER_VERSION=4.95.1-rc.2
 ENV CODESERVER_DIR=/opt/codeserver
 # Extension are writable for users but not persistent
 ENV CODESERVEREXT_DIR=${HOME}/.local/share/codeserver/extensions
@@ -92,17 +92,17 @@ RUN mkdir -p /usr/share/plantuml && \
     ln -s "$PLANTUML_JAR" /usr/local/bin/
 
 # Install needed apt packages
-RUN --mount=type=bind,source=Artefacts/,target=/tmp/Artefacts/ \ 
+RUN --mount=type=bind,source=Artefacts/,target=/tmp/Artefacts/ \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    --mount=type=bind,source=Artefacts/environment.yml,target=/tmp/environment.yml \ 
-    --mount=type=bind,source=Artefacts/requirements.txt,target=/tmp/requirements.txt \ 
-    --mount=type=bind,source=Artefacts/codeserver_extensions,target=/tmp/codeserver_extensions  \ 
+    --mount=type=bind,source=Artefacts/environment.yml,target=/tmp/environment.yml \
+    --mount=type=bind,source=Artefacts/requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=bind,source=Artefacts/codeserver_extensions,target=/tmp/codeserver_extensions  \
     apt-get update && \
     apt-get install -qq --yes --no-install-recommends \
     $(cat /tmp/Artefacts/apt_packages_minimal | grep --invert-match "^#") \
     $(if [ "${ENV}" != "minimal" ]; then cat /tmp/Artefacts/apt_* | grep --invert-match "^#"; fi) && \
-    rm -rf /var/lib/apt/lists/* && \ 
+    rm -rf /var/lib/apt/lists/* && \
     # QUARTO
     wget --quiet --output-document=/tmp/quarto.deb "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-$(echo $TARGETPLATFORM | cut -d '/' -f 2).deb" && \
     dpkg -i /tmp/quarto.deb && \
@@ -122,17 +122,28 @@ RUN --mount=type=bind,source=Artefacts/,target=/tmp/Artefacts/ \
     apt-get remove -y -q light-locker; \
     fi && \
     ## CODE SERVER
-    if [[ "${ENV}" != "minimal" ]]; then \
-    curl -fsSL https://code-server.dev/install.sh | \
-    sh -s -- --prefix=/opt --method=standalone --version=${CODE_SERVER_VERSION} && \
-    mkdir -p ${CODESERVERDATA_DIR} && \
-    mkdir -p ${CODESERVEREXT_DIR} && \
-    PATH=/opt/bin:${PATH} code-server \
-    --user-data-dir ${CODESERVERDATA_DIR} \
-    --extensions-dir ${CODESERVEREXT_DIR} \
-    $(cat /tmp/codeserver_extensions | grep --invert-match "^#" | sed 's/./--install-extension &/') && \
-    chown -R ${NB_UID}:${NB_GID} ${CODESERVEREXT_DIR} ${CODE_WORKINGDIR}/.config; \
-    fi && \
+        if [[ "${ENV}" != "minimal" ]]; then \
+        ARCH=$(case "$TARGETPLATFORM" in \
+            "linux/amd64") echo "amd64" ;; \
+            "linux/arm64/v8" | "linux/arm64") echo "arm64" ;; \
+            *) echo "amd64" ;; \
+        esac) && \
+        CODE_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-${ARCH}.tar.gz" && \
+        curl -fsSLo /tmp/code-server.tar.gz "${CODE_URL}" && \
+        if [ -f /tmp/checksums.json ]; then \
+            CSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
+            if [ -n "${CSUM}" ]; then echo "${CSUM}  /tmp/code-server.tar.gz" > /tmp/code-server.sha256 && sha256sum -c /tmp/code-server.sha256; fi; \
+        fi && \
+        mkdir -p /opt/code-server && tar -xzf /tmp/code-server.tar.gz -C /opt/code-server --strip-components=1 && rm /tmp/code-server.tar.gz && \
+        ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server || true && \
+        mkdir -p ${CODESERVERDATA_DIR} && \
+        mkdir -p ${CODESERVEREXT_DIR} && \
+        PATH=/opt/bin:${PATH} code-server \
+        --user-data-dir ${CODESERVERDATA_DIR} \
+        --extensions-dir ${CODESERVEREXT_DIR} \
+        $(cat /tmp/codeserver_extensions | grep --invert-match "^#" | sed 's/./--install-extension &/') && \
+        chown -R ${NB_UID}:${NB_GID} ${CODESERVEREXT_DIR} ${CODE_WORKINGDIR}/.config; \
+        fi && \
     # Installs Python packages and codeserver
     pip install -r /tmp/requirements.txt && \
     mamba env update -p ${CONDA_DIR} -f /tmp/environment.yml && \
@@ -141,7 +152,7 @@ RUN --mount=type=bind,source=Artefacts/,target=/tmp/Artefacts/ \
 
 
 ## ZSH
-COPY --chown=$NB_UID:$NB_GID zsh/p10k.zsh $HOME/.p10k.zsh 
+COPY --chown=$NB_UID:$NB_GID zsh/p10k.zsh $HOME/.p10k.zsh
 RUN --mount=type=bind,from=builder_zsh,source=/home/jovyan,target=/user \
     cp -a /user/.z* ${HOME} && \
     chown -R $NB_UID:$NB_GID ${HOME}/.z* ${HOME}/.p10k.zsh
@@ -193,7 +204,7 @@ ENV TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v
 ENV CTAN_REPO="https://distrib-coffee.ipsl.jussieu.fr/pub/mirrors/ctan/systems/texlive/tlnet"
 
 
-RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \ 
+RUN --mount=type=bind,source=Artefacts/TeXLive,target=/tmp/TeXLive \
     OSNAME=$(uname) && \
     OSTYPE=$([ -x "$(command -v bash)" ] && bash -c 'echo $OSTYPE') && \
     if [ "$OSNAME" != 'Linux' -o $(uname -m) != 'x86_64' -o "$OSTYPE" != 'linux-gnu' ]; then \
@@ -236,7 +247,7 @@ RUN echo -e "\e[93m**** Update Jupyter config ****\e[38;5;241m" && \
 
 # Sets the jupyter proxy for codeserver
 COPY --chown=$NB_USER:$NB_GID code-server/icons $HOME/.jupyter/icons
-RUN --mount=type=bind,source=code-server/jupyter_codeserver_config.py,target=/tmp/jupyter_codeserver_config.py \ 
+RUN --mount=type=bind,source=code-server/jupyter_codeserver_config.py,target=/tmp/jupyter_codeserver_config.py \
     if [[ "${ENV}" != "minimal" ]]; then \
     [[ ! -f /home/jovyan/.jupyter/jupyter_config.py ]] && touch /home/jovyan/.jupyter/jupyter_config.py && \
     cat /tmp/jupyter_codeserver_config.py >> /home/jovyan/.jupyter/jupyter_config.py && \
@@ -248,7 +259,7 @@ RUN --mount=type=bind,source=code-server/jupyter_codeserver_config.py,target=/tm
 # Git client default initialization
 COPY before-notebook/ /usr/local/bin/before-notebook.d/
 
-# Generate 
+# Generate
 COPY versions/ /versions/
 COPY --chown=$NB_UID:$NB_GID README.md ${HOME}/
 RUN echo "## Software details" >> ${HOME}/README.md && \

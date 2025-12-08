@@ -3,3 +3,4 @@ local
 # Generated artifacts
 Dockerfile.generated
 docker-bake.generated.hcl
+devcontainer.generated.json

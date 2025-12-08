@@ -32,6 +32,15 @@ IMAGE_NAME=${IMAGE_NAME:-solen}
 TAG1=${TAG1:-latest}
 TAG2=${TAG2:-latest-sha}
 
+# Consume TAGS_CSV if provided (exported by build.sh) to get a list of
+# canonical tags (e.g. v1.2.3, rename-solen-abc123, abc123, build-...).
+# If TAGS_CSV is not provided, fall back to TAG1 and TAG2.
+if [ -n "${TAGS_CSV:-}" ]; then
+  IFS=',' read -r -a TAGS_ARR <<< "$TAGS_CSV"
+else
+  TAGS_ARR=("${TAG1}" "${TAG2}")
+fi
+
 IFS=',' read -r -a PLAT_ARR <<< "$BAKE_PLATFORMS"
 IFS=',' read -r -a ARCH_ARR <<< "$BAKE_ARCHS"
 
@@ -53,6 +62,9 @@ HCL
 
 # Emit one HCL target block per profile
 for t in "${targets[@]}"; do
+  # Compute a human-friendly profile slug by stripping leading numeric prefixes like "20-00-"
+  profile_slug=$(echo "$t" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
+
   cat >> "$OUT" <<HCL
 target "final-$t" {
   context = "."
@@ -66,8 +78,9 @@ HCL
   cat >> "$OUT" <<HCL
   ]
   tags = [
-    "${REPO}/${IMAGE_NAME}:${TAG1}",
-    "${REPO}/${IMAGE_NAME}:${TAG2}",
+    # Generate profile-scoped tags to avoid collisions when building many profiles.
+    # Use a human-friendly profile slug (strip numeric prefix): <repo>/<image>:<profile-slug>-<tag>
+$(for tag in "${TAGS_ARR[@]}"; do echo "    \"${REPO}/${IMAGE_NAME}:${profile_slug}-${tag}\","; done)
   ]
 }
 

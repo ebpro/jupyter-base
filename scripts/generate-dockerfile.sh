@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure this script runs under Bash 4+ (associative arrays are used)
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
+  cat <<'MSG' >&2
+Error: this script requires Bash 4 or newer (associative arrays are used).
+
+On macOS the system bash is often v3. To fix, install a newer bash and run the
+build using that shell. Example using Homebrew:
+
+  brew install bash
+  "$(brew --prefix 2>/dev/null || echo /usr/local)"/bin/bash ./build.sh --all-profiles
+
+Alternatively run the build inside a Linux container/VM or on CI that provides
+bash >= 4.
+MSG
+  exit 2
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
 FEATURES_DIR="$ROOT/.devcontainer/features"
@@ -46,18 +63,18 @@ expand_profile(){
   fi
   local line local_trim parent sub
   while IFS= read -r line || [ -n "$line" ]; do
-    local_trim="$(echo "$line" | sed -e 's/^\s*//' -e 's/\s*$//')"
+    local_trim="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [ -z "$local_trim" ] && continue
     case "$local_trim" in
       \#*) continue ;;
       @parent:*)
         parent=${local_trim#@parent:}
-        parent="$(echo "$parent" | sed -e 's/^\s*//' -e 's/\s*$//')"
+        parent="$(echo "$parent" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
         expand_profile "$parent" "$out_name"
         ;;
       @profile:*)
         sub=${local_trim#@profile:}
-        sub="$(echo "$sub" | sed -e 's/^\s*//' -e 's/\s*$//')"
+        sub="$(echo "$sub" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
         expand_profile "$sub" "$out_name"
         ;;
       *)
@@ -118,7 +135,7 @@ if [ "$ALL" = true ]; then
       parent_line=$(grep -E '^[[:space:]]*@parent:' "$PROFILES_DIR/$p" || true)
       if [ -n "$parent_line" ]; then
         parent=${parent_line#@parent:}
-        parent=$(echo "$parent" | sed -e 's/^\s*//' -e 's/\s*$//')
+        parent=$(echo "$parent" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
       fi
     fi
     parent_map[$p]="$parent"
@@ -209,7 +226,7 @@ EOF
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
         cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
@@ -285,7 +302,7 @@ RUNBLOCK
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
         cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
@@ -331,15 +348,23 @@ printf 'LABEL org.solen.profile="%s"\n\n' "$PROFILE" >> "$OUT"
 printf 'ENV NB_USER=jovyan NB_UID=1001 NB_GID=1001 HOME=/home/jovyan\n\n' >> "$OUT"
 printf 'WORKDIR /home/jovyan\n\n' >> "$OUT"
 
+# Bake helper library and Artefacts into the image early so feature install
+# scripts can source helper functions during their RUN steps.
+echo "# Bake helper library and Artefacts into the image" >> "$OUT"
+echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
+echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
+echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
+echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
 for feat in "${RESOLVED[@]}"; do
   echo "# Feature: $feat" >> "$OUT"
   echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-  cat >> "$OUT" <<RUNBLOCK
+        cat >> "$OUT" <<RUNBLOCK
 RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /tmp/scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /tmp/scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
-  echo >> "$OUT"
 done
+
+
 
 echo "Dockerfile generated to $OUT"
 exit 0
