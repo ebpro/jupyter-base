@@ -1,0 +1,6 @@
+@parent:20-01-quarto-lecture
+
+# Quarto lecture + Java (LTS): Quarto plus Java LTS kernel and devtools
+quarto
+java-devtools
+java-kernel

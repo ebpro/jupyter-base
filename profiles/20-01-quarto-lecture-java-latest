@@ -1,0 +1,6 @@
+@parent:20-01-quarto-lecture
+
+# Quarto lecture + Java (Latest): Quarto plus Java Latest kernel and devtools
+quarto
+java-devtools
+java-kernel
