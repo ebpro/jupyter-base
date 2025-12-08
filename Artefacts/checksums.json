@@ -125,5 +125,18 @@
         "4.95.1-rc.2": {}
       }
     }
+    ,
+    "ijava": {
+      "pinned_version": "1.4.5",
+      "archive_format": "zip",
+      "archive_filename": "IJava-latest.zip",
+      "archive_url_template": "https://github.com/ebpro/IJava/releases/download/v{version}/IJava-latest.zip",
+      "notes": "IJava distribution zip produced by CI (contains install.py and JAR).",
+      "checksums": {
+        "1.4.5": {
+          "amd64": "8336fbcf26cc570fbf33ee52a2e6051d865214355654e32218467db49658f2b5"
+        }
+      }
+    }
   }
 }
