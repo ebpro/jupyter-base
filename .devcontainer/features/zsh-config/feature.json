@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "id": "zsh-config",
   "description": "Installs Prezto and configures Powerlevel10k for the dev user",
+  "cache": [".zprezto"],
   "options": {
     "prezto_repo": {
       "type": "string",

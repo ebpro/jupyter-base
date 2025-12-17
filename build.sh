@@ -7,6 +7,10 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# CLI runtime flags
+DRY_RUN=false
+QUIET=false
+
 # Git version detection functions
 get_git_tag() {
     git describe --tags --exact-match 2>/dev/null || echo ""
@@ -68,6 +72,19 @@ normalize_platforms() {
         fi
     done
     echo "$out"
+}
+
+docker_buildx_available() {
+    # Prefer `docker buildx version` if docker present, otherwise fallback to docker-buildx binary
+    if command -v docker >/dev/null 2>&1; then
+        if docker buildx version >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    if command -v docker-buildx >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
 }
 
 # Check Git state
@@ -136,6 +153,9 @@ Options:
     --load              Attempt to load multi-platform images locally (may not work with all platforms)
     --profile <name>    Generate a Dockerfile from profile and build it
     --generate-only     Only generate Dockerfile/devcontainer and exit
+    --dry-run           Print the build command but do not execute it
+    --quiet             Disable colored output
+    --list-profiles     List available profiles and their build targets
 
 Build Information:
     Build Platform: ${BUILD_PLATFORM}
@@ -166,17 +186,63 @@ while [[ $# -gt 0 ]]; do
         -p|--platform) TARGET_PLATFORM="$2"; shift 2 ;;
         --push) PUSH=true; shift ;;
         --build-codeserver|--codeserver) BUILD_CODESERVER=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --quiet) QUIET=true; shift ;;
         --load) LOAD=true; shift ;;
         --all-architectures) ALL_ARCHS=true; shift ;;
         --profile) PROFILE="$2"; shift 2 ;;
         --generate-only) GENERATE_ONLY=true; shift ;;
         --all-profiles) ALL_PROFILES=true; shift ;;
+        --list-profiles) LIST_PROFILES=true; shift ;;
         *) break ;;
     esac
 done
 
+# If quiet requested, disable color sequences
+if [ "${QUIET}" = true ]; then
+    GREEN=''
+    YELLOW=''
+    RED=''
+    NC=''
+fi
+
 # Check Git state before building
 check_git_state || log_warn "Consider committing changes before building"
+
+# If user asked to list profiles/targets, print them and exit
+if [ "${LIST_PROFILES:-false}" = true ]; then
+    echo "Available profiles (from 'profiles/' directory):"
+    if [ -d "profiles" ]; then
+        for p in profiles/*; do
+            [ ! -e "$p" ] && continue
+            name=$(basename "$p")
+            [ "$name" = "README.md" ] && continue
+            # create slug by stripping leading numeric prefixes like "20-00-"
+            slug=$(echo "$name" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
+            printf ' - %s (slug: %s) -> build target: final-%s\n' "$name" "$slug" "$slug"
+        done
+    else
+        echo " (no 'profiles/' directory found)"
+    fi
+
+    # Also attempt to list build stages in common Dockerfiles
+    echo
+    echo "Detected build stages in Dockerfile(s):"
+    found=false
+    for df in Dockerfile Dockerfile.generated; do
+        [ ! -f "$df" ] && continue
+        echo " - $df:"
+        # Find 'AS name' occurrences (case-insensitive)
+        awk 'BEGIN{IGNORECASE=1} /FROM/ && / AS / { for(i=1;i<=NF;i++) if(toupper($i)=="AS") print "    " $(i+1) }' "$df" | sort -u | while read -r stage; do
+            found=true
+            echo "$stage"
+        done
+    done
+    if [ "$found" = false ]; then
+        echo "   (no named stages found in Dockerfile or Dockerfile.generated)"
+    fi
+    exit 0
+fi
 
 # If a profile is requested, generate the Dockerfile/devcontainer first
 if [ -n "${PROFILE}" ]; then
@@ -193,7 +259,7 @@ fi
 if [ "${ALL_PROFILES:-false}" = true ]; then
     log_info "Generating Dockerfile for all profiles"
     bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
-    bash "${PWD}/scripts/generate-devcontainer.sh" --all-profiles --out devcontainer.generated.json || true || true
+    bash "${PWD}/scripts/generate-devcontainer.sh" --all-profiles --out devcontainer.generated.json || true
     # Prepare bake platforms and archs for HCL generation
     if [ "${ALL_ARCHS}" = true ]; then
         RAW_ARCHS="${ARCHS:-amd64,arm64}"
@@ -223,7 +289,7 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
         exit 0
     fi
     # Build via bake if available
-    if command -v docker-buildx >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
+    if docker_buildx_available; then
         log_info "Attempting to build all profiles via docker buildx bake"
         # Explicitly target the generated "all" group so `bake` doesn't look for a missing default
         # Use the bake platforms computed earlier (BAKE_PLATFORMS) so generated HCL gets correct platforms
@@ -319,18 +385,26 @@ else
     done
 fi
 
-docker buildx build \
-    "${BUILD_ARGS[@]}" \
-    --build-arg GIT_SHA="${GIT_SHA}" \
-    --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-    --label org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-    --label org.opencontainers.image.version="${TAG1}" \
-    --label org.opencontainers.image.revision="${GIT_SHA}" \
-    -f "${DOCKERFILE}" \
-    --progress=plain \
-    "${BUILD_TAG_FLAGS[@]}" \
-    "$@" \
-    .
+BUILDX_CMD=(docker buildx build)
+BUILDX_CMD+=("${BUILD_ARGS[@]}")
+BUILDX_CMD+=(--build-arg "GIT_SHA=${GIT_SHA}")
+BUILDX_CMD+=(--build-arg "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')")
+BUILDX_CMD+=(--label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')")
+BUILDX_CMD+=(--label "org.opencontainers.image.version=${TAG1}")
+BUILDX_CMD+=(--label "org.opencontainers.image.revision=${GIT_SHA}")
+BUILDX_CMD+=(-f "${DOCKERFILE}")
+BUILDX_CMD+=(--progress=plain)
+BUILDX_CMD+=("${BUILD_TAG_FLAGS[@]}")
+BUILDX_CMD+=("$@")
+BUILDX_CMD+=(.)
+
+if [ "${DRY_RUN}" = true ]; then
+    log_info "Dry run: printing the buildx command (not executed)"
+    printf '%s ' "${BUILDX_CMD[@]}"
+    echo
+else
+    "${BUILDX_CMD[@]}"
+fi
 
 # Attempt to determine the resulting image digest for CI/promotion workflows.
 # We prefer to read the digest via `docker buildx imagetools inspect` (works for registry refs)

@@ -1,0 +1,14 @@
+@parent:10-00-dev
+
+# Developer Kotlin profile: dev tools + Kotlin compiler + optional kotlin kernel (no Quarto)
+java-devtools
+kotlin
+java-kernel
+
+# Profile notes:
+# kotlin.INSTALL_KOTLIN=true
+# kotlin.INSTALL_KOTLIN_KERNEL=false
+# java-devtools.install_maven=true
+# java-devtools.install_gradle=true
+
+@options: INSTALL_SDKMAN=true;INSTALL_KOTLIN=true;INSTALL_KOTLIN_KERNEL=false;INSTALL_MAVEN=true;INSTALL_GRADLE=true

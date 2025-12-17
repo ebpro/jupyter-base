@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../jupyter-java"
+		},
+		{
+			"path": "../../IJava"
+		}
+	],
+	"settings": {}
+}

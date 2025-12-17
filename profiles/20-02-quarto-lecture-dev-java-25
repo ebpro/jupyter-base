@@ -1,0 +1,8 @@
+@parent:20-01-quarto-lecture
+
+# Quarto lecture profile specialized for Java development (Java 25)
+# Includes Quarto + Java devtools + Java kernel
+java-devtools
+java-kernel
+
+@options: INSTALL_SDKMAN=true;JDK_VERSION=25;INSTALL_JAVA_LTS=false;INSTALL_JAVA_LATEST=false;INSTALL_MAVEN=true;INSTALL_GRADLE=true

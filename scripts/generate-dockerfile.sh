@@ -77,12 +77,48 @@ expand_profile(){
         sub="$(echo "$sub" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
         expand_profile "$sub" "$out_name"
         ;;
+      @options:*)
+        # profile-level options are ignored by the Dockerfile generator (handled by devcontainer generator)
+        continue
+        ;;
       *)
         # append to the array whose name is in out_name
         eval "$out_name+=(\"$local_trim\")"
         ;;
     esac
   done < "$f"
+}
+
+# Utility: move a named feature to the front of an array variable (by name)
+move_to_front() {
+  local arr_name="$1" item="$2"
+  # read array into local
+  eval "local arr=(\"\
+\"\
+\
+\"\
+\"\
+\")"
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
+  # safer: expand using indirect expansion
+  eval "local __arr=(\"\${${arr_name}[@]}\")"
+  local __found=false
+  for __e in "${__arr[@]}"; do
+    if [ "${__e}" = "${item}" ]; then __found=true; break; fi
+  done
+  if [ "${__found}" = true ]; then
+    local __new=("${item}")
+    for __e in "${__arr[@]}"; do
+      if [ "${__e}" != "${item}" ]; then __new+=("${__e}"); fi
+    done
+    # write back
+    eval "${arr_name}=(\"\${__new[@]}\")"
+  fi
 }
 
 collect_profiles(){
@@ -213,6 +249,7 @@ EOF
     echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
 
   if [ ${#common_features[@]} -gt 0 ]; then
+    # Honor profile order; do not reorder common features here
     echo "# Common stage" >> "$OUT"
     echo "FROM base AS common" >> "$OUT"
     # bake helper scripts and Artefacts into the common stage so runtime features can source them
@@ -224,9 +261,18 @@ EOF
     for feat in "${common_features[@]}"; do
       echo "# Feature: $feat" >> "$OUT"
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+        # compute cache mounts from feature.json if present
+        MOUNTS=""
+        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
+          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
+            # sanitize id
+            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
+            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
+          done
+        fi
         cat >> "$OUT" <<RUNBLOCK
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
@@ -292,6 +338,17 @@ RUNBLOCK
     # otherwise create a profile stage that inherits from the base and apply unique features
     echo "FROM $base_from AS profile-$p" >> "$OUT"
     for feat in "${prof_feats[@]}"; do
+      # ensure java-devtools appears first in profile-specific unique features
+      if [ "${#prof_feats[@]}" -gt 1 ]; then
+        for i in "${!prof_feats[@]}"; do
+          if [ "${prof_feats[$i]}" = "java-devtools" ]; then
+            val=${prof_feats[$i]}
+            prof_feats=(${prof_feats[@]:0:$i} ${prof_feats[@]:$((i+1))})
+            prof_feats=("$val" "${prof_feats[@]}")
+            break
+          fi
+        done
+      fi
       # skip features that are in common_features (they were applied in common stage)
       skip=false
       for cf in "${common_features[@]}"; do
@@ -300,9 +357,17 @@ RUNBLOCK
       if [ "$skip" = true ]; then continue; fi
       echo "# Feature: $feat" >> "$OUT"
       echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+        # compute cache mounts from feature.json if present
+        MOUNTS=""
+        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
+          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
+            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
+            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
+          done
+        fi
         cat >> "$OUT" <<RUNBLOCK
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
       echo >> "$OUT"
     done
@@ -321,6 +386,8 @@ fi
 
 declare -a RESOLVED
 expand_profile "$PROFILE" RESOLVED
+
+# Respect the feature order as defined in the profile; do not move features around
 
 # validate features exist
 for feat in "${RESOLVED[@]}"; do
@@ -358,9 +425,17 @@ echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
 for feat in "${RESOLVED[@]}"; do
   echo "# Feature: $feat" >> "$OUT"
   echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
+        # compute cache mounts from feature.json if present
+        MOUNTS=""
+        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
+          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
+            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
+            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
+          done
+        fi
         cat >> "$OUT" <<RUNBLOCK
-RUN --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; if [ -x /tmp/features/$feat/install.sh ]; then /tmp/features/$feat/install.sh; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
+RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
+  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
 RUNBLOCK
 done
 

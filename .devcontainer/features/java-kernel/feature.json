@@ -1,23 +1,43 @@
 {
   "id": "java-kernel",
   "name": "java-kernel",
-  "version": "0.1.0",
-  "description": "Installs a Java Jupyter kernel (IJava) from release or submodule and registers kernelspec.",
+  "version": "0.2.0",
+  "description": "Installs the IJava Jupyter kernel from GitHub releases (https://github.com/ebpro/IJava/releases) or from a local artifacts directory and registers the kernelspec.",
   "options": {
     "kernel_source": {
       "type": "string",
-      "description": "Where to get the kernel artifacts: 'release' or 'submodule'",
+      "description": "Where to get the kernel artifacts: 'release' (download from releases) or 'local' (use files from ARTIFACTS_DIR)",
       "default": "release"
     },
     "kernel_version": {
       "type": "string",
-      "description": "Kernel release version to download when using 'release' source",
+      "description": "Kernel release version to download when using 'release' source (e.g. '1.2.3'). If empty the feature will try to use any matching artifact in ARTIFACTS_DIR.",
       "default": ""
     },
     "jdk_version": {
       "type": "string",
-      "description": "JDK version to install (e.g., 17, 21)",
+      "description": "JDK version to ensure (used by SDKMAN if present)",
       "default": "17"
+    },
+    "artifacts_base_url": {
+      "type": "string",
+      "description": "Base URL used to construct release download when using 'release' source. Default points to the GitHub releases for ebpro/IJava.",
+      "default": "https://github.com/ebpro/IJava/releases/download"
+    },
+    "artefact_url": {
+      "type": "string",
+      "description": "Full URL to a specific kernel tarball; if provided it overrides the base URL + version behavior.",
+      "default": ""
+    },
+    "artifacts_dir": {
+      "type": "string",
+      "description": "Path inside the build/container where local artifacts are available (e.g. /opt/solen/Artefacts or /tmp/Artefacts). The install script will look here for java-kernel-*.tar.gz.",
+      "default": "/opt/solen/Artefacts"
+    },
+    "required": {
+      "type": "boolean",
+      "description": "If true, fail the build when the kernel cannot be installed. Set to false to tolerate missing kernel artifacts.",
+      "default": true
     }
   }
 }

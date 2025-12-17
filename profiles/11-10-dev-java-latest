@@ -1,0 +1,7 @@
+@parent:10-00-dev
+
+# Java latest developer profile
+java-devtools
+java-kernel
+
+@options: INSTALL_SDKMAN=true;JDK_VERSION=latest;INSTALL_JAVA_LTS=false;INSTALL_JAVA_LATEST=true;INSTALL_MAVEN=true;INSTALL_GRADLE=true

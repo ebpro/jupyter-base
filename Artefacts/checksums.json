@@ -115,6 +115,7 @@
         }
       }
     },
+
     "code-server": {
       "pinned_version": "4.95.1-rc.2",
       "archive_format": "tar.gz",
