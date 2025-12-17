@@ -9,3 +9,6 @@ devcontainer.generated.json
 /Artefacts/**/toolcache/
 /Artefacts/toolcache/
 /Artefacts/**/toolcache/**
+build-artifact.json
+image-digest.txt
+

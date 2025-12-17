@@ -18,7 +18,11 @@ HOME_DIR="/home/${NB_USER}"
 echo "jetbrains-gateway: installing openssh-server (if start requested)"
 
 if ! command -v sshd >/dev/null 2>&1; then
-  apt-get update && apt-get install -y --no-install-recommends openssh-server || true
+  if command -v apt_install >/dev/null 2>&1; then
+    apt_install openssh-server || true
+  else
+    apt-get update && apt-get install -y --no-install-recommends openssh-server || true
+  fi
 fi
 
 # Ensure sshd runtime dirs

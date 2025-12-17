@@ -14,7 +14,11 @@ set -euo pipefail
 PKGS="build-essential cmake pkg-config python3-dev libssl-dev libffi-dev git htop lsof strace"
 
 echo "dev-tools: installing packages: ${PKGS}"
-apt-get update && apt-get install -y --no-install-recommends ${PKGS} || true
+if command -v apt_install >/dev/null 2>&1; then
+  apt_install ${PKGS} || true
+else
+  apt-get update && apt-get install -y --no-install-recommends ${PKGS} || true
+fi
 rm -rf /var/lib/apt/lists/* || true
 
 echo "dev-tools: done"

@@ -15,9 +15,14 @@ if [ -f /tmp/Artefacts/apt_packages_base ]; then
   PKGS=$(grep -v -e "^#" -e "^$" /tmp/Artefacts/apt_packages_base | tr '\n' ' ' || true)
   PKGS=$(echo "$PKGS" | xargs || true)
   if [ -n "$PKGS" ]; then
-    apt-get update
-    apt-get install -y --no-install-recommends $PKGS || true
-    rm -rf /var/lib/apt/lists/* || true
+    # Use helper apt_install where available for consistent, non-interactive installs
+    if command -v apt_install >/dev/null 2>&1; then
+      apt_install $PKGS || true
+    else
+      apt-get update
+      apt-get install -y --no-install-recommends $PKGS || true
+      rm -rf /var/lib/apt/lists/* || true
+    fi
   fi
 else
   echo "base-apt: /tmp/Artefacts/apt_packages_base not present; skipping"

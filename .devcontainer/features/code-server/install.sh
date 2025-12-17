@@ -18,7 +18,11 @@ HOME_DIR="/home/${NB_USER}"
 echo "code-server: installing code-server runtime"
 
 # Ensure small prerequisites
-apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar || true
+if command -v apt_install >/dev/null 2>&1; then
+  apt_install curl ca-certificates tar || true
+else
+  apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar || true
+fi
 rm -rf /var/lib/apt/lists/* || true
 
 # Resolve version from Artefacts (workspace or /tmp)

@@ -18,7 +18,11 @@ HOME_DIR="/home/${NB_USER}"
 echo "git-lfs: installing git-lfs"
 
 if ! command -v git-lfs >/dev/null 2>&1; then
-  apt-get update && apt-get install -y --no-install-recommends git-lfs || true
+  if command -v apt_install >/dev/null 2>&1; then
+    apt_install git-lfs || true
+  else
+    apt-get update && apt-get install -y --no-install-recommends git-lfs || true
+  fi
   rm -rf /var/lib/apt/lists/* || true
 fi
 

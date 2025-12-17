@@ -15,7 +15,11 @@ echo "podman: installing podman via apt (if available)"
 # Try apt install; many base images include apt
 if command -v apt-get >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y --no-install-recommends podman || true
+  if command -v apt_install >/dev/null 2>&1; then
+    apt_install podman || true
+  else
+    apt-get install -y --no-install-recommends podman || true
+  fi
   rm -rf /var/lib/apt/lists/* || true
   echo "podman: installed via apt (or apt not available)"
 else

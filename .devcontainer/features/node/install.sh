@@ -16,7 +16,11 @@ if [ "${DEVCONTAINER_NODE_INSTALL_VOLTA:-false}" = "true" ]; then
   echo "node: Volta installed (may require new shell to take effect)"
 else
   echo "node: installing nodejs/npm from apt (may be older version)"
-  apt-get update && apt-get install -y --no-install-recommends nodejs npm || true
+  if command -v apt_install >/dev/null 2>&1; then
+    apt_install nodejs npm || true
+  else
+    apt-get update && apt-get install -y --no-install-recommends nodejs npm || true
+  fi
   rm -rf /var/lib/apt/lists/* || true
 fi
 
