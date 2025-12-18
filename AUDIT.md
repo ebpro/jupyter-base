@@ -1,7 +1,7 @@
 # DevContainer Build System Audit & Improvement Plan
 
-**Date:** December 18, 2025  
-**System:** Feature-based Docker image builder for devcontainers  
+**Date:** December 18, 2025
+**System:** Feature-based Docker image builder for devcontainers
 **Scope:** Build orchestration, feature management, profile composition
 
 ---
@@ -48,7 +48,7 @@ Your build system demonstrates strong architectural foundations with modular fea
 3. Add validation script: `scripts/validate-feature-deps.sh`
 4. Document dependency rules in feature development guide
 
-**Effort:** Medium (2-3 days)  
+**Effort:** Medium (2-3 days)
 **Impact:** High (prevents 80% of profile configuration errors)
 
 ---
@@ -82,7 +82,7 @@ docker run --rm <image> pip freeze > Artefacts/pip-lock-<profile>.txt
 4. Include lockfile hashes in build-artifact.json
 5. Document lockfile workflow in DEVELOPER.md
 
-**Effort:** Medium (3-4 days)  
+**Effort:** Medium (3-4 days)
 **Impact:** High (enables bit-for-bit reproducible builds for compliance/security)
 
 ---
@@ -137,7 +137,7 @@ docker run --rm <image> bash -c "
 4. CI: Run tests before pushing images
 5. Add test results to build-artifact.json
 
-**Effort:** High (5-7 days)  
+**Effort:** High (5-7 days)
 **Impact:** Very High (catches 95% of issues before production)
 
 ---
@@ -163,7 +163,7 @@ FROM base AS common-python
 RUN <install python-conda>
 
 # Stage: common-java (reused by all java profiles)
-FROM base AS common-java  
+FROM base AS common-java
 RUN <install java-devtools>
 
 # Profile-specific stages build FROM common-*
@@ -178,7 +178,7 @@ RUN <install quarto>
 4. Use BuildKit inline cache: `--cache-from type=registry`
 5. Document caching strategy in DEVELOPER.md
 
-**Effort:** Medium (4-5 days)  
+**Effort:** Medium (4-5 days)
 **Impact:** High (60-80% faster CI builds)
 
 ---
@@ -233,7 +233,7 @@ RUN <install quarto>
 4. Measure and track image sizes per profile in CI
 5. Set size budget alerts (e.g., >2GB warns)
 
-**Effort:** Low-Medium (2-3 days)  
+**Effort:** Low-Medium (2-3 days)
 **Impact:** Medium (20-40% size reduction → faster pulls)
 
 ---
@@ -289,7 +289,7 @@ RUN <install quarto>
 4. Document security practices in SECURITY.md
 5. CI: Fail build on HIGH/CRITICAL CVEs
 
-**Effort:** Medium (3-4 days)  
+**Effort:** Medium (3-4 days)
 **Impact:** High (prevents supply-chain attacks)
 
 ---
@@ -315,16 +315,16 @@ RUN <install quarto>
    set -euo pipefail
    # Always source helpers
    source "${FEATURE_HELPERS_DIR}/helpers.sh"
-   
+
    # Declare standard variables
    NB_USER=${NB_USER:-jovyan}
    NB_UID=${NB_UID:-1001}
    NB_GID=${NB_GID:-1001}
    HOME_DIR="/home/${NB_USER}"
-   
+
    # Use fh_log for output
    fh_log "Installing <feature>"
-   
+
    # Mark completion
    feature_mark_installed
    ```
@@ -348,7 +348,7 @@ RUN <install quarto>
 4. Migrate existing features to standard (gradually)
 5. Add pre-commit hook for feature validation
 
-**Effort:** Medium (4 days)  
+**Effort:** Medium (4 days)
 **Impact:** Medium (fewer bugs, faster onboarding)
 
 ---
@@ -401,7 +401,7 @@ RUN <install quarto>
 4. Link from main README.md
 5. Add badges for profile build status
 
-**Effort:** Low (2-3 days)  
+**Effort:** Low (2-3 days)
 **Impact:** Medium (better UX, reduces support burden)
 
 ---
@@ -443,7 +443,7 @@ strategy:
 4. Add rollback script: `scripts/rollback-tag.sh`
 5. Set up GitHub Packages retention policy
 
-**Effort:** Medium (3-4 days)  
+**Effort:** Medium (3-4 days)
 **Impact:** Medium-High (safer releases, faster iteration)
 
 ---
@@ -494,7 +494,7 @@ strategy:
 4. Create example devcontainer.json in `examples/`
 5. Document customization options in docs/
 
-**Effort:** Low (2 days)  
+**Effort:** Low (2 days)
 **Impact:** Low-Medium (better student UX)
 
 ---
@@ -588,7 +588,7 @@ Your system is well-architected with strong modularity. The recommended improvem
 2. **Performance:** Caching, size optimization
 3. **Maintainability:** Standards, documentation, CI
 
-**Estimated Total Effort:** 6-8 weeks (1 developer)  
+**Estimated Total Effort:** 6-8 weeks (1 developer)
 **ROI:** High - prevents bugs, accelerates development, improves security
 
 **Recommended Starting Point:** Items 1, 3, 6 (Foundation phase) provide maximum impact for reliability and security.

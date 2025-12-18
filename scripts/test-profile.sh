@@ -35,9 +35,9 @@ run_test() {
   local cmd="$2"
   local user="${3:-jovyan}"
   local use_login="${4:-false}"
-  
+
   log_info "Testing: ${name}"
-  
+
   local docker_cmd
   if [ "${use_login}" = "true" ]; then
     # Use login shell to source profile
@@ -45,7 +45,7 @@ run_test() {
   else
     docker_cmd="docker run --rm -u ${user} ${IMAGE} bash -c '${cmd}'"
   fi
-  
+
   if eval "${docker_cmd}" >/dev/null 2>&1; then
     log_pass "${name}"
     ((PASSED++)) || true

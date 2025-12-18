@@ -73,14 +73,14 @@ if [ ! -x "${CONDA_DIR}/bin/conda" ]; then
   else
     DL_ARCH="$(uname -m)"
   fi
-  
+
   # Construct URL using pinned version if available, otherwise fall back to latest
   if [ "${MINIFORGE_VER}" != "latest" ]; then
     installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VER}/Miniforge3-$(uname)-${DL_ARCH}.sh"
   else
     installer_url="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-${DL_ARCH}.sh"
   fi
-  
+
   # attempt to find checksum for this OS/ARCH combination
   resolve_checksum() {
     local tool="$1" ver="$2" arch="$3" cs=""

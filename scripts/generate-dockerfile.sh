@@ -51,6 +51,28 @@ expand_profile(){
   done < "$f"
 }
 
+# Sort features by dependencies using topological sort
+sort_features_by_deps() {
+  local -n input_feats=$1
+  [ ${#input_feats[@]} -eq 0 ] && return
+
+  # Call Python script to sort features
+  local sorted_output
+  sorted_output=$(printf '%s\n' "${input_feats[@]}" | python3 "$ROOT/scripts/sort-features-by-deps.py" 2>&1)
+  local exit_code=$?
+
+  if [ $exit_code -ne 0 ]; then
+    echo "Warning: Feature dependency sort failed, using original order" >&2
+    return
+  fi
+
+  # Replace input array with sorted features
+  input_feats=()
+  while IFS= read -r feature; do
+    [ -n "$feature" ] && input_feats+=("$feature")
+  done <<< "$sorted_output"
+}
+
 emit_run_features() {
   local -n feats=$1
   [ ${#feats[@]} -eq 0 ] && return
@@ -127,6 +149,9 @@ if [ "$ALL" = true ]; then
     declare -a p_envs=()
     expand_profile "$p" p_feats p_envs
 
+    # Sort features by dependencies
+    sort_features_by_deps p_feats
+
     parent=$(grep "@parent:" "$PROFILES_DIR/$p" | head -1 | cut -d: -f2 | xargs || echo "base")
     parent_stage="base"
     [[ "$parent" != "base" ]] && parent_stage="profile-$parent"
@@ -137,6 +162,10 @@ if [ "$ALL" = true ]; then
         unique_feats+=("$f")
       fi
     done
+
+    # Sort unique features by dependencies too
+    sort_features_by_deps unique_feats
+
     full_feat_lists[$p]="${p_feats[*]}"
 
     echo -e "\n# --- Profile: $p ---" >> "$OUT"

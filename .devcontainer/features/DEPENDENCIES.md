@@ -1,6 +1,6 @@
 # Feature Dependency Analysis
 
-**Date:** December 18, 2025  
+**Date:** December 18, 2025
 **Purpose:** Document implicit dependencies to inform explicit `dependsOn` declarations
 
 ---
@@ -19,14 +19,14 @@
 - `startup` - Startup script runner
 
 ### Python Stack
-- `python-conda` 
+- `python-conda`
   - Depends on: user (for /home/jovyan)
   - Provides: CONDA_DIR, conda, python, jupyter
-  
+
 - `jupyter-kernels`
   - Depends on: python-conda (requires jupyter)
   - Installs: python3, bash, zsh kernels
-  
+
 - `pip-requirements`
   - Depends on: python-conda (requires pip in conda env)
   - Installs packages from Artefacts/requirements.txt
@@ -35,19 +35,19 @@
 - `java-sdkman`
   - Depends on: user (for /home/jovyan)
   - Provides: SDKMAN, sdk command
-  
+
 - `java-devtools`
   - Depends on: java-sdkman
   - Provides: JDK, Maven, Gradle via SDKMAN
-  
+
 - `java-kernel`
   - Depends on: java-devtools, jupyter-kernels
   - Registers Java kernel with Jupyter
-  
+
 - `graalvm`
   - Depends on: java-sdkman
   - Alternative to java-devtools (conflicts?)
-  
+
 - `kotlin`
   - Depends on: java-sdkman (uses SDKMAN for kotlin)
   - Optional: kotlin-jupyter kernel (needs jupyter-kernels)
@@ -56,7 +56,7 @@
 - `node`
   - Depends on: user
   - Provides: node, npm via Volta
-  
+
 - `lsp-tools`
   - Depends on: node (uses npm for pyright)
   - Provides: pyright, optionally others
@@ -65,14 +65,14 @@
 - `dev-tools`
   - Depends on: base-apt (builds on core utilities)
   - Adds: gcc, g++, make, build-essential, htop, fd, ripgrep
-  
+
 - `docker-cli-helper`
   - Depends on: user
   - Adds jovyan to docker group
-  
+
 - `git-lfs`
   - No dependencies (standalone binary)
-  
+
 - `gh-cli`
   - No dependencies (standalone binary)
 
@@ -81,11 +81,11 @@
   - Depends on: python-conda (for Jupyter integration)
   - Optional: texlive (for PDF output)
   - Sets QUARTO_PYTHON environment variable
-  
+
 - `quarto-common`
   - Depends on: user
   - Creates template directories in /home/jovyan/local
-  
+
 - `texlive`
   - Depends on: base-apt (needs fontconfig libs)
   - Provides: pdflatex, tlmgr
@@ -94,11 +94,11 @@
 - `kubernetes-tools`
   - No dependencies
   - Provides: kubectl, helm, k9s
-  
+
 - `podman`
   - Depends on: user
   - Alternative to docker
-  
+
 - `tilt`
   - No dependencies
   - Kubernetes dev tool
@@ -107,11 +107,11 @@
 - `code-server`
   - Depends on: user, node
   - VS Code in browser
-  
+
 - `codeserver-extensions`
   - Depends on: code-server
   - Installs VS Code extensions
-  
+
 - `jetbrains-gateway`
   - Depends on: user
   - SSH server for JetBrains remote
@@ -126,18 +126,18 @@ graph TD
     _lib[_lib: helpers]
     user[user: jovyan]
     python-base[python-base: sys python]
-    
+
     %% System layer
     user --> base-apt
     user --> zsh-config
     user --> prompt-helpers
     user --> startup
-    
+
     %% Python stack
     user --> python-conda
     python-conda --> jupyter-kernels
     python-conda --> pip-requirements
-    
+
     %% Java stack
     user --> java-sdkman
     java-sdkman --> java-devtools
@@ -145,25 +145,25 @@ graph TD
     java-sdkman --> kotlin
     java-devtools --> java-kernel
     jupyter-kernels --> java-kernel
-    
+
     %% Node stack
     user --> node
     node --> lsp-tools
     node --> code-server
-    
+
     %% Dev tools
     base-apt --> dev-tools
     user --> docker-cli-helper
-    
+
     %% Content tools
     python-conda --> quarto
     user --> quarto-common
     base-apt --> texlive
-    
+
     %% IDE
     code-server --> codeserver-extensions
     user --> jetbrains-gateway
-    
+
     %% Standalone
     git-lfs
     gh-cli

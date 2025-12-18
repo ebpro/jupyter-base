@@ -31,19 +31,19 @@ for feature_json in "${FEATURES_DIR}"/*/feature.json; do
     if [ ! -f "$feature_json" ]; then
         continue
     fi
-    
+
     feature_dir=$(basename "$(dirname "$feature_json")")
     feature_id=$(jq -r '.id // empty' "$feature_json" 2>/dev/null || echo "")
-    
+
     if [ -z "$feature_id" ]; then
         echo -e "${YELLOW}⚠${NC}  Feature $feature_dir has no 'id' field, skipping"
         ((warnings++))
         continue
     fi
-    
+
     feature_ids["$feature_id"]=1
     feature_files["$feature_id"]="$feature_json"
-    
+
     # Extract dependsOn array
     depends_on=$(jq -r '.dependsOn[]? // empty' "$feature_json" 2>/dev/null || echo "")
     if [ -n "$depends_on" ]; then
@@ -80,7 +80,7 @@ check_cycle() {
     local node="$1"
     visited["$node"]=1
     rec_stack["$node"]=1
-    
+
     local deps="${feature_depends_on[$node]:-}"
     for dep in $deps; do
         if [ -z "${visited[$dep]:-}" ]; then
@@ -93,7 +93,7 @@ check_cycle() {
             return 0
         fi
     done
-    
+
     rec_stack["$node"]=0
     return 1
 }
@@ -136,13 +136,13 @@ iteration=0
 while [ $remaining -gt 0 ] && [ $iteration -lt $max_iterations ]; do
     ((iteration++))
     found_any=false
-    
+
     for feature_id in "${!feature_ids[@]}"; do
         # Skip if already processed
         if [[ " ${sorted_features[*]} " =~ " ${feature_id} " ]]; then
             continue
         fi
-        
+
         # Check if all dependencies are satisfied
         can_add=true
         deps="${feature_depends_on[$feature_id]:-}"
@@ -152,14 +152,14 @@ while [ $remaining -gt 0 ] && [ $iteration -lt $max_iterations ]; do
                 break
             fi
         done
-        
+
         if $can_add; then
             sorted_features+=("$feature_id")
             ((remaining--))
             found_any=true
         fi
     done
-    
+
     # If we didn't add any feature in this iteration, we have a cycle
     if ! $found_any; then
         break
@@ -191,12 +191,12 @@ if [ "${1:-}" = "--profile" ] && [ -n "${2:-}" ]; then
     PROFILE_PATH="$2"
     echo "🔍 Validating profile: $PROFILE_PATH"
     echo ""
-    
+
     if [ ! -f "$PROFILE_PATH" ]; then
         echo -e "${RED}✗${NC} Profile file not found: $PROFILE_PATH"
         exit 1
     fi
-    
+
     # Extract features from profile (lines not starting with @ or #)
     profile_features=()
     while IFS= read -r line; do
@@ -210,9 +210,9 @@ if [ "${1:-}" = "--profile" ] && [ -n "${2:-}" ]; then
             profile_features+=("$feature")
         fi
     done < "$PROFILE_PATH"
-    
+
     echo "Profile includes ${#profile_features[@]} features"
-    
+
     # Validate each feature exists
     for feature in "${profile_features[@]}"; do
         if [ -z "${feature_ids[$feature]:-}" ]; then
@@ -220,13 +220,13 @@ if [ "${1:-}" = "--profile" ] && [ -n "${2:-}" ]; then
             ((errors++))
         fi
     done
-    
+
     # Check if profile ordering respects dependencies
     declare -A profile_position
     for i in "${!profile_features[@]}"; do
         profile_position["${profile_features[$i]}"]=$i
     done
-    
+
     for feature in "${profile_features[@]}"; do
         deps="${feature_depends_on[$feature]:-}"
         for dep in $deps; do
@@ -243,7 +243,7 @@ if [ "${1:-}" = "--profile" ] && [ -n "${2:-}" ]; then
             fi
         done
     done
-    
+
     if [ $errors -eq 0 ]; then
         echo -e "${GREEN}✓${NC} Profile dependency order is valid"
     fi
