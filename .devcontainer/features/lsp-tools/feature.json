@@ -4,6 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "lsp-tools",
   "description": "Installs common language servers (pyright via npm, others optionally)",
+  "dependsOn": ["node"],
   "options": {},
   "postInstallCheck": {
     "command": "which pyright",

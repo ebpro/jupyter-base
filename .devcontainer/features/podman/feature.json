@@ -2,6 +2,7 @@
   "id": "podman",
   "name": "podman",
   "description": "Installs Podman client (user-space container runtime) via apt when available.",
+  "dependsOn": ["user"],
   "options": {},
   "version": "0.1.0",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "id": "zsh-config",
   "description": "Installs Prezto and configures Powerlevel10k for the dev user",
+  "dependsOn": ["user"],
   "caches": [
     {
       "id": "cache_zsh_config__zprezto_",

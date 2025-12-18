@@ -4,6 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "node",
   "description": "Installs Node.js (simple installer) or Volta if desired",
+  "dependsOn": ["user"],
   "options": {
     "install_volta": {
       "type": "boolean",

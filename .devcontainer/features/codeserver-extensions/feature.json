@@ -4,5 +4,6 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "codeserver-extensions",
   "description": "Installs code-server extensions listed in Artefacts/codeserver_extensions",
+  "dependsOn": ["code-server"],
   "options": {}
 }

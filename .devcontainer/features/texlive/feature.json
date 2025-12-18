@@ -4,6 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "texlive",
   "description": "Installs TinyTeX/TeXLive packages listed in Artefacts/TeXLive",
+  "dependsOn": ["base-apt"],
   "options": {
     "install_extra": {
       "type": "boolean",

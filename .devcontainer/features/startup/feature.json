@@ -4,6 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "startup",
   "description": "Installs run-startup-scripts helper and exposes a smoke/health command",
+  "dependsOn": ["user"],
   "options": {},
   "postInstallCheck": {
     "command": "test -x /usr/local/bin/run-startup-scripts.sh",

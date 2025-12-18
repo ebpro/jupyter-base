@@ -25,7 +25,7 @@
       "default": "21"
     }
   },
-  "requires": ["sdk","jdk"],
+  "dependsOn": ["java-devtools", "jupyter-kernels"],
   "postInstallCheck": {
     "command": "bash -lc 'if [ -d /usr/local/share/jupyter/kernels/java ]; then exit 0; else jupyter kernelspec list --json | python -c \"import sys,json; ks=json.load(sys.stdin).get(\\\"kernelspecs\\\",{}); sys.exit(0) if \\\"java\\\" in ks else sys.exit(1)\"; fi'"
   },

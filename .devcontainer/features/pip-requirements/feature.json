@@ -4,5 +4,6 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "pip-requirements",
   "description": "Installs pip requirements from Artefacts/requirements.txt (or base/extra splits)",
+  "dependsOn": ["python-conda"],
   "options": {}
 }

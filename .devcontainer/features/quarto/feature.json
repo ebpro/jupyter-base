@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "id": "quarto",
   "description": "Installs Quarto CLI and optionally its runtime (Chromium)",
+  "dependsOn": ["python-conda"],
   "options": {
     "QUARTO_VERSION": {"type":"string","default":"1.8.26","description":"Specific Quarto version to install"},
     "INSTALL_CHROMIUM": {"type": "boolean", "default": false, "description": "Whether to install Chromium runtime for Quarto"}

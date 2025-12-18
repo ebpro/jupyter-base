@@ -3,6 +3,7 @@
   "name": "Java SDK Manager (SDKMAN)",
   "version": "1.0.0",
   "description": "Installs SDKMAN so SDK-managed Java tools (maven, gradle, jdks) can be provisioned.",
+  "dependsOn": ["user"],
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"

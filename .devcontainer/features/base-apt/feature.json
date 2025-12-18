@@ -4,6 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "base-apt",
   "description": "Installs minimal OS utility packages from Artefacts/apt_packages/base",
+  "dependsOn": ["user"],
   "options": {},
   "postInstallCheck": {
     "command": "which jq fzf tmux nvim cmake",

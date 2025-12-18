@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "description": "Installs GraalVM distribution for polyglot and native-image support",
+  "dependsOn": ["java-sdkman"],
   "options": {
     "graalvm_version": {"type": "string", "default": "22.3.1", "description": "GraalVM release to install"},
     "install_native_image": {"type": "boolean", "default": true}
