@@ -4,5 +4,9 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "docker-cli-helper",
   "description": "Helper: configure docker group and helper scripts for using host Docker socket",
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "getent group docker && id jovyan | grep -q docker",
+    "description": "Verify docker group exists and jovyan is a member"
+  }
 }

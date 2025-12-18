@@ -17,6 +17,8 @@
       "gh": "2.83.1",
       "scout": "1.18.2",
       "tinytex": "2025.09",
-      "java-kernel": "1.4.5"
+      "java-kernel": "1.4.5",
+      "tilt": "0.33.24",
+      "miniforge": "24.11.2-0"
     }
   }

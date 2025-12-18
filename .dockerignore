@@ -1,0 +1,53 @@
+# Git metadata
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+examples/
+
+# Archives and backups
+Archive/
+*.bak
+*.old
+*.tmp
+
+# Build artifacts
+build-artifact.json
+image-digest.txt
+*.log
+Dockerfile.generated
+devcontainer.generated.json
+docker-bake.generated.hcl
+
+# Test files
+tests/
+**/*test*.sh
+**/*.test.js
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CI/CD (keep workflow definitions but ignore outputs)
+.github/workflows/artifacts/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Development scripts not needed in image
+repro.hcl
+repro2.hcl

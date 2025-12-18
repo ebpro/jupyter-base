@@ -10,5 +10,9 @@
       "default": "conda-forge",
       "description": "Channel used by conda"
     }
+  },
+  "postInstallCheck": {
+    "command": "conda --version && python --version && jupyter --version",
+    "description": "Verify conda, python, and jupyter are available"
   }
 }

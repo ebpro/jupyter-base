@@ -12,7 +12,10 @@
     "JDK_VERSION" : {"type": "string", "default": "25", "description": "JDK major version to install (passed to SDKMAN)"}
   },
   "provides": ["sdk"],
-  "postInstallCheck": {"command": "sdk version"},
+  "postInstallCheck": {
+    "command": "test -d /home/jovyan/.sdkman && sdk version && test -d /home/jovyan/.sdkman/candidates/java/current",
+    "description": "Verify SDKMAN is installed and Java is available"
+  },
   "platforms": ["linux/amd64","linux/arm64"],
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
 }

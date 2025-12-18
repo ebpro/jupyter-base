@@ -4,5 +4,9 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "dev-tools",
   "description": "Installs compilers and monitoring utilities (build-essential, cmake, htop, strace)",
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "gcc --version && cmake --version && which htop jq fd rg",
+    "description": "Verify core dev tools are available"
+  }
 }

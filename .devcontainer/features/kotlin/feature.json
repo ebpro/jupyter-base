@@ -7,5 +7,9 @@
   "options": {
     "install_kotlin_compiler": {"type": "boolean", "default": true},
     "install_kotlin_kernel": {"type": "boolean", "default": false}
+  },
+  "postInstallCheck": {
+    "command": "kotlinc -version",
+    "description": "Verify Kotlin compiler is available"
   }
 }

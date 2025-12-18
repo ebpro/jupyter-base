@@ -17,5 +17,9 @@
       "default": true,
       "env": "INSTALL_BASH_KERNEL"
     }
+  },
+  "postInstallCheck": {
+    "command": "jupyter kernelspec list | grep -E '(python3|bash|zsh)'",
+    "description": "Verify python3, bash, and zsh kernels are registered"
   }
 }

@@ -4,5 +4,9 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "user",
   "description": "Create the non-root user, group, sudoers entry and home directories",
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "id jovyan && test -d /home/jovyan && sudo -n true",
+    "description": "Verify jovyan user exists, home directory is created, and has sudo access"
+  }
 }
