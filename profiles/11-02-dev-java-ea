@@ -2,6 +2,4 @@
 
 @parent:11-00-dev-java-sdk
 
-java-devtools
-
 @options: JDK_VERSION=ea

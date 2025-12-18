@@ -1,7 +1,5 @@
 # Java 21 developer profile
 
-@parent:11-00-dev-java-sdk
-
-java-devtools
+@Users/bruno/Documents/GitHub/jupyter-base/profiles/11-11-dev-java-21
 
 @options: JDK_VERSION=21

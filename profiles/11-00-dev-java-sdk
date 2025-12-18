@@ -2,8 +2,7 @@
 
 @parent:10-00-dev
 
-
-java-sdkman
+java-jdk
+java-maven
+java-gradle
 java-kernel
-
-@options: INSTALL_MAVEN=true;INSTALL_GRADLE=true

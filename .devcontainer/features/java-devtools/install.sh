@@ -1,28 +1,16 @@
-# Auto-inserted by scripts/inject_prebaked_helpers.sh
-# Source shared feature helpers (prebaked into image) or fall back to repository helper
-if [ -n "${FEATURE_HELPERS_DIR:-}" ] && [ -f "${FEATURE_HELPERS_DIR}/helpers.sh" ]; then
-  # shellcheck disable=SC1091
-  source "${FEATURE_HELPERS_DIR}/helpers.sh"
-elif [ -f "../../../scripts/feature_helpers.sh" ]; then
-  # shellcheck disable=SC1091
-  source "../../../scripts/feature_helpers.sh"
-fi
+#!/usr/bin/env bash
 set -euo pipefail
 
-# java-devtools install
-INSTALL_MAVEN=${INSTALL_MAVEN:-true}
-INSTALL_GRADLE=${INSTALL_GRADLE:-false}
-INSTALL_JDTLS=${INSTALL_JDTLS:-false}
-INSTALL_SDKMAN=${INSTALL_SDKMAN:-true}
-JDK_VERSION=${JDK_VERSION:-${JDK_VERSION:-25}}
+# java-devtools v2.0 - Meta-feature install script
+# This feature now delegates to granular features: java-jdk, java-maven, java-gradle
+# The actual installation is handled by those features through dependsOn.
 
-echo "---> java-devtools: maven=$INSTALL_MAVEN gradle=$INSTALL_GRADLE jdtls=$INSTALL_JDTLS sdkman=$INSTALL_SDKMAN"
+echo "java-devtools: Meta-feature - delegates to java-jdk, java-maven, java-gradle"
+echo "java-devtools: This feature is maintained for backward compatibility"
+echo "java-devtools: Consider using granular features directly for better caching"
 
-# SDKMAN installation is provided by the separate `java-sdk` feature.
-# To install SDKMAN, include the `java-sdk` feature in the profile.
-
-# Install JDK via SDKMAN when requested/available
-install_jdk() {
+# Verify installation
+verify_java() {
   local ver="$1"
   local dist_id="${SDKMAN_JAVA_IDENTIFIER:-temurin}"
   echo "java-devtools: ensuring JDK (sdkman candidate=${dist_id}) version=${ver}"

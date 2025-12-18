@@ -9,11 +9,8 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "platforms": ["linux/amd64", "linux/arm64"],
-  "options": {
-    "INSTALL_MAVEN": {"type": "boolean", "default": false, "description": "Install Maven via SDKMAN if available"},
-    "INSTALL_GRADLE": {"type": "boolean", "default": false, "description": "Install Gradle via SDKMAN if available"}
-  },
-  "provides": ["sdk"],
+  "options": {},
+  "provides": ["sdkman"],
   "tags": ["java","sdk","sdkman"],
   "postInstallCheck": {
     "cmd": "command -v sdk >/dev/null && sdk version || echo 'sdk not found'"

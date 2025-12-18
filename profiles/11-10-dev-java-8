@@ -2,7 +2,4 @@
 
 @parent:11-00-dev-java-sdk
 
-java-devtools
-java-kernel
-
-@options: SDK_VERSION=8
+@options: JDK_VERSION=8

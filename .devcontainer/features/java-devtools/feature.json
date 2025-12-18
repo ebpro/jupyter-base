@@ -1,17 +1,14 @@
 {
   "id": "java-devtools",
-  "name": "java-devtools",
-  "version": "0.1.0",
-  "description": "Installs Java developer tooling: Maven/Gradle and optional JDTLS for editor support",
-  "dependsOn": ["java-sdkman"],
+  "name": "Java Development Stack (meta-feature)",
+  "version": "2.0.0",
+  "description": "Meta-feature: Installs complete Java development stack (JDK + Maven + Gradle). For backward compatibility, use granular features (java-jdk, java-maven, java-gradle) for better caching.",
+  "dependsOn": ["java-jdk", "java-maven", "java-gradle"],
   "options": {
-    "INSTALL_MAVEN": {"type": "boolean", "default": true, "description": "Install Maven via SDKMAN if available"},
-    "INSTALL_GRADLE": {"type": "boolean", "default": false, "description": "Install Gradle via SDKMAN if available"},
-    "INSTALL_JDTLS": {"type": "boolean", "default": false, "description": "Install JDTLS language server"},
-    "INSTALL_SDKMAN": {"type": "boolean", "default": true, "description": "Install SDKMAN for NB_USER if missing"},
-    "JDK_VERSION" : {"type": "string", "default": "25", "description": "JDK major version to install (passed to SDKMAN)"}
+    "JDK_VERSION": {"type": "string", "default": "25", "description": "JDK version to install (passed to java-jdk feature)"},
+    "SDKMAN_JAVA_IDENTIFIER": {"type": "string", "default": "temurin", "description": "JDK distribution (passed to java-jdk feature)"}
   },
-  "provides": ["sdk"],
+  "provides": [],
   "postInstallCheck": {
     "command": "test -d /home/jovyan/.sdkman && sdk version && test -d /home/jovyan/.sdkman/candidates/java/current",
     "description": "Verify SDKMAN is installed and Java is available"

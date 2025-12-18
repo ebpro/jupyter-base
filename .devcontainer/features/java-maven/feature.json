@@ -1,0 +1,24 @@
+{
+  "id": "java-maven",
+  "name": "Apache Maven",
+  "version": "1.0.0",
+  "description": "Installs Apache Maven build tool via SDKMAN",
+  "dependsOn": ["java-sdkman"],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux/amd64", "linux/arm64"],
+  "options": {
+    "MAVEN_VERSION": {
+      "type": "string",
+      "default": "",
+      "description": "Specific Maven version to install, or empty for latest"
+    }
+  },
+  "provides": ["maven", "mvn"],
+  "postInstallCheck": {
+    "command": "mvn --version",
+    "description": "Verify Maven is available"
+  }
+}

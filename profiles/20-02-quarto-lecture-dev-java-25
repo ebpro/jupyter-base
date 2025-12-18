@@ -3,7 +3,9 @@
 @parent:20-01-quarto-lecture
 
 # Includes Quarto + Java devtools + Java kernel
-java-devtools
+java-jdk
+java-maven
+java-gradle
 java-kernel
 
-@options: INSTALL_SDKMAN=true;JDK_VERSION=25;INSTALL_MAVEN=true;INSTALL_GRADLE=true;KERNEL_VERSION=v1.4.5;ARTIFACTS_BASE_URL=https://github.com/ebpro/IJava/releases
+@options: JDK_VERSION=25;KERNEL_VERSION=v1.4.5;ARTIFACTS_BASE_URL=https://github.com/ebpro/IJava/releases
