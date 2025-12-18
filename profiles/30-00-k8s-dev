@@ -1,8 +1,6 @@
-
+# Purpose: Kubernetes development profile — kubectl, helm, tilt, etc. (light)
 
 @parent:10-00-dev
-
-# Purpose: Kubernetes development profile — kubectl, helm, tilt, etc. (light)
 
 kubernetes-tools
 tilt

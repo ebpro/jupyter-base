@@ -1,6 +1,7 @@
 {
   "name": "texlive",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "texlive",
   "description": "Installs TinyTeX/TeXLive packages listed in Artefacts/TeXLive",
   "options": {

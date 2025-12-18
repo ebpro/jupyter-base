@@ -127,6 +127,24 @@ fh_verify_from_checksums() {
 }
 
 export -f fh_verify_from_checksums
+
+# Ensure per-user local and cache dirs exist and are owned by the target user
+# Usage: fh_ensure_user_dirs <nb_user> <nb_uid> <nb_gid> [home_dir]
+fh_ensure_user_dirs() {
+  local nb_user=${1:-jovyan}
+  local nb_uid=${2:-1001}
+  local nb_gid=${3:-1001}
+  local home_dir=${4:-/home/${nb_user}}
+  if [ -z "${home_dir}" ]; then
+    return 0
+  fi
+  mkdir -p "${home_dir}/.local/bin" "${home_dir}/.cache" "${home_dir}/.cache/pip" >/dev/null 2>&1 || true
+  if getent passwd "${nb_user}" >/dev/null 2>&1; then
+    chown -R "${nb_uid}:${nb_gid}" "${home_dir}/.local" "${home_dir}/.cache" >/dev/null 2>&1 || true
+  fi
+}
+
+export -f fh_ensure_user_dirs
 #!/usr/bin/env bash
 set -euo pipefail
 

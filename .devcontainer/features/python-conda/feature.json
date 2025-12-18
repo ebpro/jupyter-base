@@ -1,6 +1,7 @@
 {
   "name": "python-conda",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "python-conda",
   "description": "Installs Miniforge and updates environment from Artefacts/environment.yml",
   "options": {

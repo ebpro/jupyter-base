@@ -4,10 +4,11 @@
   "id": "quarto",
   "description": "Installs Quarto CLI and optionally its runtime (Chromium)",
   "options": {
-    "install_chromium": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether to install Chromium runtime for Quarto"
-    }
-  }
+    "QUARTO_VERSION": {"type":"string","default":"1.8.26","description":"Specific Quarto version to install"},
+    "INSTALL_CHROMIUM": {"type": "boolean", "default": false, "description": "Whether to install Chromium runtime for Quarto"}
+  },
+  "provides": ["quarto"],
+  "postInstallCheck": {"command": "quarto --version"},
+  "platforms": ["linux/amd64","linux/arm64"],
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
 }

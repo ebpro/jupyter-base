@@ -1,7 +1,0 @@
-@parent:10-00-dev
-
-# Java Early Access (EA) developer profile
-java-devtools
-java-kernel
-
-@options: INSTALL_SDKMAN=true;JDK_VERSION=ea;INSTALL_JAVA_LTS=false;INSTALL_JAVA_LATEST=false;INSTALL_MAVEN=true;INSTALL_GRADLE=true

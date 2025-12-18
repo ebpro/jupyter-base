@@ -1,0 +1,7 @@
+# Developer Kotlin profile: dev tools + Kotlin compiler + optional kotlin kernel (no Quarto)
+
+@parent:11-00-dev-java-sdk
+
+kotlin
+
+@options: INSTALL_KOTLIN=true;INSTALL_KOTLIN_KERNEL=true;

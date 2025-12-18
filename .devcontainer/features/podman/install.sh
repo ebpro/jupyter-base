@@ -10,6 +10,15 @@ elif [ -f "../../../scripts/feature_helpers.sh" ]; then
 fi
 set -euo pipefail
 
+# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
+else
+  HOME_DIR=${HOME_DIR:-/home/${NB_USER:-jovyan}}
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" >/dev/null 2>&1 || true
+  chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+fi
+
 echo "podman: installing podman via apt (if available)"
 
 # Try apt install; many base images include apt

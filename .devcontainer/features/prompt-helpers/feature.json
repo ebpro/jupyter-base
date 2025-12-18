@@ -1,6 +1,7 @@
 {
   "name": "prompt-helpers",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "prompt-helpers",
   "description": "Installs gitstatusd and related prompt helpers",
   "options": {}

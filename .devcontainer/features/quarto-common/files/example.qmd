@@ -1,0 +1,12 @@
+---
+title: "Example Quarto Document"
+format: html
+---
+
+# Example
+
+This is an example Quarto document provided as a shared template.
+
+```{python}
+print('Hello from shared template')
+```

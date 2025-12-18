@@ -1,0 +1,9 @@
+# Java developer profile with SDKMAN provided by java-sdk feature
+
+@parent:10-00-dev
+
+
+java-sdkman
+java-kernel
+
+@options: INSTALL_MAVEN=true;INSTALL_GRADLE=true

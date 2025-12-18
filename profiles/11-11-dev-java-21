@@ -1,0 +1,7 @@
+# Java 21 developer profile
+
+@parent:11-00-dev-java-sdk
+
+java-devtools
+
+@options: JDK_VERSION=21

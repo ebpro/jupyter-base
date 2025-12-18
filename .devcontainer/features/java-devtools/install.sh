@@ -1,141 +1,155 @@
-#!/usr/bin/env bash
+# Auto-inserted by scripts/inject_prebaked_helpers.sh
+# Source shared feature helpers (prebaked into image) or fall back to repository helper
+if [ -n "${FEATURE_HELPERS_DIR:-}" ] && [ -f "${FEATURE_HELPERS_DIR}/helpers.sh" ]; then
+  # shellcheck disable=SC1091
+  source "${FEATURE_HELPERS_DIR}/helpers.sh"
+elif [ -f "../../../scripts/feature_helpers.sh" ]; then
+  # shellcheck disable=SC1091
+  source "../../../scripts/feature_helpers.sh"
+fi
 set -euo pipefail
 
 # java-devtools install
-## Profile-variable normalization
-# Supported environment/profile variables:
-# - INSTALL_SDKMAN: true/false (install SDKMAN)
-# - JDK_VERSION: numeric major, 'latest' or 'ea'
-# - INSTALL_JAVA_LTS / INSTALL_JAVA_LATEST: support for bulk installs (not used when JDK_VERSION set)
-# - INSTALL_MAVEN / INSTALL_GRADLE / INSTALL_JDTLS: install tools via SDKMAN
-INSTALL_SDKMAN=${INSTALL_SDKMAN:-true}
-JDK_VERSION=${JDK_VERSION:-25}
-INSTALL_JAVA_LTS=${INSTALL_JAVA_LTS:-false}
-INSTALL_JAVA_LATEST=${INSTALL_JAVA_LATEST:-false}
 INSTALL_MAVEN=${INSTALL_MAVEN:-true}
 INSTALL_GRADLE=${INSTALL_GRADLE:-false}
 INSTALL_JDTLS=${INSTALL_JDTLS:-false}
+INSTALL_SDKMAN=${INSTALL_SDKMAN:-true}
+JDK_VERSION=${JDK_VERSION:-${JDK_VERSION:-25}}
 
-echo "java-devtools: INSTALL_SDKMAN=$INSTALL_SDKMAN JDK_VERSION=$JDK_VERSION INSTALL_JAVA_LTS=$INSTALL_JAVA_LTS INSTALL_JAVA_LATEST=$INSTALL_JAVA_LATEST"
-echo "java-devtools: maven=$INSTALL_MAVEN gradle=$INSTALL_GRADLE jdtls=$INSTALL_JDTLS"
+echo "---> java-devtools: maven=$INSTALL_MAVEN gradle=$INSTALL_GRADLE jdtls=$INSTALL_JDTLS sdkman=$INSTALL_SDKMAN"
 
-echo "----> JDK_VERSION is set to '$JDK_VERSION'"
+# SDKMAN installation is provided by the separate `java-sdk` feature.
+# To install SDKMAN, include the `java-sdk` feature in the profile.
 
-# Install SDKMAN if it's not already present. This is idempotent.
-install_sdkman() {
-  if command -v sdk >/dev/null 2>&1; then
-    echo "java-devtools: sdk already available"
-    return 0
-  fi
-  SDKMAN_DIR=${SDKMAN_DIR:-"$HOME/.sdkman"}
-  INIT_SH="$SDKMAN_DIR/bin/sdkman-init.sh"
-  if [[ -f "$INIT_SH" ]]; then
-    echo "java-devtools: SDKMAN init already present at $INIT_SH"
-    # Ensure SDKMAN_DIR is exported for the init script and source safely
-    export SDKMAN_DIR
-    # shellcheck disable=SC1090
-    set +u; source "$INIT_SH" || true; set -u
-    return 0
-  fi
-
-  echo "java-devtools: installing SDKMAN (non-interactive)"
-  if command -v curl >/dev/null 2>&1; then
-    curl -s "https://get.sdkman.io" | bash || true
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO- "https://get.sdkman.io" | bash || true
-  else
-    echo "java-devtools: neither curl nor wget available to install SDKMAN" >&2
-    return 1
-  fi
-
-  if [[ -f "$INIT_SH" ]]; then
-    # Ensure SDKMAN_DIR is exported for the init script and source safely
-    export SDKMAN_DIR
-    # shellcheck disable=SC1090
-    set +u; source "$INIT_SH" || true; set -u
-    # Provide defaults for variables the SDKMAN scripts expect when 'set -u' is active
-    export SDKMAN_OFFLINE_MODE=${SDKMAN_OFFLINE_MODE:-false}
-    export SDKMAN_CANDIDATES_API=${SDKMAN_CANDIDATES_API:-"https://api.sdkman.io/2"}
-    export SDKMAN_PLATFORM=${SDKMAN_PLATFORM:-"UNIX"}
-    echo "java-devtools: SDKMAN installed and initialized"
-  else
-    echo "java-devtools: SDKMAN installation did not produce $INIT_SH" >&2
-    return 1
-  fi
-}
-
-# Ensure SDKMAN is installed so subsequent steps can use `sdk`
-install_sdkman || true
-
-## Install exactly one JDK version via SDKMAN according to JDK_VERSION (default: 17)
-JDK_VERSION=${JDK_VERSION:-21}
-echo "java-devtools: requested JDK_VERSION=${JDK_VERSION}"
-if command -v sdk >/dev/null 2>&1; then
-  echo "java-devtools: querying SDKMAN for Temurin candidates (for major ${JDK_VERSION})"
-  # Capture sdk list output for diagnostics (useful when running inside Docker builds)
-  set +u
-  sdk_list=$(sdk list java 2>/dev/null || true)
-  set -u
-  echo "java-devtools: sdk list size: $(printf '%s' "$sdk_list" | wc -c)"
-  # Extract Temurin candidates (field 6 from table output, trimmed)
-  candidates=$(printf '%s\n' "$sdk_list" | tr -s ' ' | grep ' tem ' | cut -d '|' -f 6 | tr -d ' ' || true)
-
-  chosen_candidate=""
-  if [[ -n "$candidates" || -n "$sdk_list" ]]; then
-    if [[ "${JDK_VERSION}" == "latest" ]]; then
-      # Pick the first Temurin listing (matches Dockerfile behavior)
-      chosen_candidate=$(printf '%s\n' "$sdk_list" | grep -- "-tem" | cut -d '|' -f 6 | tr -d ' ' | head -n1 || true)
-      echo "java-devtools: requested 'latest' -> chosen candidate: ${chosen_candidate}"
-    elif [[ "${JDK_VERSION}" == "ea" || "${JDK_VERSION}" == "early-access" ]]; then
-      # Pick an Early Access build (open builds often have .ea. in the identifier)
-      chosen_candidate=$(printf '%s\n' "$sdk_list" | grep -E "\.ea\." | cut -d '|' -f 6 | tr -d ' ' | head -n1 || true)
-      echo "java-devtools: requested 'ea' -> chosen candidate: ${chosen_candidate}"
-    else
-      # Filter candidates that start with the requested major (e.g. 21 or 21.)
-      matching=$(printf '%s\n' "$candidates" | grep -E "^${JDK_VERSION}([.-]|$)" || true)
-      if [[ -n "$matching" ]]; then
-        # Normalize (remove -tem suffix), semver-sort and pick the highest patch, then re-append '-tem'
-        normalized=$(printf '%s\n' "$matching" | sed 's/-tem$//' | sort -V | tail -n1 || true)
-        if [[ -n "$normalized" ]]; then
-          chosen_candidate="${normalized}-tem"
-          echo "java-devtools: selected Temurin candidate: ${chosen_candidate}"
-        fi
-      fi
+# Install JDK via SDKMAN when requested/available
+install_jdk() {
+  local ver="$1"
+  local dist_id="${SDKMAN_JAVA_IDENTIFIER:-temurin}"
+  echo "java-devtools: ensuring JDK (sdkman candidate=${dist_id}) version=${ver}"
+  if ! command -v sdk >/dev/null 2>&1; then
+    if ! ensure_sdkman; then
+      echo "java-devtools: sdk (SDKMAN) not available. Please include java-sdk feature or enable INSTALL_SDKMAN" >&2
+      return 1
     fi
   fi
 
-  if [[ -n "$chosen_candidate" ]]; then
-    echo "java-devtools: installing chosen Temurin candidate via sdk: ${chosen_candidate}"
-    set +u; sdk install java "$chosen_candidate" || true; set -u
-  else
-    echo "java-devtools: no suitable Temurin candidate found for major ${JDK_VERSION}; falling back to tolerant installs" >&2
-    # Try a small sequence of common identifiers as a fallback
-    set +u
-    sdk install java "${JDK_VERSION}" || \
-      sdk install java "temurin-${JDK_VERSION}" || \
-      sdk install java "openjdk-${JDK_VERSION}" || \
-      sdk install java "${JDK_VERSION}.0.0-tem" || true
-    set -u
+  # helper: query SDKMAN list for a matching candidate (run as NB_USER)
+  query_candidate() {
+    local pattern="$1"
+    su - ${NB_USER:-jovyan} -s /bin/bash -lc \
+      "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | grep -E \"${pattern}\" | awk '{print \$NF}' | head -n1" || true
+  }
+
+  local cand
+
+  # default behaviour: let sdk pick the distribution/version
+  if [ -z "${ver:-}" ] || [ "${ver}" = "default" ]; then
+    echo "java-devtools: installing default java via sdk"
+    su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java" || true
+    return 0
   fi
 
-  if command -v java >/dev/null 2>&1; then
-    echo "java-devtools: java available after sdk install"
-  else
-    echo "java-devtools: java not available after sdk install attempts" >&2
+  # 'ea' -> latest openjdk EA
+  if [ "${ver}" = "ea" ]; then
+    echo "java-devtools: selecting latest openjdk EA via SDKMAN"
+    cand=$(query_candidate "openjdk.*ea|openjdk.*-ea") || true
+    if [ -n "${cand}" ]; then
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${cand}" || true
+    else
+      echo "java-devtools: no openjdk EA candidate found; falling back to default sdk install"
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java" || true
+    fi
+    return 0
   fi
-else
-  echo "java-devtools: sdk not available to install JDK ${JDK_VERSION}" >&2
+
+  # 'latest' -> first temurin candidate ending with -tem
+  if [ "${ver}" = "latest" ]; then
+    echo "java-devtools: selecting latest ${dist_id} -tem candidate via SDKMAN"
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep '.*-tem\$' | head -n1") || true
+    if [ -n "${cand}" ]; then
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${cand}" || true
+    else
+      echo "java-devtools: no ${dist_id} -tem candidate found; falling back to default"
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java" || true
+    fi
+    return 0
+  fi
+
+  # numeric major version -> first temurin candidate starting with X.
+  if echo "${ver}" | grep -Eq '^[0-9]+$'; then
+    echo "java-devtools: selecting ${dist_id} candidates starting with ${ver} and ending with -tem"
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep '^${ver}\\..*-tem' | head -n1") || true
+    if [ -n "${cand}" ]; then
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${cand}" || true
+    else
+      echo "java-devtools: no matching ${dist_id} candidate for major ${ver}; trying generic fallback"
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java" || true
+    fi
+    return 0
+  fi
+
+  # fallback: try installing by explicit version string
+  echo "java-devtools: attempting sdk install java ${dist_id}-${ver}"
+  su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${dist_id}-${ver}" || \
+    su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java" || true
+}
+
+# Ensure SDKMAN is installed for the NB_USER (idempotent). Returns 0 if sdk available.
+ensure_sdkman() {
+  # Check if sdk available in the NB_USER login shell
+  if su - ${NB_USER:-jovyan} -s /bin/bash -lc 'set +u; [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ] && source "$HOME/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true; command -v sdk >/dev/null 2>&1'; then
+    return 0
+  fi
+
+  # If INSTALL_SDKMAN explicitly disabled, do not attempt install
+  if [ "${INSTALL_SDKMAN}" = "false" ]; then
+    return 1
+  fi
+
+  TMP_SCRIPT=$(mktemp)
+  cat > "$TMP_SCRIPT" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+SDKMAN_DIR="${SDKMAN_DIR:-$HOME/.sdkman}"
+curl -s "https://get.sdkman.io" | bash || true
+if [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
+  set +u
+  # shellcheck source=/dev/null
+  source "$SDKMAN_DIR/bin/sdkman-init.sh"
 fi
+EOF
+
+  chown "${NB_UID:-1001}:${NB_GID:-1001}" "$TMP_SCRIPT" 2>/dev/null || true
+  su - ${NB_USER:-jovyan} -s /bin/bash -c "bash '$TMP_SCRIPT'" || true
+  rm -f "$TMP_SCRIPT"
+
+  # Ensure ownership of SDKMAN dir
+  if [ -d "${HOME:-/home/${NB_USER:-jovyan}}/.sdkman" ]; then
+    chown -R "${NB_UID:-1001}:${NB_GID:-1001}" "${HOME:-/home/${NB_USER:-jovyan}}/.sdkman" 2>/dev/null || true
+  fi
+
+  # Final check
+  if su - ${NB_USER:-jovyan} -s /bin/bash -lc 'set +u; [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ] && source "$HOME/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true; command -v sdk >/dev/null 2>&1'; then
+    return 0
+  fi
+  return 1
+}
+
+# Ensure requested JDK is installed early so subsequent tool installs can use it
+install_jdk "$JDK_VERSION" || true
 
 if [ "$INSTALL_MAVEN" = "true" ]; then
   if command -v mvn >/dev/null 2>&1; then
     echo "maven already installed"
   else
     if ! command -v sdk >/dev/null 2>&1; then
-      echo "java-devtools: SDKMAN not available; please enable SDKMAN in base image to install Maven" >&2
-    else
+      if ! ensure_sdkman; then
+        echo "java-devtools: SDKMAN not available; please include java-sdk or set INSTALL_SDKMAN=true to allow auto-install" >&2
+      fi
+    fi
+    if command -v sdk >/dev/null 2>&1; then
       echo "java-devtools: installing Maven via SDKMAN"
-      set +u; sdk install maven || true; set -u
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install maven" || true
     fi
   fi
 fi
@@ -145,10 +159,13 @@ if [ "$INSTALL_GRADLE" = "true" ]; then
     echo "gradle already installed"
   else
     if ! command -v sdk >/dev/null 2>&1; then
-      echo "java-devtools: SDKMAN not available; please enable SDKMAN in base image to install Gradle" >&2
-    else
+      if ! ensure_sdkman; then
+        echo "java-devtools: SDKMAN not available; please include java-sdk or set INSTALL_SDKMAN=true to allow auto-install" >&2
+      fi
+    fi
+    if command -v sdk >/dev/null 2>&1; then
       echo "java-devtools: installing Gradle via SDKMAN"
-      set +u; sdk install gradle || true; set -u
+      su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install gradle" || true
     fi
   fi
 fi
@@ -160,41 +177,3 @@ if [ "$INSTALL_JDTLS" = "true" ]; then
 fi
 
 echo "java-devtools: done"
-
-ensure_sdkman_init() {
-  # If sdk exists, ensure non-interactive shells source sdkman init
-  if command -v sdk >/dev/null 2>&1; then
-    SDKMAN_DIR=${SDKMAN_DIR:-"$HOME/.sdkman"}
-    INIT_SH="$SDKMAN_DIR/bin/sdkman-init.sh"
-    if [[ -f "$INIT_SH" ]]; then
-      # Ensure user's zshenv sources sdkman init for non-interactive shells
-      if [[ -w "$HOME" ]]; then
-        ZSHENV_FILE="$HOME/.zshenv"
-        if ! grep -q "sdkman-init.sh" "$ZSHENV_FILE" 2>/dev/null; then
-          echo "# SDKMAN initialization" >> "$ZSHENV_FILE" || true
-          echo "export SDKMAN_DIR=\"$SDKMAN_DIR\"" >> "$ZSHENV_FILE" || true
-          echo '[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"' >> "$ZSHENV_FILE" || true
-          echo "java-devtools: added SDKMAN init to $ZSHENV_FILE"
-        fi
-      fi
-      # Also add a system-wide profile.d script if possible so /bin/sh non-interactive shells pick it up
-      if [[ -d /etc/profile.d && -w /etc/profile.d ]]; then
-        cat > /etc/profile.d/sdkman.sh <<'EOF' || true
-#!/usr/bin/env sh
-if [ -n "${SDKMAN_DIR-}" ]; then
-  if [ -s "${SDKMAN_DIR}/bin/sdkman-init.sh" ]; then
-    # shellcheck disable=SC1090
-    . "${SDKMAN_DIR}/bin/sdkman-init.sh"
-  fi
-fi
-EOF
-        chmod 644 /etc/profile.d/sdkman.sh || true
-        echo "java-devtools: wrote /etc/profile.d/sdkman.sh"
-      fi
-    fi
-  fi
-}
-
-echo "User: $(whoami)"
-
-ensure_sdkman_init

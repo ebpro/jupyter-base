@@ -3,9 +3,16 @@
   "name": "java-devtools",
   "version": "0.1.0",
   "description": "Installs Java developer tooling: Maven/Gradle and optional JDTLS for editor support",
+  "dependencies": ["java-sdk"],
   "options": {
-    "install_maven": {"type": "boolean", "default": true},
-    "install_gradle": {"type": "boolean", "default": false},
-    "jdtls": {"type": "boolean", "default": false}
-  }
+    "INSTALL_MAVEN": {"type": "boolean", "default": true, "description": "Install Maven via SDKMAN if available"},
+    "INSTALL_GRADLE": {"type": "boolean", "default": false, "description": "Install Gradle via SDKMAN if available"},
+    "INSTALL_JDTLS": {"type": "boolean", "default": false, "description": "Install JDTLS language server"},
+    "INSTALL_SDKMAN": {"type": "boolean", "default": true, "description": "Install SDKMAN for NB_USER if missing"},
+    "JDK_VERSION" : {"type": "string", "default": "25", "description": "JDK major version to install (passed to SDKMAN)"}
+  },
+  "provides": ["sdk"],
+  "postInstallCheck": {"command": "sdk version"},
+  "platforms": ["linux/amd64","linux/arm64"],
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
 }

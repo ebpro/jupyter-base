@@ -10,6 +10,7 @@ NC='\033[0m' # No Color
 # CLI runtime flags
 DRY_RUN=false
 QUIET=false
+PROGRESS=plain
 
 # Git version detection functions
 get_git_tag() {
@@ -46,6 +47,104 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)/scripts"
 if [ -f "$SCRIPTS_DIR/arch.sh" ]; then
     # shellcheck source=/dev/null
     . "$SCRIPTS_DIR/arch.sh"
+fi
+
+# Source shared build helpers if available
+## Embedded helpers from scripts/lib-build.sh
+check_buildx() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "ERROR: docker CLI not found on PATH" >&2; return 2
+    fi
+    if ! docker buildx version >/dev/null 2>&1; then
+        echo "ERROR: docker buildx not available" >&2; return 2
+    fi
+}
+
+create_builder_if_missing() {
+    local name=${1:-jb-builder}
+    if ! docker buildx inspect "$name" >/dev/null 2>&1; then
+        docker buildx create --name "$name" --driver docker-container --use
+    else
+        docker buildx use "$name"
+    fi
+}
+
+normalize_platforms() {
+    local raw="$1"
+    local out=""
+    IFS=',' read -r -a parts <<< "$raw"
+    for part in "${parts[@]}"; do
+        part="$(echo "$part" | sed -e 's/^\s*//' -e 's/\s*$//')"
+        [ -z "$part" ] && continue
+        if [[ "$part" == linux/* ]]; then
+            canon=${part#linux/}
+        else
+            canon=$part
+        fi
+        if [ -z "$out" ]; then
+            out="linux/$canon"
+        else
+            out+=",linux/$canon"
+        fi
+    done
+    echo "$out"
+}
+
+# Support legacy subcommand-style invocations (generate|validate|preview|build-one|build-all)
+if [ "$#" -gt 0 ]; then
+    case "$1" in
+        generate)
+            shift
+            # pass through args to generator
+            bash "${PWD}/scripts/generate-dockerfile.sh" "$@"
+            exit $?
+            ;;
+        validate)
+            shift
+            bash "${PWD}/scripts/validate-profiles.sh" || true
+            python3 "${PWD}/scripts/validate_features.py" || true
+            exit 0
+            ;;
+        preview)
+            shift
+            check_buildx || exit 2
+            export REPO=${REPO:-${REPO:-}}
+            docker buildx bake --file docker-bake.generated.hcl --print all
+            exit $?
+            ;;
+        build-one)
+            # translate subcommand-style to flag-style and continue parsing
+            shift
+            # extract supported options: --profile <name> --platform <pl> --push
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --profile) PROFILE="$2"; shift 2 ;;
+                    --platform) TARGET_PLATFORM="$2"; shift 2 ;;
+                    --push) PUSH=true; shift ;;
+                    -h|--help) echo "Usage: build-one --profile NAME [--platform PL] [--push]"; exit 0 ;;
+                    *) echo "Unknown option for build-one: $1"; exit 2 ;;
+                esac
+            done
+            # clear positional params so main parser won't run again
+            set --
+            ;;
+        build-all)
+            shift
+            # translate build-all options: --platform, --push
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --platform) TARGET_PLATFORM="$2"; shift 2 ;;
+                    --push) PUSH=true; shift ;;
+                    -h|--help) echo "Usage: build-all [--platform PL] [--push]"; exit 0 ;;
+                    *) echo "Unknown option for build-all: $1"; exit 2 ;;
+                esac
+            done
+            set --
+            ;;
+        *)
+            # not a subcommand, continue normal flag parsing
+            ;;
+    esac
 fi
 
 # Platform detection functions
@@ -156,6 +255,7 @@ Options:
     --dry-run           Print the build command but do not execute it
     --quiet             Disable colored output
     --list-profiles     List available profiles and their build targets
+    --progress <mode>   Set buildx progress mode (auto|plain|tty). Default: plain
 
 Build Information:
     Build Platform: ${BUILD_PLATFORM}
@@ -189,6 +289,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run) DRY_RUN=true; shift ;;
         --quiet) QUIET=true; shift ;;
         --load) LOAD=true; shift ;;
+        --progress) PROGRESS="$2"; shift 2 ;;
         --all-architectures) ALL_ARCHS=true; shift ;;
         --profile) PROFILE="$2"; shift 2 ;;
         --generate-only) GENERATE_ONLY=true; shift ;;
@@ -244,16 +345,19 @@ if [ "${LIST_PROFILES:-false}" = true ]; then
     exit 0
 fi
 
-# If a profile is requested, generate the Dockerfile/devcontainer first
-if [ -n "${PROFILE}" ]; then
-    log_info "Generating Dockerfile from profile: ${PROFILE}"
-    bash "${PWD}/scripts/generate-dockerfile.sh" --profile "${PROFILE}" --out Dockerfile.generated
-    bash "${PWD}/scripts/generate-devcontainer.sh" --profile "${PROFILE}" --out devcontainer.generated.json || true
-    DOCKERFILE="Dockerfile.generated"
-    if [ "${GENERATE_ONLY}" = true ]; then
-        log_info "Generation complete; exiting due to --generate-only"
-        exit 0
-    fi
+# Default behavior: always generate the canonical Dockerfile with all profiles
+# (the `--profile` option will still select which `final-<profile>` target to build)
+log_info "Generating Dockerfile for all profiles (default)"
+bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
+# `generate-devcontainer.sh` does not support --all-profiles; only generate a devcontainer
+# when a single profile is requested. Skip bulk generation to avoid unknown-arg errors.
+if [ -n "${PROFILE:-}" ]; then
+    bash "${PWD}/scripts/generate-devcontainer.sh" --profile "$PROFILE" --out devcontainer.generated.json || true
+fi
+DOCKERFILE="Dockerfile.generated"
+if [ "${GENERATE_ONLY}" = true ]; then
+    log_info "Generation complete; exiting due to --generate-only"
+    exit 0
 fi
 
 if [ "${ALL_PROFILES:-false}" = true ]; then
@@ -393,9 +497,13 @@ BUILDX_CMD+=(--label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%
 BUILDX_CMD+=(--label "org.opencontainers.image.version=${TAG1}")
 BUILDX_CMD+=(--label "org.opencontainers.image.revision=${GIT_SHA}")
 BUILDX_CMD+=(-f "${DOCKERFILE}")
-BUILDX_CMD+=(--progress=plain)
+BUILDX_CMD+=(--progress=${PROGRESS})
 BUILDX_CMD+=("${BUILD_TAG_FLAGS[@]}")
 BUILDX_CMD+=("$@")
+# If a specific profile was requested, build only that final-stage target
+if [ -n "${PROFILE}" ]; then
+    BUILDX_CMD+=(--target "final-${PROFILE}")
+fi
 BUILDX_CMD+=(.)
 
 if [ "${DRY_RUN}" = true ]; then
@@ -440,6 +548,32 @@ if [ -n "${IMAGE_DIGEST}" ]; then
     log_info "Image digest: ${IMAGE_DIGEST} (saved to image-digest.txt)"
 else
     log_warn "Could not determine image digest. If you need an immutable digest, run with --push or inspect the registry after pushing."
+fi
+
+# Print a helpful run command now that the build finished
+if [ "${DRY_RUN}" != true ]; then
+    if [ -n "${PRIMARY_TAG}" ]; then
+        if [ "${PUSH}" = "true" ]; then
+            echo ""
+            echo "Image pushed as: ${PRIMARY_TAG}"
+            echo "To run locally: docker pull ${PRIMARY_TAG} && docker run -it --rm -u jovyan -w /home/jovyan ${PRIMARY_TAG} zsh"
+            echo ""
+        else
+            # If the build used --load (or single-platform default), image should be available locally
+            if [[ " ${BUILD_ARGS[*]} " == *"--load"* ]] || [ "${LOAD}" = true ]; then
+                echo ""
+                echo "Image loaded locally as: ${PRIMARY_TAG}"
+                echo "To run: docker run -it --rm -u jovyan -w /home/jovyan ${PRIMARY_TAG} zsh"
+                echo ""
+            else
+                echo ""
+                echo "Image built but not loaded locally (multi-platform or output driver used)."
+                echo "To run locally, rebuild for your host or pull the pushed image. Example:"
+                echo "  docker build --target final-${PROFILE} -t ${PRIMARY_TAG} -f Dockerfile.generated . && docker run -it --rm -u jovyan -w /home/jovyan ${PRIMARY_TAG} zsh"
+                echo ""
+            fi
+        fi
+    fi
 fi
 
 # Emit a structured build artifact for CI consumption

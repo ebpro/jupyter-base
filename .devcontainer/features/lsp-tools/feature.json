@@ -1,6 +1,7 @@
 {
   "name": "lsp-tools",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "lsp-tools",
   "description": "Installs common language servers (pyright via npm, others optionally)",
   "options": {}

@@ -1,0 +1,12 @@
+project:
+  type: website
+  output-dir: generated
+
+format:
+  html:
+    theme: default
+
+filters: {}
+
+execute:
+  echo: true

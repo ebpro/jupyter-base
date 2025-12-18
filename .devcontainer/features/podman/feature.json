@@ -3,5 +3,9 @@
   "name": "podman",
   "description": "Installs Podman client (user-space container runtime) via apt when available.",
   "options": {},
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "provides": ["podman"],
+  "postInstallCheck": {"command": "podman --version"},
+  "platforms": ["linux/amd64","linux/arm64"]
 }

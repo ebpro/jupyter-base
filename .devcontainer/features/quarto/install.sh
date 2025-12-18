@@ -14,6 +14,15 @@ NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
 NB_GID=${NB_GID:-1001}
 HOME_DIR="/home/${NB_USER}"
+CONDA_DIR="${CONDA_DIR:-${HOME_DIR}/miniforge3}"
+
+# Ensure common user directories exist and are owned before running user commands
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER}" "${NB_UID}" "${NB_GID}" || true
+else
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" || true
+  chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" || true
+fi
 
 # Directory containing this script (helps when feature runs with different PWD)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -170,39 +179,62 @@ if [ -n "${INSTDIR}" ] && [ -x "${INSTDIR}/bin/quarto" ]; then
   echo "quarto: found runtime at ${INSTDIR} — creating wrapper/profile"
   # create stable wrapper in /usr/local/bin (always present for all users)
   mkdir -p /usr/local/bin
-  cat > /usr/local/bin/quarto <<EOF
+  cat > /usr/local/bin/quarto <<WRAPPER
 #!/bin/sh
+export PATH="${CONDA_DIR}/bin:${INSTDIR}/bin:\$PATH"
+export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
 exec "${INSTDIR}/bin/quarto" "\$@"
-EOF
+WRAPPER
   chmod 0755 /usr/local/bin/quarto || true
   chown root:root /usr/local/bin/quarto || true
 
   # add to system PATH via profile.d (helps login and non-login interactive shells)
   mkdir -p /etc/profile.d
-  printf '%s\n' "export PATH=\"${INSTDIR}/bin:\$PATH\"" > /etc/profile.d/quarto.sh
+  cat > /etc/profile.d/quarto.sh <<PROFILE
+export PATH="${CONDA_DIR}/bin:${INSTDIR}/bin:\$PATH"
+export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
+PROFILE
   chmod 644 /etc/profile.d/quarto.sh || true
 
   # create per-user shim only if the home dir exists
   if [ -d "${HOME_DIR}" ]; then
-    su - ${NB_USER} -c "bash -lc 'mkdir -p ~/.local/bin >/dev/null 2>&1 || true; ln -sf \"${INSTDIR}/bin/quarto\" ~/.local/bin/quarto'" || true
-    # ensure ownership of user local dir and add zshrc PATH entry
+    TMP_SCRIPT="/tmp/quarto-user-setup-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<BASH
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p ~/.local/bin >/dev/null 2>&1 || true
+ln -sf "${INSTDIR}/bin/quarto" ~/.local/bin/quarto || true
+# Ensure ~/.local/bin is on PATH in ~/.zshrc
+if [ -f "~/.zshrc" ]; then
+  grep -qxF "export PATH=\"\$HOME/.local/bin:\$PATH\"" ~/.zshrc 2>/dev/null || \
+    echo "export PATH=\"\$HOME/.local/bin:\\${PATH}\"" >> ~/.zshrc
+else
+  echo "export PATH=\"\$HOME/.local/bin:\\${PATH}\"" >> ~/.zshrc
+fi
+BASH
+    chmod +x "${TMP_SCRIPT}" || true
+    su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+    rm -f "${TMP_SCRIPT}" || true
+    # ensure ownership of user local dir
     if [ -d "${HOME_DIR}/.local" ]; then
       chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.local" || true
-    fi
-    if [ -f "${HOME_DIR}/.zshrc" ]; then
-      grep -qxF "export PATH=\"${HOME_DIR}/.local/bin:\$PATH\"" "${HOME_DIR}/.zshrc" 2>/dev/null || \
-        echo "export PATH=\"${HOME_DIR}/.local/bin:\${PATH}\"" >> "${HOME_DIR}/.zshrc"
-    else
-      echo "export PATH=\"${HOME_DIR}/.local/bin:\${PATH}\"" >> "${HOME_DIR}/.zshrc"
-      chown ${NB_UID}:${NB_GID} "${HOME_DIR}/.zshrc" || true
     fi
   fi
 fi
 
 # Optionally install Chromium if requested via env INSTALL_CHROMIUM=1 (feature.json default false)
-if [ "${DEVCONTAINER_QUARTO_INSTALL_CHROMIUM:-false}" = "true" ] || [ "${DEVCONTAINER_quarto_install_chromium:-false}" = "true" ]; then
+  if [ "${DEVCONTAINER_QUARTO_INSTALL_CHROMIUM:-false}" = "true" ] || [ "${DEVCONTAINER_quarto_install_chromium:-false}" = "true" ]; then
   echo "quarto: installing Chromium runtime (this increases image size)"
-  su - ${NB_USER} -c "${HOME_DIR}/.local/bin/quarto install chromium --no-prompt" || true
+  TMP_SCRIPT="/tmp/quarto-chromium-install-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "$HOME/.local/bin" >/dev/null 2>&1 || true
+"$HOME/.local/bin/quarto" install chromium --no-prompt || true
+BASH
+  chmod +x "${TMP_SCRIPT}" || true
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+  rm -f "${TMP_SCRIPT}" || true
 fi
 
 if [ -d "${HOME_DIR}/opt/quarto-${QUARTO_VERSION}" ]; then
@@ -217,17 +249,59 @@ if command -v python3 >/dev/null 2>&1; then
   if python3 -c "import importlib, sys; print(importlib.util.find_spec('ipykernel') is not None)" 2>/dev/null | grep -q True; then
     echo "quarto: ipykernel already available"
   else
-    echo "quarto: installing ipykernel via pip as ${NB_USER}"
-    # Ensure pip cache dir exists and is owned by the non-root user
-    mkdir -p "${HOME_DIR}/.cache/pip"
-    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/pip"
-    # Run pip as the non-root user to avoid root-run warnings and permission issues
-    # Ensure Miniforge python is on PATH for the non-root user before running pip
-    su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m pip install --upgrade pip setuptools wheel --no-cache-dir'" >/dev/null || true
-    su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m pip install --upgrade ipykernel --no-cache-dir'" >/dev/null || true
+    echo "quarto: installing ipykernel via conda/mamba into base env (fallback to pip --user)"
+    # prefer using conda/mamba to install into the base env so system-wide site-packages are writable
+    if [ -x "${HOME_DIR}/miniforge3/bin/mamba" ]; then
+      "${HOME_DIR}/miniforge3/bin/mamba" install -y -n base -c conda-forge ipykernel notebook PyYAML || true
+    elif [ -x "${HOME_DIR}/miniforge3/bin/conda" ]; then
+      "${HOME_DIR}/miniforge3/bin/conda" install -y -n base -c conda-forge ipykernel notebook PyYAML || true
+    else
+      # fallback to installing into the user's site-packages to avoid permission issues
+      mkdir -p "${HOME_DIR}/.cache/pip"
+      chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/pip"
+      TMP_SCRIPT="/tmp/quarto-pip-install-${NB_USER}.sh"
+      cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+source "$HOME/miniforge3/etc/profile.d/conda.sh" >/dev/null 2>&1 || true
+export PATH="$HOME/miniforge3/bin:$PATH"
+python3 -m pip install --upgrade --user pip setuptools wheel --no-cache-dir || true
+python3 -m pip install --upgrade --user ipykernel --no-cache-dir || true
+# Ensure Quarto's Jupyter engine dependencies are present
+python3 -m pip install --upgrade --user notebook PyYAML --no-cache-dir || true
+BASH
+      chmod +x "${TMP_SCRIPT}" || true
+      su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" >/dev/null || true
+      rm -f "${TMP_SCRIPT}" || true
+    fi
   fi
   # register a sys-prefix kernel so Quarto can find it when running as non-root user
-  su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m ipykernel install --sys-prefix --name \"python3-quarto\" --display-name \"Python 3 (Quarto)\"'" >/dev/null 2>&1 || true
+  TMP_SCRIPT="/tmp/quarto-kernel-install-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+source "$HOME/miniforge3/etc/profile.d/conda.sh" >/dev/null 2>&1 || true
+export PATH="$HOME/miniforge3/bin:$PATH"
+python3 -m ipykernel install --sys-prefix --name "python3-quarto" --display-name "Python 3 (Quarto)" || true
+BASH
+  chmod +x "${TMP_SCRIPT}" || true
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" >/dev/null 2>&1 || true
+  rm -f "${TMP_SCRIPT}" || true
+  # Create a system kernelspec that points to the user's Miniforge python so Quarto
+  # (which may invoke system-level jupyter) can find and use the Miniforge kernel.
+  if [ -x "${HOME_DIR}/miniforge3/bin/python" ]; then
+    KERNEL_DIR="/usr/local/share/jupyter/kernels/python3-quarto"
+    mkdir -p "${KERNEL_DIR}"
+    cat > "${KERNEL_DIR}/kernel.json" <<EOF
+{
+  "argv": ["${HOME_DIR}/miniforge3/bin/python", "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+  "display_name": "Python 3 (Quarto - Miniforge)",
+  "language": "python"
+}
+EOF
+    chmod -R 755 "${KERNEL_DIR}" || true
+    chown -R root:root "${KERNEL_DIR}" || true
+  fi
 else
   echo "quarto: python3 not found; skipping ipykernel registration"
 fi
@@ -241,10 +315,19 @@ if [ "${DEVCONTAINER_QUARTO_INSTALL_ZSH_KERNEL:-false}" = "true" ]; then
     echo "quarto: installing zsh_jupyter_kernel via pip as ${NB_USER}"
     mkdir -p "${HOME_DIR}/.cache/pip"
     chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache/pip"
-    su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m pip install --no-cache-dir zsh-jupyter-kernel'" >/dev/null 2>&1 || \
-      su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m pip install --no-cache-dir zsh_jupyter_kernel'" >/dev/null 2>&1 || true
+    TMP_SCRIPT="/tmp/quarto-zshkernel-install-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+source "$HOME/miniforge3/etc/profile.d/conda.sh" >/dev/null 2>&1 || true
+export PATH="$HOME/miniforge3/bin:$PATH"
+python3 -m pip install --no-cache-dir zsh-jupyter-kernel || true
+python3 -m zsh_jupyter_kernel.install --sys-prefix || true
+BASH
+    chmod +x "${TMP_SCRIPT}" || true
+    su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" >/dev/null 2>&1 || true
+    rm -f "${TMP_SCRIPT}" || true
   fi
-  su - ${NB_USER} -c "bash -lc 'source ${HOME_DIR}/miniforge3/etc/profile.d/conda.sh >/dev/null 2>&1 || true; export PATH=\"${HOME_DIR}/miniforge3/bin:\$PATH\"; python3 -m zsh_jupyter_kernel.install --sys-prefix'" >/dev/null 2>&1 || true
 fi
 
 if [ -d "${HOME_DIR}/.local" ]; then

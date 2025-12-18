@@ -2,6 +2,7 @@
   "id": "kotlin",
   "name": "kotlin",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "description": "Installs Kotlin tooling and optional Kotlin kernel (kotlin-jupyter)",
   "options": {
     "install_kotlin_compiler": {"type": "boolean", "default": true},

@@ -49,6 +49,17 @@ This directory contains build/runtime profiles that compose features from `.devc
 
 Each profile is a plain text file listing features (one per line). Lines starting with `#` are comments. A profile can include another profile using `@profile:<name>`.
 
+Parent vs composition
+---------------------
+- `@parent:<profile>` declares a single inheritance parent profile. The parent is used by the Dockerfile generator to inherit a base stage and avoid reapplying shared features.
+- `@profile:<profile>` composes another profile into this profile (inclusion), useful when you want to aggregate features from multiple profiles without making one the single parent.
+
+Placement convention
+--------------------
+- Place `@parent:` as the first non-comment, non-empty directive in the profile file. This makes inheritance explicit and easy to locate for maintainers and the generator scripts.
+- Use `@profile:` after the `@parent:` directive (if present) or within the feature list to express composition.
+- Keep heavy features (TeX, browsers, IDE servers) out of common/base profiles; prefer feature flags or separate profiles to keep images small by default.
+
 Examples:
 - `minimal` — smallest useful development image
 - `dev` — developer workstation

@@ -10,10 +10,23 @@ elif [ -f "../../../scripts/feature_helpers.sh" ]; then
 fi
 set -euo pipefail
 
+# Default notebook user variables early so helper calls can rely on them
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
 NB_GID=${NB_GID:-1001}
-HOME_DIR="/home/${NB_USER}"
+HOME_DIR=${HOME_DIR:-/home/${NB_USER}}
+# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
+else
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" >/dev/null 2>&1 || true
+  chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+fi
+
+# Ensure IPython dir exists and is owned by the notebook user to avoid runtime warnings
+mkdir -p "${HOME_DIR}/.ipython" >/dev/null 2>&1 || true
+chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.ipython" >/dev/null 2>&1 || true
+
 CONDA_DIR="${CONDA_DIR:-${HOME_DIR}/miniforge3}"
 
 echo "python-conda: installing Miniforge into ${CONDA_DIR} if missing"
@@ -143,8 +156,27 @@ export PATH="${CONDA_DIR}/bin:${PATH}"
 set +u
 source "${CONDA_DIR}/etc/profile.d/conda.sh" 2>/dev/null || true
 set -u
-conda init zsh || true
-conda init bash || true
+# Run conda init as the non-root user to avoid creating root-owned dotfiles
+if [ -d "${HOME_DIR}" ] && id -u "${NB_USER}" >/dev/null 2>&1; then
+  TMP_SCRIPT="/tmp/conda-init-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<BASH
+#!/usr/bin/env bash
+set -euo pipefail
+"${CONDA_DIR}/bin/conda" init zsh || true
+"${CONDA_DIR}/bin/conda" init bash || true
+BASH
+  chmod +x "${TMP_SCRIPT}" || true
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+  rm -f "${TMP_SCRIPT}" || true
+else
+  conda init zsh || true
+  conda init bash || true
+fi
+
+# Ensure conda bin is on the system PATH for all interactive shells
+mkdir -p /etc/profile.d
+printf '%s\n' "export PATH=\"${CONDA_DIR}/bin:\$PATH\"" > /etc/profile.d/conda.sh
+chmod 644 /etc/profile.d/conda.sh || true
 
 # If a bind-mounted /tmp/environment.yml exists, update base env
 if [ -f /tmp/environment.yml ]; then
@@ -153,4 +185,34 @@ if [ -f /tmp/environment.yml ]; then
 fi
 
   chown -R "${NB_UID}":"${NB_GID}" "${CONDA_DIR}" || true
+# Ensure Jupyter is installed in the conda base environment so `jupyter` is available
+if [ ! -x "${CONDA_DIR}/bin/jupyter" ]; then
+  echo "python-conda: installing jupyter into base environment"
+  if [ -x "${CONDA_DIR}/bin/mamba" ]; then
+    "${CONDA_DIR}/bin/mamba" install -y -n base -c conda-forge jupyter || true
+  elif [ -x "${CONDA_DIR}/bin/conda" ]; then
+    "${CONDA_DIR}/bin/conda" install -y -n base -c conda-forge jupyter || true
+  else
+    "${CONDA_DIR}/bin/python" -m pip install --no-cache-dir jupyter || true
+  fi
+fi
+
+# Expose jupyter executables system-wide if present in the Miniforge bin
+for exe in jupyter jupyter-notebook jupyter-lab jupyter-server; do
+  if [ -x "${CONDA_DIR}/bin/${exe}" ] && [ ! -e "/usr/local/bin/${exe}" ]; then
+    cat > "/usr/local/bin/${exe}" <<EOF
+#!/bin/sh
+exec "${CONDA_DIR}/bin/${exe}" "\$@"
+EOF
+    chmod 0755 "/usr/local/bin/${exe}" || true
+    chown root:root "/usr/local/bin/${exe}" || true
+  fi
+done
+
 echo "python-conda: done"
+
+# Ensure user caches and local dirs are writable by the notebook user in case
+# some installs ran as root earlier in the build.
+if [ -d "${HOME_DIR}" ]; then
+  chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" "${HOME_DIR}/.local" "${HOME_DIR}/.ipython" >/dev/null 2>&1 || true
+fi

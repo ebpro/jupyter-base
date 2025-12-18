@@ -1,6 +1,7 @@
 {
   "name": "base-apt",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "base-apt",
   "description": "Installs minimal OS utility packages from Artefacts/apt_packages/base",
   "options": {}

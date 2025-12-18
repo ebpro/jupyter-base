@@ -1,6 +1,10 @@
 {
   "name": "kubernetes-tools",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "provides": ["kubectl","helm","k9s"],
+  "postInstallCheck": {"command": "kubectl version --client"},
+  "platforms": ["linux/amd64","linux/arm64"],
   "id": "kubernetes-tools",
   "description": "Installs kubectl, helm, k9s, kustomize and minikube using Artefacts/versions.json",
   "options": {}

@@ -10,6 +10,15 @@ elif [ -f "../../../scripts/feature_helpers.sh" ]; then
 fi
 set -euo pipefail
 
+# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
+else
+  HOME_DIR=${HOME_DIR:-/home/${NB_USER:-jovyan}}
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" >/dev/null 2>&1 || true
+  chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+fi
+
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
 NB_GID=${NB_GID:-1001}
@@ -27,6 +36,14 @@ if ! command -v git-lfs >/dev/null 2>&1; then
 fi
 
 # Ensure git-lfs is initialized for the user
-su - ${NB_USER} -c "git lfs install --skip-repo" || true
+TMP_SCRIPT_GITLFS="/tmp/git-lfs-init-${NB_USER}.sh"
+cat > "${TMP_SCRIPT_GITLFS}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+git lfs install --skip-repo || true
+BASH
+chmod +x "${TMP_SCRIPT_GITLFS}" || true
+su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT_GITLFS}" || true
+rm -f "${TMP_SCRIPT_GITLFS}" || true
 
 echo "git-lfs: done"

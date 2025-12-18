@@ -2,6 +2,7 @@
   "id": "python-base",
   "name": "python-base",
   "version": "1.0.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "description": "Installs system Python3 and pip (idempotent, minimal)",
   "provides": ["python3","pip"],
   "supported_archs": ["amd64","arm64","ppc64le"],

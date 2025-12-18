@@ -1,6 +1,10 @@
 {
   "name": "gh-cli",
   "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "provides": ["gh"],
+  "postInstallCheck": {"command": "gh --version"},
+  "platforms": ["linux/amd64","linux/arm64"],
   "id": "gh-cli",
   "description": "Installs GitHub CLI into the dev user's bin using Artefacts/versions.json",
   "options": {}

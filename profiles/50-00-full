@@ -1,6 +1,4 @@
-
-
-@parent:20-02-quarto-lecture-full
+@parent:20-20-quarto-lecture-full
 
 # Purpose: Full profile — everything (CI/release image only; heavy)
 @profile:30-01-k8s-sim

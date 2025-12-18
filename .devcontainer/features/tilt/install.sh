@@ -10,6 +10,15 @@ elif [ -f "../../../scripts/feature_helpers.sh" ]; then
 fi
 set -euo pipefail
 
+# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
+else
+  HOME_DIR=${HOME_DIR:-/home/${NB_USER:-jovyan}}
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" >/dev/null 2>&1 || true
+  chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+fi
+
 echo "tilt: installing Tilt CLI (best-effort)."
 
 # Resolve version from Artefacts optionally
@@ -52,7 +61,7 @@ echo "tilt: no automatic installer available in this environment; attempting bes
 if command -v curl >/dev/null 2>&1 && command -v tar >/dev/null 2>&1; then
   ARCH=$(uname -m)
   case "$ARCH" in
-    x86_64|X86_64) DLARCH="x86_64" ;; 
+    x86_64|X86_64) DLARCH="x86_64" ;;
     aarch64|arm64) DLARCH="arm64" ;;
     *) DLARCH="x86_64" ;;
   esac

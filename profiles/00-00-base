@@ -1,4 +1,5 @@
- # Purpose: Core baseline for all profiles — shell, prompt, tiny helpers
+# Purpose: Core baseline for all profiles — shell, prompt, tiny helpers
+
 user
 base-apt
 zsh-config

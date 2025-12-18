@@ -1,445 +1,200 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ensure this script runs under Bash 4+ (associative arrays are used)
+# --- Environment Check ---
 if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
-  cat <<'MSG' >&2
-Error: this script requires Bash 4 or newer (associative arrays are used).
-
-On macOS the system bash is often v3. To fix, install a newer bash and run the
-build using that shell. Example using Homebrew:
-
-  brew install bash
-  "$(brew --prefix 2>/dev/null || echo /usr/local)"/bin/bash ./build.sh --all-profiles
-
-Alternatively run the build inside a Linux container/VM or on CI that provides
-bash >= 4.
-MSG
+  echo "Error: this script requires Bash 4 or newer." >&2
   exit 2
 fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
 FEATURES_DIR="$ROOT/.devcontainer/features"
-
-usage(){
-  cat <<EOF
-Usage: $(basename "$0") [--profile <name>] [--all-profiles] [--out Dockerfile] [--dry-run]
-
-Generates a Dockerfile by composing features listed in a profile or for all profiles.
-If --all-profiles is provided, a multi-stage Dockerfile is emitted with a 'common' stage
-when `profiles/base` exists.
-EOF
-}
-
-PROFILE=""
 OUT="Dockerfile.generated"
-DRY=false
-ALL=false
 
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --profile) PROFILE="$2"; shift 2 ;;
-    --all-profiles) ALL=true; shift ;;
-    --out) OUT="$2"; shift 2 ;;
-    --dry-run) DRY=true; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "Unknown arg: $1"; usage; exit 2 ;;
-  esac
-done
-
-declare -A VISITED
+# --- Helpers ---
+docker_escape() {
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
 
 expand_profile(){
   local pname="$1"
-  local out_name="$2"
-  if [ -n "${VISITED[$pname]:-}" ]; then
-    return
-  fi
+  local out_feat_array="$2"
+  local out_env_array="$3"
+  if [ -n "${VISITED[$pname]:-}" ]; then return; fi
   VISITED[$pname]=1
   local f="$PROFILES_DIR/$pname"
-  if [ ! -f "$f" ]; then
-    echo "Profile not found: $pname" >&2; exit 3
-  fi
-  local line local_trim parent sub
+  [ ! -f "$f" ] && { echo "Profile not found: $pname" >&2; exit 3; }
+
   while IFS= read -r line || [ -n "$line" ]; do
-    local_trim="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    local_trim="$(echo "$line" | xargs 2>/dev/null || echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [ -z "$local_trim" ] && continue
     case "$local_trim" in
       \#*) continue ;;
-      @parent:*)
-        parent=${local_trim#@parent:}
-        parent="$(echo "$parent" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-        expand_profile "$parent" "$out_name"
-        ;;
-      @profile:*)
-        sub=${local_trim#@profile:}
-        sub="$(echo "$sub" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-        expand_profile "$sub" "$out_name"
+      @parent:*|@profile:*)
+        expand_profile "$(echo "${local_trim#*:}" | xargs)" "$out_feat_array" "$out_env_array"
         ;;
       @options:*)
-        # profile-level options are ignored by the Dockerfile generator (handled by devcontainer generator)
-        continue
+        IFS=';' read -ra pairs <<< "${local_trim#@options:}"
+        for pair in "${pairs[@]}"; do
+          pair="$(echo "$pair" | xargs)"
+          [ -z "$pair" ] && continue
+          local key="${pair%%=*}"
+          local val="${pair#*=}"
+          if [[ "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+             eval "$out_env_array+=(\"$key=$(echo "$val" | xargs)\")"
+          fi
+        done
         ;;
-      *)
-        # append to the array whose name is in out_name
-        eval "$out_name+=(\"$local_trim\")"
-        ;;
+      *) eval "$out_feat_array+=(\"$local_trim\")" ;;
     esac
   done < "$f"
 }
 
-# Utility: move a named feature to the front of an array variable (by name)
-move_to_front() {
-  local arr_name="$1" item="$2"
-  # read array into local
-  eval "local arr=(\"\
-\"\
-\
-\"\
-\"\
-\")"
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  eval "arr=(\"\"\")" >/dev/null 2>&1 || true
-  # safer: expand using indirect expansion
-  eval "local __arr=(\"\${${arr_name}[@]}\")"
-  local __found=false
-  for __e in "${__arr[@]}"; do
-    if [ "${__e}" = "${item}" ]; then __found=true; break; fi
+emit_run_features() {
+  local -n feats=$1
+  [ ${#feats[@]} -eq 0 ] && return
+  # Emit per-feature bind/cache mounts one-per-line to avoid embedding literal
+  # backslash-newline sequences in the generated Dockerfile.
+  echo "RUN \\" >> "$OUT"
+  for feat in "${feats[@]}"; do
+    echo "  --mount=type=bind,source=.devcontainer/features/${feat},target=/tmp/features/${feat} \\" >> "$OUT"
+    echo "  --mount=type=cache,target=/tmp/.cache/${feat} \\" >> "$OUT"
   done
-  if [ "${__found}" = true ]; then
-    local __new=("${item}")
-    for __e in "${__arr[@]}"; do
-      if [ "${__e}" != "${item}" ]; then __new+=("${__e}"); fi
-    done
-    # write back
-    eval "${arr_name}=(\"\${__new[@]}\")"
-  fi
+  echo "  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \\" >> "$OUT"
+
+  # Build a quoted array literal for the in-container loop so feature names are safe
+  local quoted_feats=()
+  for f in "${feats[@]}"; do quoted_feats+=("\"$f\""); done
+  local feats_array
+  feats_array=$(IFS=' '; printf '%s ' "${quoted_feats[@]}")
+
+  echo "  bash -eux -o pipefail -c 'feats=(${feats_array}); for f in \"\${feats[@]}\"; do \\" >> "$OUT"
+  echo "    if [ -d \"/tmp/features/\$f\" ]; then \\" >> "$OUT"
+  echo "      chmod +x /tmp/features/\$f/install.sh 2>/dev/null || true; \\" >> "$OUT"
+  echo "      [ -f /tmp/features/\$f/install.sh ] && { set +u; bash /tmp/features/\$f/install.sh; set -u; }; \\" >> "$OUT"
+  echo "    fi; \\" >> "$OUT"
+  echo "  done; apt-get clean; rm -rf /var/lib/apt/lists/*'" >> "$OUT"
 }
 
-collect_profiles(){
-  profiles=()
-  for f in "$PROFILES_DIR"/*; do
-    name=$(basename "$f")
-    [ "$name" = "README.md" ] && continue
-    profiles+=("$name")
-  done
-  # Sort profiles using version sort so numeric prefixes order naturally (00-01 before 10-00)
-  if [ ${#profiles[@]} -gt 0 ]; then
-    IFS=$'\n' read -r -d '' -a profiles < <(printf "%s\n" "${profiles[@]}" | sort -V && printf '\0')
-  fi
-}
-
-if [ "$ALL" = true ]; then
-  collect_profiles
-  # If base profile exists, expand it as common
-  common_features=()
-  if [ -f "$PROFILES_DIR/base" ]; then
-    expand_profile "base" common_features
-  fi
-  # Expand each profile into resolved list and store as parallel arrays
-  profile_features_strings=()
-  i=0
-  declare -A full_features_map
-  for p in "${profiles[@]}"; do
-    arr=()
-    expand_profile "$p" arr
-    # deduplicate per-profile preserve order
-    dedup=()
-    declare -A seen
-    for item in "${arr[@]}"; do
-      if [ -z "${seen[$item]:-}" ]; then
-        dedup+=("$item")
-        seen[$item]=1
-      fi
-    done
-    profile_features_strings[$i]="${dedup[*]}"
-    # store full resolved features for this profile for later use
-    full_features_map[$p]="${dedup[*]}"
-    i=$((i+1))
-  done
-
-  # Build parent map and topological order of profiles so parents are emitted before children
-  declare -A parent_map
-  for p in "${profiles[@]}"; do
-    parent=""
-    if [ -f "$PROFILES_DIR/$p" ]; then
-      parent_line=$(grep -E '^[[:space:]]*@parent:' "$PROFILES_DIR/$p" || true)
-      if [ -n "$parent_line" ]; then
-        parent=${parent_line#@parent:}
-        parent=$(echo "$parent" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-      fi
-    fi
-    parent_map[$p]="$parent"
-  done
-
-  ordered_profiles=()
-  processed=()
-  remain=("${profiles[@]}")
-  while [ ${#remain[@]} -gt 0 ]; do
-    progressed=false
-    next_remain=()
-    for p in "${remain[@]}"; do
-      par=${parent_map[$p]:-}
-      if [ -z "$par" ] || [[ " ${ordered_profiles[*]} " == *" $par "* ]]; then
-        ordered_profiles+=("$p")
-        progressed=true
-      else
-        next_remain+=("$p")
-      fi
-    done
-    if [ "$progressed" = false ]; then
-      echo "Error: cannot resolve profile order (possible cycle or missing parent)" >&2; exit 3
-    fi
-    remain=("${next_remain[@]}")
-  done
-
-  # Compute per-profile unique features (features not present in parent)
-  declare -A unique_features_map
-  for p in "${ordered_profiles[@]}"; do
-    par=${parent_map[$p]:-}
-    parent_feats=()
-    if [ -n "$par" ]; then
-      IFS=' ' read -r -a parent_feats <<< "${full_features_map[$par]:-}"
-    fi
-    IFS=' ' read -r -a all_feats <<< "${full_features_map[$p]:-}"
-    uniq=()
-    for f in "${all_feats[@]}"; do
-      skip=false
-      for pf in "${parent_feats[@]}"; do
-        if [ "$pf" = "$f" ]; then skip=true; break; fi
-      done
-      if [ "$skip" = false ]; then uniq+=("$f"); fi
-    done
-    unique_features_map[$p]="${uniq[*]}"
-  done
-
-  if [ "$DRY" = true ]; then
-    echo "Profiles resolved:"
-    for idx in "${!profiles[@]}"; do
-      p=${profiles[$idx]}
-      echo "- $p: ${profile_features_strings[$idx]}"
-    done
-    exit 0
-  fi
-
-  # Emit Dockerfile with common stage if present
-  cat > "$OUT" <<'EOF'
-# Generated multi-profile Dockerfile
+# --- Initialization ---
+cat > "$OUT" <<EOF
+# Generated Dockerfile
 ARG VARIANT="ubuntu-24.04"
-# Use an explicit default base image tag to avoid buildx warnings when ARG has a default
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04 AS base
+FROM mcr.microsoft.com/devcontainers/base:\${VARIANT} AS base
+LABEL org.solen.vendor="Solen"
 ARG NB_USER=jovyan
 ARG NB_UID=1001
 ARG NB_GID=1001
 ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
+COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY Artefacts /opt/solen/Artefacts
+ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts
+RUN mkdir -p /opt/.features /scripts && \\
+    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
 EOF
-    # Ensure shared helpers and Artefacts are available in base so feature scripts
-    # that run early (before a 'common' stage) can source helper functions.
-    echo "# Bake helper library and Artefacts into the base stage" >> "$OUT"
-    echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
-    echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
-    echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
-    echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
 
-  if [ ${#common_features[@]} -gt 0 ]; then
-    # Honor profile order; do not reorder common features here
-    echo "# Common stage" >> "$OUT"
-    echo "FROM base AS common" >> "$OUT"
-    # bake helper scripts and Artefacts into the common stage so runtime features can source them
-    echo "# Bake helper library and Artefacts into image" >> "$OUT"
-    echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
-    echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
-    echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
-    echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
-    for feat in "${common_features[@]}"; do
-      echo "# Feature: $feat" >> "$OUT"
-      echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-        # compute cache mounts from feature.json if present
-        MOUNTS=""
-        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
-          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
-            # sanitize id
-            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
-            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
-          done
-        fi
-        cat >> "$OUT" <<RUNBLOCK
-RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
-RUNBLOCK
-      echo >> "$OUT"
-    done
-  fi
+# --- Argument Parsing ---
+PROFILE=""
+ALL=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --profile) PROFILE="$2"; shift 2 ;;
+    --all-profiles) ALL=true; shift ;;
+    --out) OUT="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 
-  # Emit per-profile stages in topological order so parent stages are available
-  # reset visited map so expand_profile can be used again per-profile
-  unset VISITED || true
-  declare -A VISITED
-  for p in "${ordered_profiles[@]}"; do
-    echo "# Profile: $p" >> "$OUT"
-    par=${parent_map[$p]:-}
-    # determine base stage to inherit from (parent stage or common/base image)
-    if [ -n "$par" ]; then
-      # If parent had unique features a `profile-<parent>` stage was emitted;
-      # otherwise parent collapsed to `final-<parent>` and we should inherit from that.
-      parent_unique="${unique_features_map[$par]:-}"
-      if [ -n "$parent_unique" ]; then
-        base_from="profile-$par"
-      else
-        base_from="final-$par"
-      fi
-    elif [ ${#common_features[@]} -gt 0 ]; then
-      base_from="common"
-    else
-      base_from="base"
-    fi
+declare -a generated_stages=()
 
-    # Recompute resolved features for this profile and subtract parent features
-    arr=()
-    expand_profile "$p" arr
-    # deduplicate while preserving order
-    dedup=()
-    declare -A _seen_local
-    for item in "${arr[@]}"; do
-      if [ -z "${_seen_local[$item]:-}" ]; then
-        dedup+=("$item")
-        _seen_local[$item]=1
-      fi
-    done
-    # parent features
-    par_feats=()
-    if [ -n "$par" ]; then
-      IFS=' ' read -r -a par_feats <<< "${full_features_map[$par]:-}"
-    fi
-    # compute unique features for this profile (exclude parent features)
-    prof_feats=()
-    for f in "${dedup[@]}"; do
-      skip=false
-      for pf in "${par_feats[@]}"; do
-        if [ "$pf" = "$f" ]; then skip=true; break; fi
-      done
-      if [ "$skip" = false ]; then prof_feats+=("$f"); fi
-    done
-
-    if [ ${#prof_feats[@]} -eq 0 ]; then
-      # no unique features; collapse stage and alias final directly to base
-      echo "FROM $base_from AS final-$p" >> "$OUT"
-      echo >> "$OUT"
-      continue
-    fi
-
-    # otherwise create a profile stage that inherits from the base and apply unique features
-    echo "FROM $base_from AS profile-$p" >> "$OUT"
-    for feat in "${prof_feats[@]}"; do
-      # ensure java-devtools appears first in profile-specific unique features
-      if [ "${#prof_feats[@]}" -gt 1 ]; then
-        for i in "${!prof_feats[@]}"; do
-          if [ "${prof_feats[$i]}" = "java-devtools" ]; then
-            val=${prof_feats[$i]}
-            prof_feats=(${prof_feats[@]:0:$i} ${prof_feats[@]:$((i+1))})
-            prof_feats=("$val" "${prof_feats[@]}")
-            break
-          fi
-        done
-      fi
-      # skip features that are in common_features (they were applied in common stage)
-      skip=false
-      for cf in "${common_features[@]}"; do
-        if [ "$cf" = "$feat" ]; then skip=true; break; fi
-      done
-      if [ "$skip" = true ]; then continue; fi
-      echo "# Feature: $feat" >> "$OUT"
-      echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-        # compute cache mounts from feature.json if present
-        MOUNTS=""
-        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
-          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
-            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
-            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
-          done
-        fi
-        cat >> "$OUT" <<RUNBLOCK
-RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
-RUNBLOCK
-      echo >> "$OUT"
-    done
-    echo "FROM profile-$p AS final-$p" >> "$OUT"
-    echo >> "$OUT"
+if [ "$ALL" = true ]; then
+  profiles=()
+  for f in "$PROFILES_DIR"/*; do
+    name=$(basename "$f")
+    [[ "$name" == "README.md" || "$name" == "base" ]] && continue
+    profiles+=("$name")
   done
+  IFS=$'\n' profiles=($(sort -V <<<"${profiles[*]}"))
+  unset IFS
 
-  echo "Dockerfile generated to $OUT"
-  exit 0
+  declare -A full_feat_lists
+  for p in "${profiles[@]}"; do
+    unset VISITED; declare -A VISITED
+    declare -a p_feats=()
+    declare -a p_envs=()
+    expand_profile "$p" p_feats p_envs
+
+    parent=$(grep "@parent:" "$PROFILES_DIR/$p" | head -1 | cut -d: -f2 | xargs || echo "base")
+    parent_stage="base"
+    [[ "$parent" != "base" ]] && parent_stage="profile-$parent"
+
+    declare -a unique_feats=()
+    for f in "${p_feats[@]}"; do
+      if [[ "$parent" == "base" ]] || [[ ! " ${full_feat_lists[$parent]} " =~ " $f " ]]; then
+        unique_feats+=("$f")
+      fi
+    done
+    full_feat_lists[$p]="${p_feats[*]}"
+
+    echo -e "\n# --- Profile: $p ---" >> "$OUT"
+    echo "FROM $parent_stage AS profile-$p" >> "$OUT"
+
+    # Collect and Join Metadata
+    declare -A __maintainers=()
+    declare -A __platforms=()
+    declare -A __provides=()
+    for f in "${p_feats[@]}"; do
+      if [ -f "$FEATURES_DIR/$f/feature.json" ]; then
+        while IFS= read -r m; do [ -n "$m" ] && __maintainers["$m"]=1; done < <(jq -r '.maintainer // empty | if type=="object" then "\(.name) (\(.email))" else . end' "$FEATURES_DIR/$f/feature.json" 2>/dev/null || true)
+        while IFS= read -r plat; do [ -n "$plat" ] && __platforms["$plat"]=1; done < <(jq -r '.platforms[]? // empty' "$FEATURES_DIR/$f/feature.json" 2>/dev/null || true)
+        while IFS= read -r prov; do [ -n "$prov" ] && __provides["$prov"]=1; done < <(jq -r '.provides[]? // empty' "$FEATURES_DIR/$f/feature.json" 2>/dev/null || true)
+      fi
+    done
+
+    join_sorted() {
+      local -n arr=$1
+      [ ${#arr[@]} -eq 0 ] && return
+      printf '%s\n' "${!arr[@]}" | sort | tr '\n' ',' | sed 's/,$//'
+    }
+
+    mnt=$(join_sorted __maintainers)
+    plats=$(join_sorted __platforms)
+    provs=$(join_sorted __provides)
+
+    # Simplified Label Output
+    cat <<EOF >> "$OUT"
+LABEL org.solen.profile="$p" \\
+      org.solen.features.added="${unique_feats[*]:-none}" \\
+      org.solen.features.provides="$provs"
+EOF
+
+    # Output ENVs
+    for env in "${p_envs[@]}"; do echo "ENV ${env%%=*}=\"$(docker_escape "${env#*=}")\"" >> "$OUT"; done
+
+    # Feature Option Defaults
+    declare -A __opt_defaults=()
+    for feat in "${p_feats[@]}"; do
+      if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          __opt_defaults["${line%%=*}"]="${line#*=}"
+        done < <(jq -r '.options // {} | to_entries[] | "\(.key)=\(.value.default // \"\")"' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true)
+      fi
+    done
+
+    declare -A __profile_env_keys=()
+    for env in "${p_envs[@]}"; do __profile_env_keys["${env%%=*}"]=1; done
+    for k in "${!__opt_defaults[@]}"; do
+      if [ -z "${__profile_env_keys[$k]:-}" ]; then
+        echo "ENV $k=\"$(docker_escape "${__opt_defaults[$k]}")\"" >> "$OUT"
+      fi
+    done
+
+    emit_run_features unique_feats
+    echo "FROM profile-$p AS final-$p" >> "$OUT"
+    generated_stages+=("$p")
+  done
 fi
-
-# Single-profile mode (unchanged behavior)
-if [ -z "$PROFILE" ]; then
-  echo "--profile is required unless --all-profiles is used" >&2; usage; exit 2
-fi
-
-declare -a RESOLVED
-expand_profile "$PROFILE" RESOLVED
-
-# Respect the feature order as defined in the profile; do not move features around
-
-# validate features exist
-for feat in "${RESOLVED[@]}"; do
-  if [ ! -d "$FEATURES_DIR/$feat" ]; then
-    echo "Feature not found: $feat (expected $FEATURES_DIR/$feat)" >&2
-    exit 4
-  fi
-done
-
-if [ "$DRY" = true ]; then
-  echo "Resolved features for profile '$PROFILE':"
-  for f in "${RESOLVED[@]}"; do echo " - $f"; done
-  exit 0
-fi
-
-# Emit header for single-profile Dockerfile. Use printf to insert the profile
-# but keep the VARIANT token literal (escaped) so the generated Dockerfile has
-# `ARG VARIANT` and `FROM ...:${VARIANT}` instead of expanding it here.
-: > "$OUT"
-printf "# Generated Dockerfile for profile: %s\n" "$PROFILE" >> "$OUT"
-printf 'ARG VARIANT="ubuntu-24.04"\n' >> "$OUT"
-printf '# Use the VARIANT in the FROM and name the stage so --target final-<profile> works\n' >> "$OUT"
-printf "FROM mcr.microsoft.com/devcontainers/base:\${VARIANT} AS final-%s\n\n" "$PROFILE" >> "$OUT"
-printf 'LABEL org.solen.profile="%s"\n\n' "$PROFILE" >> "$OUT"
-printf 'ENV NB_USER=jovyan NB_UID=1001 NB_GID=1001 HOME=/home/jovyan\n\n' >> "$OUT"
-printf 'WORKDIR /home/jovyan\n\n' >> "$OUT"
-
-# Bake helper library and Artefacts into the image early so feature install
-# scripts can source helper functions during their RUN steps.
-echo "# Bake helper library and Artefacts into the image" >> "$OUT"
-echo "COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh" >> "$OUT"
-echo "COPY Artefacts /opt/solen/Artefacts" >> "$OUT"
-echo "ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts" >> "$OUT"
-echo "RUN mkdir -p /opt/.features || true" >> "$OUT"
-for feat in "${RESOLVED[@]}"; do
-  echo "# Feature: $feat" >> "$OUT"
-  echo "COPY .devcontainer/features/$feat /tmp/features/$feat" >> "$OUT"
-        # compute cache mounts from feature.json if present
-        MOUNTS=""
-        if [ -f "$FEATURES_DIR/$feat/feature.json" ]; then
-          for c in $(jq -r '.cache[]? // empty' "$FEATURES_DIR/$feat/feature.json" 2>/dev/null || true); do
-            id=$(echo "cache_${feat}_${c}" | tr '/.' '__' | tr -c '[:alnum:]_' '_')
-            MOUNTS+=" --mount=type=cache,id=${id},target=/home/jovyan/${c}"
-          done
-        fi
-        cat >> "$OUT" <<RUNBLOCK
-RUN ${MOUNTS} --mount=type=bind,source=Artefacts,target=/tmp/Artefacts \
-  bash -eux -c 'mkdir -p /scripts; printf "%s\n" "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh; chmod +x /tmp/features/$feat/install.sh 2>/dev/null || true; if [ -f /tmp/features/$feat/install.sh ]; then set +u; bash /tmp/features/$feat/install.sh; set -u; else echo "No install.sh for $feat"; fi; rm -rf /tmp/features/$feat'
-RUNBLOCK
-done
-
-
-
-echo "Dockerfile generated to $OUT"
-exit 0
