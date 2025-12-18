@@ -13,41 +13,101 @@ Each feature lives in `.devcontainer/features/<feature-name>/` with:
 
 ### Declaring Dependencies
 
-Use comments in your feature.json to document dependencies:
+**IMPORTANT**: All features must declare their dependencies explicitly using the `dependsOn` field in feature.json.
 
 ```json
 {
   "id": "my-feature",
+  "name": "My Feature",
   "description": "...",
-  "comments": {
-    "dependsOn": ["python-conda", "user"],
-    "requiredBy": ["jupyter-kernels"]
-  }
+  "dependsOn": ["python-conda", "user"],
+  "options": { ... }
 }
 ```
 
-### Current Dependency Graph
+**Rules**:
+1. **Required**: Use `dependsOn` array to list features that must be installed first
+2. **Foundation features**: `user`, `_lib`, `python-base`, `git-lfs`, `gh-cli` have no dependencies
+3. **Transitive**: Dependencies are automatically resolved (A→B→C means A needs C too)
+4. **Automatic ordering**: The build system automatically sorts features by dependencies
+5. **Validation**: Use `scripts/validate-feature-deps.py` to check for cycles and missing deps
+
+**Example Dependencies**:
+```json
+// Feature that needs conda
+{"dependsOn": ["python-conda"]}
+
+// Feature that needs Java and Jupyter
+{"dependsOn": ["java-devtools", "jupyter-kernels"]}
+
+// Feature that needs user home directory
+{"dependsOn": ["user"]}
+
+// Foundation feature (no dependencies)
+{"dependsOn": []}  // or omit the field
+```
+
+### Dependency Graph Visualization
+
+See [DEPENDENCIES.md](DEPENDENCIES.md) for the complete dependency graph with Mermaid diagram.
+
+**Quick Reference**:
 
 **Core Features** (no dependencies):
 - `user` - creates NB_USER
-- `base-apt` - system packages
-- `zsh-config` - shell configuration
+- `_lib` - shared helpers
+- `python-base` - system Python
+- Standalone tools: `git-lfs`, `gh-cli`, `kubernetes-tools`, `tilt`
+
+**System Layer** (depends on: user):
+- `base-apt` - core packages
+- `zsh-config` - shell
+- `prompt-helpers` - gitstatusd
+- `startup` - init scripts
+- `docker-cli-helper` - docker group
+- `podman` - container runtime
+- `jetbrains-gateway` - SSH server
 
 **Python Stack**:
-- `python-base` → system Python
-- `python-conda` → Miniforge (depends on: user, base-apt)
-  - `jupyter-kernels` → kernels (depends on: python-conda)
-  - `pip-requirements` → pip packages (depends on: python-conda)
+- `python-conda` (depends on: user)
+  - `jupyter-kernels` (depends on: python-conda)
+  - `pip-requirements` (depends on: python-conda)
+  - `quarto` (depends on: python-conda)
 
 **Java Stack**:
-- `java-sdkman` → SDKMAN (depends on: user, base-apt)
-  - `java-devtools` → JDK/Maven/Gradle (depends on: java-sdkman)
-    - `java-kernel` → IJava kernel (depends on: java-devtools, jupyter-kernels)
-  - `kotlin` → Kotlin (depends on: java-sdkman)
-  - `graalvm` → GraalVM (depends on: java-sdkman)
+- `java-sdkman` (depends on: user)
+  - `java-devtools` (depends on: java-sdkman)
+    - `java-kernel` (depends on: java-devtools, jupyter-kernels)
+  - `kotlin` (depends on: java-sdkman)
+  - `graalvm` (depends on: java-sdkman)
 
-**Documentation/Rendering**:
-- `quarto` → Quarto CLI (depends on: python-conda for Jupyter integration)
+**Node Stack**:
+- `node` (depends on: user)
+  - `lsp-tools` (depends on: node)
+  - `code-server` (depends on: user, node)
+    - `codeserver-extensions` (depends on: code-server)
+
+**Build Tools** (depend on: base-apt):
+- `dev-tools` - compilers
+- `texlive` - LaTeX
+
+### Validating Dependencies
+
+Before committing changes to feature.json files, validate dependencies:
+
+```bash
+# Validate all features
+python3 scripts/validate-feature-deps.py
+
+# Validate a specific profile
+python3 scripts/validate-feature-deps.py --profile profiles/20-02-quarto-lecture-dev-java-25
+```
+
+**What gets validated**:
+- ✅ All dependencies reference existing features
+- ✅ No circular dependencies (A→B→A)
+- ✅ Topological sort produces valid installation order
+- ✅ Profile feature ordering respects dependencies (when checking profiles)
 - `texlive` → LaTeX (independent)
 
 **Development Tools**:
