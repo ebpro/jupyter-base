@@ -1,0 +1,15 @@
+# Python Database Development Profile
+# Data science notebooks with database connectivity
+
+@parent:20-00-data-science
+
+# Database client tools (must come before python-db)
+postgresql-client
+
+# Python database libraries and tools
+python-db
+
+# Optional: Add MySQL support
+# mysql-client
+
+@options:INSTALL_NOTEBOOK_EXTENSIONS=true

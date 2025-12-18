@@ -1,0 +1,12 @@
+# Quarto Lecture with Database Support
+# Lecture notebooks with SQL connectivity for teaching
+
+@parent:20-01-quarto-lecture
+
+# Database client tools (must come before python-db)
+postgresql-client
+
+# Python database libraries
+python-db
+
+@options:INSTALL_NOTEBOOK_EXTENSIONS=true

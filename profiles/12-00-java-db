@@ -1,0 +1,12 @@
+# Java Database Development Profile
+# Spring Boot + PostgreSQL + Maven/Gradle
+
+@parent:11-00-dev-java-sdk
+
+# Database client tools
+postgresql-client
+
+# Optional: Add MySQL support
+# mysql-client
+
+@options:JDK_VERSION=21

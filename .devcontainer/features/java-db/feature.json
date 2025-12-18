@@ -1,0 +1,35 @@
+{
+  "id": "java-db",
+  "name": "Java Database Development",
+  "version": "1.0.0",
+  "description": "Meta-feature combining Java development tools with database clients for Java+DB development",
+  "documentationURL": "https://github.com/ebpro/jupyter-base",
+  "dependsOn": [
+    "java-jdk",
+    "java-maven",
+    "java-gradle",
+    "postgresql-client"
+  ],
+  "options": {
+    "jdkVersion": {
+      "type": "string",
+      "default": "21",
+      "description": "JDK version to install (passed to java-jdk feature)"
+    },
+    "includeMySQL": {
+      "type": "boolean",
+      "default": false,
+      "description": "Also install MySQL client tools"
+    }
+  },
+  "provides": [
+    "java-db-stack"
+  ],
+  "installsAfter": [
+    "java-jdk",
+    "java-maven",
+    "java-gradle",
+    "postgresql-client",
+    "mysql-client"
+  ]
+}

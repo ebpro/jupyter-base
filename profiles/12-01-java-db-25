@@ -1,0 +1,6 @@
+# Java Database Development with Java 25
+# Latest JDK with database tools
+
+@parent:12-00-java-db
+
+@options:JDK_VERSION=25

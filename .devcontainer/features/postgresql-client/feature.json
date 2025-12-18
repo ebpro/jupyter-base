@@ -1,0 +1,39 @@
+{
+  "id": "postgresql-client",
+  "name": "PostgreSQL Client Tools",
+  "version": "1.0.0",
+  "description": "PostgreSQL client tools including psql, pg_dump, pg_restore, and optionally pgcli",
+  "documentationURL": "https://www.postgresql.org/docs/current/app-psql.html",
+  "licenseURL": "https://www.postgresql.org/about/licence/",
+  "dependsOn": [
+    "base-apt"
+  ],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "16",
+      "description": "PostgreSQL client version to install (14, 15, 16, 17, or 'latest')"
+    },
+    "installPgcli": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install pgcli (enhanced PostgreSQL CLI with autocomplete and syntax highlighting)"
+    },
+    "installLibpq": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install libpq-dev (PostgreSQL C library headers for building extensions)"
+    }
+  },
+  "provides": [
+    "psql",
+    "pg_dump",
+    "pg_restore",
+    "pg_isready",
+    "pgcli"
+  ],
+  "installsAfter": [
+    "base-apt",
+    "python-base"
+  ]
+}
