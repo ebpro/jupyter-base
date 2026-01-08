@@ -1,0 +1,292 @@
+---
+title: "Container Technologies & Databases"
+subtitle: "A Practical Introduction"
+author: "Your Name"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+  revealjs:
+    theme: dark
+    slide-number: true
+    chalkboard: true
+    preview-links: auto
+---
+
+## Introduction
+
+This lecture demonstrates container technologies and database interactions using Docker and PostgreSQL.
+
+::: {.callout-note}
+This document can be rendered as HTML, PDF, or a reveal.js presentation.
+:::
+
+## Working with Containers
+
+Docker allows us to package applications with their dependencies into portable containers.
+
+### Basic Docker Commands
+
+```bash
+# List running containers
+docker ps
+
+# Run a simple container
+docker run --rm hello-world
+
+# Build a custom image
+docker build -t my-image .
+```
+
+### Example Dockerfile
+
+Here's a simple Java application container:
+
+```{.dockerfile filename="examples/docker-example.dockerfile"}
+FROM eclipse-temurin:25-jdk-alpine
+WORKDIR /app
+COPY HelloWorld.java .
+RUN javac HelloWorld.java
+CMD ["java", "HelloWorld"]
+```
+
+### Building and Running
+
+Let's build and run our Java container:
+
+```{bash}
+#| eval: true
+#| echo: true
+
+# Build the image
+docker build -f examples/docker-example.dockerfile -t hello-java .
+
+# Run the container
+docker run --rm hello-java
+```
+
+## Java Example
+
+Here's a simple Java program that demonstrates basic functionality:
+
+```{.java filename="examples/java-example.java"}
+public class DataProcessor {
+    public static void main(String[] args) {
+        System.out.println("Processing data...");
+
+        var numbers = java.util.stream.IntStream
+            .rangeClosed(1, 10)
+            .boxed()
+            .toList();
+
+        var sum = numbers.stream()
+            .mapToInt(Integer::intValue)
+            .sum();
+
+        System.out.printf("Sum of 1-10: %d%n", sum);
+    }
+}
+```
+
+## Database Operations
+
+### Connecting to PostgreSQL
+
+We can connect to the PostgreSQL database from Python:
+
+```{python}
+#| eval: false
+#| echo: true
+
+import psycopg2
+import pandas as pd
+
+# Connect to PostgreSQL
+conn = psycopg2.connect(
+    host="postgres",
+    database="demo",
+    user="jovyan",
+    password="jovyan"
+)
+
+# Create a sample table
+cursor = conn.cursor()
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100),
+        age INTEGER
+    )
+""")
+
+# Insert sample data
+cursor.execute("""
+    INSERT INTO users (name, age) VALUES
+    ('Alice', 30),
+    ('Bob', 25),
+    ('Charlie', 35)
+""")
+conn.commit()
+
+# Query data
+df = pd.read_sql_query("SELECT * FROM users ORDER BY age", conn)
+print(df)
+
+conn.close()
+```
+
+### SQL Queries
+
+You can also run SQL directly:
+
+```{.sql}
+-- Create a more complex table
+CREATE TABLE IF NOT EXISTS courses (
+    id SERIAL PRIMARY KEY,
+    course_name VARCHAR(200),
+    instructor VARCHAR(100),
+    credits INTEGER,
+    enrollment INTEGER
+);
+
+-- Insert sample courses
+INSERT INTO courses (course_name, instructor, credits, enrollment) VALUES
+    ('Docker Fundamentals', 'Dr. Smith', 3, 45),
+    ('Database Design', 'Prof. Jones', 4, 38),
+    ('Cloud Computing', 'Dr. Brown', 3, 52);
+
+-- Query with aggregation
+SELECT
+    instructor,
+    COUNT(*) as course_count,
+    SUM(enrollment) as total_students
+FROM courses
+GROUP BY instructor;
+```
+
+## Data Visualization
+
+Let's visualize some data using Python:
+
+```{python}
+#| eval: false
+#| echo: true
+#| label: fig-enrollment
+#| fig-cap: "Course Enrollment by Instructor"
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Sample data
+data = {
+    'Course': ['Docker', 'Databases', 'Cloud'],
+    'Enrollment': [45, 38, 52]
+}
+df = pd.DataFrame(data)
+
+# Create bar chart
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.bar(df['Course'], df['Enrollment'], color=['#3498db', '#e74c3c', '#2ecc71'])
+ax.set_xlabel('Course')
+ax.set_ylabel('Enrollment')
+ax.set_title('Course Enrollment Statistics')
+plt.tight_layout()
+plt.show()
+```
+
+## Container Orchestration
+
+### Docker Compose Example
+
+Managing multiple containers with Docker Compose:
+
+```{.yaml filename="docker-compose.yml"}
+version: '3.8'
+
+services:
+  app:
+    image: my-java-app
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://db:5432/myapp
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: myapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+```
+
+## Best Practices
+
+### Container Design
+
+1. **Keep images small**: Use alpine or slim base images
+2. **Layer wisely**: Order Dockerfile commands from least to most frequently changing
+3. **Security**: Run as non-root user, scan for vulnerabilities
+4. **Environment-specific config**: Use environment variables
+
+### Database Design
+
+1. **Normalization**: Reduce data redundancy
+2. **Indexing**: Optimize query performance
+3. **Transactions**: Ensure data consistency
+4. **Backups**: Regular automated backups
+
+## Exercises
+
+::: {.callout-tip}
+## Try It Yourself
+
+1. Build the Java Docker container from the example above
+2. Connect to the PostgreSQL database and create your own table
+3. Write a Python script that reads from the database and generates a chart
+4. Create a Docker Compose file for a multi-tier application
+:::
+
+## Summary
+
+In this lecture, we covered:
+
+- Docker container fundamentals
+- Building and running containerized applications
+- Database operations with PostgreSQL
+- Data analysis and visualization
+- Container orchestration basics
+
+## Additional Resources
+
+- [Docker Documentation](https://docs.docker.com/)
+- [PostgreSQL Manual](https://www.postgresql.org/docs/)
+- [Quarto Guide](https://quarto.org/docs/guide/)
+- [Java Documentation](https://docs.oracle.com/en/java/)
+
+---
+
+::: {.callout-note}
+## Development Environment
+
+This document was created using the `quarto-lecture-containers` profile, which includes:
+
+- Quarto with full TeX support
+- Java 25 JDK
+- Docker-in-Docker
+- PostgreSQL client and server
+- Python data science stack
+:::

@@ -1,5 +1,6 @@
 mysql:
   image: mysql:${MYSQL_VERSION:-8.0}
+  restart: unless-stopped
   environment:
     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
     MYSQL_DATABASE: ${DB_NAME:-notebook-db}
@@ -14,5 +15,3 @@ mysql:
     interval: 10s
     timeout: 5s
     retries: 5
-  ports:
-    - "3306:3306"

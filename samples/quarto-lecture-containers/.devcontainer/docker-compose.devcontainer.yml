@@ -1,0 +1,63 @@
+services:
+  workspace:
+    image: ghcr.io/ebpro/solen:quarto-lecture-containers-develop
+    volumes:
+      - ../..:/home/jovyan/work:cached
+    command: sleep infinity
+    user: jovyan
+    working_dir: /home/jovyan/work
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=jovyan
+      - POSTGRES_PASSWORD=jovyan
+      - POSTGRES_DB=demo
+      - DOCKER_HOST=tcp://dind:2375
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dind:
+        condition: service_healthy
+    networks:
+      - dev-network
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jovyan
+      POSTGRES_PASSWORD: jovyan
+      POSTGRES_DB: demo
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jovyan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dind:
+    image: docker:27-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - dind-storage:/var/lib/docker
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  dind-storage:
+
+networks:
+  dev-network:
+    driver: bridge

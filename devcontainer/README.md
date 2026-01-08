@@ -68,6 +68,34 @@ VS Code auto-discovers devcontainer configurations. The generated configs refere
 
 ## Best Practices
 
+### Key Lessons Learned
+
+**✅ DO:**
+- Use non-TLS mode for dind in development (`DOCKER_TLS_CERTDIR=""`, port 2375)
+- Add `restart: unless-stopped` to all sidecar services
+- Use `:cached` volume mounts on macOS for better performance
+- Set `working_dir` in devcontainer service
+- Use `condition: service_healthy` in all `depends_on` blocks
+- Add fast healthchecks (5s interval for dind, 10s for databases)
+- Configure `postCreateCommand` to set `DOCKER_HOST` in shell config
+- Use a single `dockerComposeFile` in devcontainer.json (not array if single file)
+- Define network with `driver: bridge` explicitly
+
+**❌ DON'T:**
+- Have both "image" and "dockerComposeFile" in devcontainer.json (causes VS Code to ignore compose)
+- Use TLS mode for dind in development environments (complex, error-prone)
+- Forget healthchecks on services that other containers depend on
+- Use slow healthcheck intervals (30s) — makes startup sluggish
+- Expose database ports externally unless needed (security risk)
+- Mount TLS certificate volumes with read-write access
+
+**🔧 Troubleshooting:**
+- If `docker ps` fails with "no such host": Check `DOCKER_HOST` environment variable
+- If VS Code creates a separate container: Remove "image" property from devcontainer.json
+- If services can't communicate: Ensure all services are on the same network
+- If DNS fails in Colima: Restart with explicit DNS: `colima start --dns 10.2.248.1 --dns 1.1.1.1`
+- If healthchecks timeout: Increase `start_period` and `retries` for slow services
+
 ### Sidecar vs in-container services
 
 - **Sidecar pattern (recommended):** Run privileged services (dind, databases) in separate containers. The dev container runs as non-root user (`jovyan`) and connects to sidecars over the network.
@@ -77,7 +105,8 @@ VS Code auto-discovers devcontainer configurations. The generated configs refere
 
 - Dev container should start as `jovyan` (non-root) when services run in sidecars.
 - Sidecars (dind, postgres) run as root or their default user.
-- Cert/socket ownership: dind generates TLS certs owned by root; the dev container mounts them read-only (`/certs/client:ro`) and uses `DOCKER_CERT_PATH` + `DOCKER_TLS_VERIFY`.
+- **Non-TLS mode** (recommended for dev): No certificate management needed — just set `DOCKER_HOST=tcp://docker:2375`
+- **TLS mode** (if needed): dind generates TLS certs owned by root; the dev container mounts them read-only (`/certs/client:ro`) and uses `DOCKER_CERT_PATH` + `DOCKER_TLS_VERIFY`
 
 ### macOS caveats
 
@@ -88,7 +117,9 @@ VS Code auto-discovers devcontainer configurations. The generated configs refere
 
 ### Security
 
-- **TLS for Docker:** Use `DOCKER_TLS_CERTDIR=/certs` (default in `docker:XX-dind`) for secure TCP connections. Avoid plain TCP (port 2375) in production.
+- **TLS for Docker:** For development environments, we recommend **non-TLS mode** (`DOCKER_TLS_CERTDIR=""`) for simplicity and reliability. Use port 2375 instead of 2376. TLS certificates can cause permission and mounting issues, especially on macOS.
+  - Production: Use `DOCKER_TLS_CERTDIR=/certs` for secure TCP connections
+  - Development: Use `DOCKER_TLS_CERTDIR=""` for simplicity (no cert management)
 - **Host socket:** Mounting `/var/run/docker.sock` grants full control over the host Docker daemon — use only on trusted dev machines.
 - **Credentials:** Use `.env` files (not committed) for secrets (`GITHUB_PAT`, `DOCKERHUB_TOKEN`, `DB_PASSWORD`). Reference them with `${VAR:-default}` in compose.
 
@@ -100,9 +131,11 @@ VS Code auto-discovers devcontainer configurations. The generated configs refere
 ### Healthchecks
 
 - Always add healthchecks to sidecar services so `depends_on` can wait for readiness:
-  - dind: `docker info`
-  - postgres: `pg_isready -U <user>`
-  - mysql: `mysqladmin ping`
+  - dind: `docker info` (interval: 5s, timeout: 3s, retries: 10, start_period: 10s)
+  - postgres: `pg_isready -U <user>` (interval: 10s, timeout: 5s, retries: 5)
+  - mysql: `mysqladmin ping` (interval: 10s, timeout: 5s, retries: 5)
+- Use `condition: service_healthy` in `depends_on` to ensure services are ready before starting dependent containers
+- Faster intervals for dind (5s) ensure quick startup; postgres can use slower intervals (10s)
 
 ## Templates
 
@@ -110,7 +143,7 @@ VS Code auto-discovers devcontainer configurations. The generated configs refere
 
 The following service templates are available in `devcontainer/service-templates/`:
 
-- **dind.yml** - Docker-in-Docker (docker:27-dind) with TLS certificates
+- **dind.yml** - Docker-in-Docker (docker:27-dind) with **non-TLS mode** for development
 - **postgres.yml** - PostgreSQL with Alpine (configurable version)
 - **mysql.yml** - MySQL 8.0 with persistent data
 - **mongo.yml** - MongoDB 8.0 with persistent data
@@ -124,8 +157,10 @@ Each template defines environment variables with sensible defaults (e.g., `${POS
 ### Docker-in-Docker (dind)
 
 - File: `template/docker-compose.dind.yml`
-- Provides: Isolated Docker daemon with TLS cert volumes.
-- Use case: Container build/run demos, CI/CD teaching, Docker-in-Docker workflows.
+- Provides: Isolated Docker daemon with **non-TLS mode** for development simplicity
+- Connection: `DOCKER_HOST=tcp://docker:2375` (port 2375, no certificates needed)
+- Use case: Container build/run demos, CI/CD teaching, Docker-in-Docker workflows
+- Note: Uses `DOCKER_TLS_CERTDIR=""` to disable TLS complexity in dev environments
 
 ### PostgreSQL
 

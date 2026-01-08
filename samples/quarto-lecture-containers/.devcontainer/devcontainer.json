@@ -1,0 +1,53 @@
+{
+    "name": "Quarto Lecture Containers Sample",
+    "dockerComposeFile": "docker-compose.devcontainer.yml",
+    "service": "workspace",
+    "workspaceFolder": "/home/jovyan/work",
+    "features": {},
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "quarto.quarto",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter",
+                "redhat.java",
+                "vscjava.vscode-java-debug",
+                "ms-azuretools.vscode-docker",
+                "GitHub.copilot"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "python.defaultInterpreterPath": "/opt/conda/bin/python",
+                "quarto.render.previewType": "external",
+                "java.jdt.ls.java.home": "/home/jovyan/.sdkman/candidates/java/current",
+                "files.watcherExclude": {
+                    "**/.git/objects/**": true,
+                    "**/.git/subtree-cache/**": true,
+                    "**/node_modules/**": true,
+                    "**/.Rproj.user/**": true,
+                    "**/renv/library/**": true
+                }
+            }
+        }
+    },
+    "remoteUser": "jovyan",
+    "postCreateCommand": "echo 'unset DOCKER_HOST' >> ~/.zshrc && echo 'export DOCKER_HOST=tcp://dind:2375' >> ~/.zshrc && echo '✅ Dev container ready! Try: quarto render lecture.qmd' && quarto check",
+    "forwardPorts": [
+        8888,
+        5432
+    ],
+    "portsAttributes": {
+        "8888": {
+            "label": "Jupyter/Quarto Preview",
+            "onAutoForward": "notify"
+        },
+        "5432": {
+            "label": "PostgreSQL",
+            "onAutoForward": "silent"
+        }
+    },
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/home/jovyan/work,type=bind,consistency=cached"
+    ]
+}

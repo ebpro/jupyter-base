@@ -26,6 +26,9 @@ startup
 postgresql-client
 bundle-python-db
 
+# Java Jupyter kernel
+java-kernel
+
 @options:JDK_VERSION=25
 @options:ENABLEBUILDKIT=true
 @options:STORAGEDRIVER=overlay2

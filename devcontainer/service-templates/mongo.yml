@@ -1,5 +1,6 @@
 mongo:
   image: mongo:${MONGO_VERSION:-8.0}
+  restart: unless-stopped
   environment:
     MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME:-admin}
     MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:-secretsecret}
@@ -13,5 +14,3 @@ mongo:
     interval: 10s
     timeout: 5s
     retries: 5
-  ports:
-    - "27017:27017"

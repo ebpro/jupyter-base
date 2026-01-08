@@ -1,5 +1,6 @@
 postgres:
   image: postgres:${POSTGRES_VERSION:-16}-alpine
+  restart: unless-stopped
   environment:
     POSTGRES_USER: ${DB_USERNAME:-dba}
     POSTGRES_PASSWORD: ${DB_PASSWORD:-secretsecret}
@@ -13,5 +14,3 @@ postgres:
     interval: 10s
     timeout: 5s
     retries: 5
-  ports:
-    - "5432:5432"

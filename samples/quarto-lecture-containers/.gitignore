@@ -1,0 +1,38 @@
+# Quarto output directories
+_output/
+_site/
+_freeze/
+/.quarto/
+
+# LaTeX intermediate files
+*.aux
+*.log
+*.out
+*.toc
+*.tex
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+.ipynb_checkpoints/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+**/*.quarto_ipynb

@@ -39,7 +39,7 @@
         }
     },
     "forwardPorts": [],
-    "postStartCommand": "echo 'Dev environment ready.'",
+    "postCreateCommand": "echo 'unset DOCKER_HOST' >> ~/.zshrc && echo 'export DOCKER_HOST=tcp://docker:2375' >> ~/.zshrc && echo '✅ Dev container ready!'",
     "features": {},
     "remoteEnv": {}
 }

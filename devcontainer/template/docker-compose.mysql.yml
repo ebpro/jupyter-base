@@ -6,6 +6,7 @@ version: "3.8"
 services:
   mysql:
     image: mysql:8.0
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
       MYSQL_DATABASE: ${DB_NAME:-notebook-db}
@@ -13,7 +14,6 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-secretsecret}
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
     networks:
       - devnet
     healthcheck:
@@ -21,12 +21,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "3306:3306"
 
   devcontainer:
     image: ${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
     user: jovyan
+    working_dir: /home/jovyan/work/local
     environment:
       DB_USERNAME: ${DB_USERNAME:-dba}
       DB_PASSWORD: ${DB_PASSWORD:-secretsecret}
@@ -35,7 +34,7 @@ services:
       DB_NAME: ${DB_NAME:-notebook-db}
       DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-notebook-db}
     volumes:
-      - ${PWD}:/home/jovyan/work/local
+      - ${PWD}:/home/jovyan/work/local:cached
     networks:
       - devnet
     depends_on:
@@ -48,3 +47,4 @@ volumes:
 
 networks:
   devnet:
+    driver: bridge

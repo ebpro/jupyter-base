@@ -1,0 +1,45 @@
+project:
+  type: default
+  output-dir: _output
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-fold: false
+    code-tools: true
+    number-sections: true
+    highlight-style: github
+
+  pdf:
+    documentclass: article
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry:
+      - margin=1in
+    keep-tex: false
+
+  revealjs:
+    theme: dark
+    transition: slide
+    background-transition: fade
+    slide-number: c/t
+    show-slide-number: all
+    chalkboard:
+      buttons: true
+    preview-links: auto
+    navigation-mode: linear
+    controls-layout: bottom-right
+    controls-tutorial: true
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+
+editor: visual

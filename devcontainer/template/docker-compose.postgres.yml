@@ -6,13 +6,13 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USERNAME:-dba}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secretsecret}
       POSTGRES_DB: ${DB_NAME:-notebook-db}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
     networks:
       - devnet
     healthcheck:
@@ -20,12 +20,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
 
   devcontainer:
     image: ${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
     user: jovyan
+    working_dir: /home/jovyan/work/local
     environment:
       DB_USERNAME: ${DB_USERNAME:-dba}
       DB_PASSWORD: ${DB_PASSWORD:-secretsecret}
@@ -34,7 +33,7 @@ services:
       DB_NAME: ${DB_NAME:-notebook-db}
       DB_URL: postgresql://${DB_USERNAME:-dba}:${DB_PASSWORD:-secretsecret}@postgres:5432/${DB_NAME:-notebook-db}
     volumes:
-      - ${PWD}:/home/jovyan/work/local
+      - ${PWD}:/home/jovyan/work/local:cached
     networks:
       - devnet
     depends_on:
@@ -47,3 +46,4 @@ volumes:
 
 networks:
   devnet:
+    driver: bridge

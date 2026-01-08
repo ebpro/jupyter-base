@@ -1,0 +1,24 @@
+services:
+  web:
+    build:
+      context: examples/
+      dockerfile: docker-example.dockerfile
+    container_name: java-demo
+    restart: unless-stopped
+
+  database:
+    image: postgres:16-alpine
+    container_name: demo-postgres
+    environment:
+      POSTGRES_USER: jovyan
+      POSTGRES_PASSWORD: jovyan
+      POSTGRES_DB: demo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local

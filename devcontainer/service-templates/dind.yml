@@ -1,19 +1,16 @@
 docker:
   image: docker:27-dind
   privileged: true
+  restart: unless-stopped
   environment:
-    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_CERTDIR: ""
   volumes:
-    - certs-ca:/certs/ca
-    - certs-client:/certs/client
     - docker-data:/var/lib/docker
   networks:
     - notebooknet
   healthcheck:
     test: ["CMD", "docker", "info"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
-    start_period: 15s
-  tmpfs:
-    - /tmp
+    interval: 5s
+    timeout: 3s
+    retries: 10
+    start_period: 10s

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # java-kernel install.sh
-# Installs a Java kernel (IJava) by downloading a release tarball.
+# Installs a Java kernel (IJava) by downloading a release tarball OR using prebaked artifacts.
 # Relies on ARTIFACTS_BASE_URL or ARTEFACT_URL to point to a release tarball.
 
 KERNEL_VERSION=${KERNEL_VERSION:-${1:-${kernel_version:-v1.4.5}}}
@@ -23,6 +23,34 @@ render_kernelspec() {
   "language": "java"
 }
 EOF
+}
+
+install_from_prebaked() {
+  # Check for prebaked artifacts in /tmp/Artefacts/features/java-kernel/toolcache
+  local ver="${KERNEL_VERSION#v}"  # remove leading 'v'
+  local prebaked_dir="/tmp/Artefacts/features/java-kernel/toolcache/java-kernel/${ver}/extracted/java"
+
+  if [[ -d "$prebaked_dir" ]]; then
+    echo "java-kernel: found prebaked artifacts at $prebaked_dir"
+
+    local jar=$(find "$prebaked_dir" -type f \( -iname '*ijava*.jar' -o -iname '*kernel*.jar' \) | head -n1 || true)
+    if [[ -z "$jar" ]]; then
+      echo "java-kernel: no jar found in prebaked artifacts" >&2
+      return 1
+    fi
+
+    CONDA_DIR=${CONDA_DIR:-/home/${NB_USER:-jovyan}/miniforge3}
+    dest="${CONDA_DIR}/share/jupyter/kernels/java"
+    mkdir -p "$dest"
+    cp "$jar" "$dest/ijava.jar"
+    render_kernelspec "$dest" "${dest}/ijava.jar"
+    # ensure ownership for the notebook user
+    chown -R ${NB_UID:-1001}:${NB_GID:-1001} "$dest" >/dev/null 2>&1 || true
+    echo "java-kernel: installed kernelspec from prebaked artifacts at $dest"
+    return 0
+  fi
+
+  return 1
 }
 
 install_from_release() {
@@ -125,9 +153,14 @@ install_from_release() {
 }
 
 
-# Attempt release install; if not available, log and continue (non-fatal)
-if ! install_from_release; then
-  echo "java-kernel: release install failed or no URL provided; skipping kernel installation" >&2
+# Try prebaked artifacts first, then fall back to release download
+if install_from_prebaked; then
+  echo "java-kernel: successfully installed from prebaked artifacts"
+elif install_from_release; then
+  echo "java-kernel: successfully installed from release download"
 else
-  echo "java-kernel: done"
+  echo "java-kernel: installation failed - no prebaked artifacts or release download available" >&2
+  exit 1
 fi
+
+echo "java-kernel: done"
