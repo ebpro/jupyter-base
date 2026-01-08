@@ -1,7 +1,0 @@
-# Purpose: Developer profile — node, language servers, and CLI tools
-
-@parent:00-01-minimal
-
-node
-lsp-tools
-pip-requirements

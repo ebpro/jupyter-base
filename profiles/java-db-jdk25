@@ -1,0 +1,14 @@
+# Purpose: Java database development with JDK 25 and PostgreSQL
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Java tooling
+bundle-java-build
+bundle-java-db
+java-jdk
+
+@options:JDK_VERSION=25

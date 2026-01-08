@@ -1,0 +1,15 @@
+# Purpose: Kotlin development with compiler and optional Jupyter kernel
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Java build tools (required for Kotlin)
+bundle-java-build
+
+# Kotlin compiler and kernel
+kotlin
+
+@options: INSTALL_KOTLIN=true;INSTALL_KOTLIN_KERNEL=true;

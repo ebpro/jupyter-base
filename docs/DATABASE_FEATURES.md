@@ -248,7 +248,7 @@ As requested, JDBC drivers and Flyway are **NOT** included as features. Rational
        <version>10.4.1</version>
    </plugin>
    ```
-   
+
    Run via Maven:
    ```bash
    mvn flyway:migrate

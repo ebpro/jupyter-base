@@ -1,8 +1,8 @@
 {
   "id": "mysql-client",
   "name": "MySQL Client Tools",
-  "version": "1.0.0",
-  "description": "MySQL/MariaDB client tools including mysql, mysqldump, and optionally mycli",
+  "version": "1.1.0",
+  "description": "MySQL/MariaDB client tools including mysql, mysqldump, and development libraries",
   "documentationURL": "https://dev.mysql.com/doc/refman/8.0/en/mysql.html",
   "licenseURL": "https://www.gnu.org/licenses/gpl-2.0.html",
   "dependsOn": [
@@ -14,11 +14,6 @@
       "enum": ["mysql", "mariadb"],
       "default": "mysql",
       "description": "Client type to install (mysql or mariadb)"
-    },
-    "installMycli": {
-      "type": "boolean",
-      "default": true,
-      "description": "Install mycli (enhanced MySQL CLI with autocomplete and syntax highlighting)"
     },
     "installLibmysqlclient": {
       "type": "boolean",

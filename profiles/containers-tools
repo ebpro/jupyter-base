@@ -1,0 +1,10 @@
+# Purpose: Container development tools — Tilt/Podman/Docker helpers
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Container tooling
+bundle-container-runtimes

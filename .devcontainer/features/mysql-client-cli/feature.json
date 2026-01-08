@@ -1,0 +1,20 @@
+{
+  "id": "mysql-client-cli",
+  "name": "MySQL Enhanced CLI",
+  "version": "1.0.0",
+  "description": "mycli - Enhanced MySQL/MariaDB CLI with autocomplete, syntax highlighting, and improved UX",
+  "documentationURL": "https://www.mycli.net/",
+  "licenseURL": "https://github.com/dbcli/mycli/blob/main/LICENSE.txt",
+  "dependsOn": [
+    "mysql-client",
+    "python-base"
+  ],
+  "provides": [
+    "mycli"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "mycli --version",
+    "description": "Verify mycli is installed"
+  }
+}

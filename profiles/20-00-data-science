@@ -1,7 +1,0 @@
-# Purpose: Data science profile — Conda environments and Jupyter kernels
-
-@parent:10-00-dev
-
-python-conda
-jupyter-kernels
-

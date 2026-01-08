@@ -1,8 +1,8 @@
 {
   "name": "checksum-verify (internal)",
+  "id": "_lib/checksum-verify",
   "version": "0.1.0",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "id": "solen/checksum-verify",
   "description": "Utility feature: verifies downloaded artifacts against Artefacts/checksums.json",
   "options": {}
 }

@@ -1,15 +1,14 @@
 {
   "name": "quarto",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "id": "quarto",
-  "description": "Installs Quarto CLI and optionally its runtime (Chromium)",
-  "dependsOn": ["python-conda"],
-  "options": {
-    "QUARTO_VERSION": {"type":"string","default":"1.8.26","description":"Specific Quarto version to install"},
-    "INSTALL_CHROMIUM": {"type": "boolean", "default": false, "description": "Whether to install Chromium runtime for Quarto"}
-  },
-  "provides": ["quarto"],
-  "postInstallCheck": {"command": "quarto --version"},
-  "platforms": ["linux/amd64","linux/arm64"],
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
+  "description": "Meta-feature: Installs Quarto CLI with Python and Chromium support (use quarto-cli for minimal install)",
+  "dependsOn": ["quarto-cli", "quarto-python", "quarto-chromium"],
+  "options": {},
+  "provides": ["quarto", "quarto-full"],
+  "platforms": ["linux/amd64", "linux/arm64"],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  }
 }

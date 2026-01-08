@@ -20,7 +20,7 @@ get_git_tag() {
 get_git_sha() {
     git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 }
-
+ 
 get_git_branch() {
     git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo "main"
 }

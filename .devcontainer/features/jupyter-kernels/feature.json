@@ -4,7 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "jupyter-kernels",
   "description": "Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel",
-  "dependsOn": ["python-conda"],
+  "dependsOn": ["python-conda", "jupyter-base"],
   "options": {
     "INSTALL_ZSH_KERNEL": {
       "type": "boolean",

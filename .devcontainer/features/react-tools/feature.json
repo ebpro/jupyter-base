@@ -1,0 +1,14 @@
+{
+  "name": "react-tools",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "react-tools",
+  "description": "Installs React development tools (Vite, Next.js CLI, Create React App)",
+  "dependsOn": ["node", "typescript"],
+  "provides": ["vite", "create-next-app", "create-react-app"],
+  "postInstallCheck": {
+    "command": "npx vite --version",
+    "description": "Verify Vite is available"
+  },
+  "platforms": ["linux/amd64","linux/arm64"]
+}

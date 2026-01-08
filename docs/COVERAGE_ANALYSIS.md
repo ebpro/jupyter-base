@@ -1,6 +1,6 @@
 # DevContainer Feature & Profile Coverage Analysis
 
-**Expert Review** for Java + Database + CI + Notebook Development  
+**Expert Review** for Java + Database + CI + Notebook Development
 **Date**: 2025-12-18
 
 ---
@@ -194,7 +194,7 @@
 ### Current Profiles (21 total):
 ```
 ✅ Base/minimal profiles (2)
-✅ Dev profiles (2)  
+✅ Dev profiles (2)
 ✅ Java profiles (8 variants)
 ✅ Data science (4)
 ✅ K8s dev (2)
@@ -210,7 +210,7 @@
 @parent:11-00-dev-java-sdk
 
 postgresql-client
-mysql-client  
+mysql-client
 jdbc-drivers
 flyway
 h2-database
@@ -222,7 +222,7 @@ h2-database
 
 ---
 
-#### 2. **Python + Database** 🚨 CRITICAL  
+#### 2. **Python + Database** 🚨 CRITICAL
 ```yaml
 # Suggested: 21-00-python-db
 @parent:20-00-data-science
@@ -484,7 +484,7 @@ This is the biggest gap. Most Java apps need databases.
 
 **Action**: Create 4 features this week:
 - postgresql-client
-- mysql-client  
+- mysql-client
 - jdbc-drivers
 - flyway
 
@@ -566,7 +566,7 @@ This allows:
 
 **Critical Gaps**:
 - ❌ Database support (0/10) 🚨
-- ❌ Java+DB integration (0/10) 🚨  
+- ❌ Java+DB integration (0/10) 🚨
 - ⚠️ CI/CD tools (3/10)
 - ⚠️ SQL development (2/10)
 - ⚠️ Java profiling (0/10)

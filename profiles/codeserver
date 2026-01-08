@@ -1,0 +1,11 @@
+# Purpose: Browser-based VS Code with code-server and extensions
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Browser-based IDE
+code-server
+codeserver-extensions

@@ -219,7 +219,7 @@ def select_base_stage(profile_features: list[str]) -> str:
     has_python_conda = 'python-conda' in profile_features
     has_java = 'java-sdkman' in profile_features or 'java-devtools' in profile_features
     has_node = 'node' in profile_features
-    
+
     # Decision tree (most specific first)
     if has_python_conda and has_java:
         return 'stage-python-java'  # Combined stack

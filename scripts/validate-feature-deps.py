@@ -20,8 +20,10 @@ def load_features(features_dir: Path) -> tuple:
     """Load all features and their dependencies"""
     features = {}
     dependencies = defaultdict(list)
+    conflicts = defaultdict(list)
+    provides = defaultdict(list)
 
-    for feature_json in features_dir.glob("*/feature.json"):
+    for feature_json in features_dir.glob("**/feature.json"):
         try:
             with open(feature_json) as f:
                 data = json.load(f)
@@ -37,11 +39,50 @@ def load_features(features_dir: Path) -> tuple:
             if depends_on:
                 dependencies[feature_id] = depends_on
 
+            # Load conflicts
+            conflicts_list = data.get('conflicts', [])
+            if conflicts_list:
+                conflicts[feature_id] = conflicts_list
+
+            # Load provides
+            provides_list = data.get('provides', [])
+            if provides_list:
+                provides[feature_id] = provides_list
+
         except Exception as e:
             print(f"{RED}✗{NC} Error reading {feature_json}: {e}")
-            return {}, {}, 1
+            return {}, {}, {}, {}, 1
 
-    return features, dependencies, 0
+    return features, dependencies, conflicts, provides, 0
+
+def check_conflicts(features: Dict, dependencies: Dict, conflicts: Dict) -> int:
+    """Check for conflicting features in the dependency graph"""
+    errors = 0
+
+    # Build transitive dependencies for each feature
+    def get_all_deps(feature: str, visited: Set = None) -> Set:
+        if visited is None:
+            visited = set()
+        if feature in visited:
+            return set()
+        visited.add(feature)
+
+        all_deps = set()
+        for dep in dependencies.get(feature, []):
+            all_deps.add(dep)
+            all_deps.update(get_all_deps(dep, visited))
+        return all_deps
+
+    # Check each feature for conflicts with its dependencies
+    for feature_id, conflicting_features in conflicts.items():
+        all_deps = get_all_deps(feature_id)
+
+        for conflict in conflicting_features:
+            if conflict in all_deps:
+                print(f"{RED}✗{NC} Conflict: '{feature_id}' conflicts with '{conflict}' but depends on it (directly or transitively)")
+                errors += 1
+
+    return errors
 
 def validate_dependencies(features: Dict, dependencies: Dict) -> int:
     """Validate that all dependencies exist"""
@@ -170,7 +211,7 @@ def main():
 
     # Load features
     print("📦 Discovering features...")
-    features, dependencies, errors = load_features(features_dir)
+    features, dependencies, conflicts, provides, errors = load_features(features_dir)
     if errors:
         return 1
 
@@ -182,6 +223,14 @@ def main():
     errors = validate_dependencies(features, dependencies)
     if errors == 0:
         print(f"{GREEN}✓{NC} All dependencies reference existing features")
+    print()
+
+    # Check for conflicts
+    print("⚔️  Checking for conflicting features...")
+    conflict_errors = check_conflicts(features, dependencies, conflicts)
+    errors += conflict_errors
+    if conflict_errors == 0:
+        print(f"{GREEN}✓{NC} No conflicting features found")
     print()
 
     # Check for cycles

@@ -4,7 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "prompt-helpers",
   "description": "Installs gitstatusd and related prompt helpers",
-  "dependsOn": ["user"],
+  "dependsOn": ["user", "_lib/download-release"],
   "options": {},
   "postInstallCheck": {
     "command": "test -x /usr/local/bin/gitstatusd",

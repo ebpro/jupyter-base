@@ -1,5 +1,0 @@
-# Java latest developer profile
-
-@parent:11-00-dev-java-sdk
-
-@options: JDK_VERSION=latest

@@ -1,0 +1,14 @@
+{
+  "name": "jupyter-base",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "jupyter-base",
+  "description": "Installs core Jupyter packages (jupyter, jupyterlab, nb_conda_kernels) into conda base",
+  "dependsOn": ["python-conda"],
+  "provides": ["jupyter", "jupyterlab"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "jupyter --version && jupyter-lab --version",
+    "description": "Verify jupyter and jupyterlab are available"
+  }
+}

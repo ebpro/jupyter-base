@@ -26,67 +26,39 @@ HOME_DIR="/home/${NB_USER}"
 
 echo "code-server: installing code-server runtime"
 
-# Ensure small prerequisites
-if command -v apt_install >/dev/null 2>&1; then
-  apt_install curl ca-certificates tar || true
-else
-  apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar || true
-fi
-rm -rf /var/lib/apt/lists/* || true
+resolve_version() {
+  local tool="$1" v=""
+  if [ -f "${PWD}/Artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  if [ -f /tmp/versions.json ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  echo ""
+}
 
-# Resolve version from Artefacts (workspace or /tmp)
-CODE_SERVER_VERSION=""
-if [ -f "${PWD}/Artefacts/versions.json" ]; then
-  CODE_SERVER_VERSION=$(jq -r '.tools["code-server"] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
-fi
-if [ -z "${CODE_SERVER_VERSION}" ] && [ -f /tmp/versions.json ]; then
-  CODE_SERVER_VERSION=$(jq -r '.tools["code-server"] // empty' /tmp/versions.json 2>/dev/null || true)
-fi
+CODE_SERVER_VERSION=$(resolve_version "code-server")
 if [ -z "${CODE_SERVER_VERSION}" ]; then
   echo "code-server: version not found in Artefacts or /tmp/versions.json; skipping" >&2
   exit 0
 fi
 
-# Determine arch
-if [ -f "${PWD}/scripts/arch.sh" ]; then
-  # shellcheck source=/dev/null
-  source "${PWD}/scripts/arch.sh"
-  ARCH=$(arch_map "${TARGETPLATFORM:-$(uname -m)}")
-else
-  case "$(uname -m)" in
-    x86_64|X86_64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
-    *) ARCH="amd64" ;;
-  esac
-fi
+echo "code-server: installing code-server ${CODE_SERVER_VERSION}"
 
-CODE_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-${ARCH}.tar.gz"
-
-echo "code-server: downloading ${CODE_URL}"
-curl -fsSLo /tmp/code-server.tar.gz "${CODE_URL}"
-
-# Verify checksum if available (prefer centralized helper)
-if command -v fh_verify_from_checksums >/dev/null 2>&1; then
-  fh_verify_from_checksums "code-server" "${CODE_SERVER_VERSION}" "${ARCH}" /tmp/code-server.tar.gz || echo "code-server: checksum verification failed (continuing)" >&2
-else
-  CHKSUM=""
-  if [ -f "${PWD}/Artefacts/checksums.json" ]; then
-    CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' "${PWD}/Artefacts/checksums.json" 2>/dev/null || true)
-  fi
-  if [ -z "${CHKSUM}" ] && [ -f /tmp/checksums.json ]; then
-    CHKSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json 2>/dev/null || true)
-  fi
-  if [ -n "${CHKSUM}" ]; then
-    echo "${CHKSUM}  /tmp/code-server.tar.gz" > /tmp/code-server.sha256 && sha256sum -c /tmp/code-server.sha256 || true
-  fi
-fi
-
+# Download and extract code-server using helper
+# Extract pattern: archive contains code-server-X.Y.Z-linux-arch/ directory with bin/ subdirectory
 mkdir -p /opt/code-server
-tar -xzf /tmp/code-server.tar.gz -C /opt/code-server --strip-components=1
-rm -f /tmp/code-server.tar.gz
-ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server || true
+download_github_release \
+  "coder/code-server" \
+  "code-server" \
+  "${CODE_SERVER_VERSION}" \
+  "code-server-{{version}}-linux-{{arch}}.tar.gz" \
+  "code-server-{{version}}-linux-{{arch}}:/opt/code-server"
+
+ln -sf /opt/code-server/bin/code-server /usr/local/bin/code-server || true
 chown -R "${NB_UID}":"${NB_GID}" /opt/code-server || true
 
 echo "code-server: installed to /opt/code-server"
-
 exit 0

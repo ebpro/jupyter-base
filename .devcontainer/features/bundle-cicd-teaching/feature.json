@@ -1,0 +1,32 @@
+{
+  "id": "bundle-cicd-teaching",
+  "version": "1.0.0",
+  "name": "CI/CD Teaching Environment",
+  "description": "Complete environment for teaching CI/CD pipelines with Docker, Kubernetes (k3d), Harbor, SonarQube, Nexus, and GitLab workflows",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["cicd-stack", "docker", "kubectl", "k3d"],
+  "dependsOn": [
+    "docker-dind",
+    "k8s-local-cluster",
+    "kubernetes-dev",
+    "gh-cli",
+    "git-lfs",
+    "tilt"
+  ],
+  "options": {
+    "autoCreateCluster": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically create k3d cluster on startup"
+    },
+    "enableJupyter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include Jupyter for notebook-based CI/CD tutorials"
+    }
+  }
+}

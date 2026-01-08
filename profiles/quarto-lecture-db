@@ -1,0 +1,19 @@
+# Purpose: Quarto lecture environment with database teaching support
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Notebooks and data science
+bundle-data-science
+
+# Quarto publishing
+bundle-quarto-base
+
+# Database connectivity (PostgreSQL)
+postgresql-client
+bundle-python-db
+
+@options:INSTALL_NOTEBOOK_EXTENSIONS=true

@@ -1,4 +1,0 @@
-# Purpose: JetBrains Gateway profile — remote IDE access via JetBrains
-@parent:10-00-dev
-
-jetbrains-gateway

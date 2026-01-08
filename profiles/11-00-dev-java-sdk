@@ -1,8 +1,0 @@
-# Java developer profile with SDKMAN provided by java-sdk feature
-
-@parent:10-00-dev
-
-java-jdk
-java-maven
-java-gradle
-java-kernel

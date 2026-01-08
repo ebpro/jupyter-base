@@ -1,21 +1,29 @@
 {
-  "name": "node",
-  "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "node",
-  "description": "Installs Node.js (simple installer) or Volta if desired",
-  "dependsOn": ["user"],
+  "name": "Node.js Runtime",
+  "version": "1.0.0",
+  "description": "Installs Node.js and npm using direct binary download with centralized version control",
+  "documentationURL": "https://nodejs.org/",
+  "licenseURL": "https://github.com/nodejs/node/blob/main/LICENSE",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "dependsOn": ["user", "_lib/download-release"],
   "options": {
-    "install_volta": {
-      "type": "boolean",
-      "default": false
+    "version": {
+      "type": "string",
+      "default": "22.12.0",
+      "description": "Node.js version to install (e.g., 22.12.0, 20.18.0, or 'latest')"
+    },
+    "installMethod": {
+      "type": "string",
+      "enum": ["direct", "apt", "volta"],
+      "default": "direct",
+      "description": "Installation method: 'direct' (official binaries), 'apt' (Ubuntu package), or 'volta' (version manager)"
     }
-  }
-  ,"provides": ["node","npm"],
+  },
+  "provides": ["node", "npm"],
   "postInstallCheck": {
     "command": "node --version && npm --version",
     "description": "Verify node and npm are available"
   },
-  "platforms": ["linux/amd64","linux/arm64"],
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
+  "platforms": ["linux/amd64", "linux/arm64"]
 }

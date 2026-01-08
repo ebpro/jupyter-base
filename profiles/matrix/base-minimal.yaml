@@ -1,0 +1,8 @@
+# Purpose: Generate minimal profile variant
+# Base system with Python and dev tools
+
+features:
+  - bundle-base-full
+matrix:
+  minimal:
+    options: {}

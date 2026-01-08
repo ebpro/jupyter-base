@@ -1,6 +1,0 @@
-# Purpose: Code Server profile — browser-based VS Code and its extensions
-
-@parent:10-00-dev
-
-code-server
-codeserver-extensions

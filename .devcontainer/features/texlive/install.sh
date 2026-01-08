@@ -74,49 +74,23 @@ resolve_checksum() {
   echo ""
 }
 
-CHKSUM=$(resolve_checksum "tinytex" "${TINYTEX_VERSION}" "${ARCH:-linux}")
-if [ -z "${CHKSUM}" ]; then
-  CHKSUM=$(resolve_checksum "tinytex-installer" "${TINYTEX_VERSION}" "${ARCH:-linux}")
-fi
+# Download TinyTeX installer using shared helper
+tmpd=$(mktemp -d)
+download_direct \
+  "${TINYTEX_URL}" \
+  "tinytex" \
+  "${tmpd}/${INSTALLER}.tar.gz" \
+  true
 
-if command -v toolcache-get >/dev/null 2>&1; then
-  PREFIX=$(toolcache-get "tinytex-installer" "${TINYTEX_VERSION}" "${TINYTEX_URL}" "${CHKSUM}" || true)
-  if [ -n "${PREFIX}" ]; then
-    # find install script inside prefix
-    inst=$(find "${PREFIX}" -type f -name install.sh -print -quit 2>/dev/null || true)
-    if [ -n "${inst}" ]; then
-      tmpd=$(mktemp -d)
-      cp -a "${PREFIX}"/* "${tmpd}/" || true
-      pushd "${tmpd}"
-      ./install.sh || true
-      popd
-      rm -rf "${tmpd}"
-    fi
-  else
-    echo "texlive: toolcache-get failed, falling back to direct download"
-    curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz
-    if command -v fh_verify_from_checksums >/dev/null 2>&1; then
-      if fh_verify_from_checksums "tinytex" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
-        :
-      elif fh_verify_from_checksums "tinytex-installer" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
-        :
-      else
-        echo "texlive: checksum verification failed" >&2
-        exit 1
-      fi
-    else
-      if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
-        verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
-      elif [ -n "${CHKSUM}" ]; then
-        echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
-      fi
-    fi
-    tar xf /tmp/${INSTALLER}.tar.gz -C /tmp
-    pushd /tmp
+# Extract and run installer
+if [ -f "${tmpd}/${INSTALLER}.tar.gz" ]; then
+  tar xf "${tmpd}/${INSTALLER}.tar.gz" -C "${tmpd}"
+  if [ -f "${tmpd}/install.sh" ]; then
+    pushd "${tmpd}"
     ./install.sh || true
     popd
-    rm -f /tmp/${INSTALLER}.tar.gz || true
   fi
+  rm -rf "${tmpd}"
 else
   curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz
   if command -v fh_verify_from_checksums >/dev/null 2>&1; then

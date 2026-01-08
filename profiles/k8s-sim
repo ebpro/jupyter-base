@@ -1,0 +1,13 @@
+# Purpose: Local Kubernetes cluster simulation with Podman (heavy)
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Kubernetes tooling (kubectl, kind, tilt)
+bundle-k8s
+
+# Container runtime for local clusters
+podman

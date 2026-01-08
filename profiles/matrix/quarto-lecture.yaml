@@ -1,0 +1,11 @@
+# Purpose: Generate quarto-lecture profile variant
+# Quarto lecture environment with notebooks and publishing
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+  - bundle-data-science
+  - bundle-quarto-base
+matrix:
+  quarto-lecture:
+    options: {}

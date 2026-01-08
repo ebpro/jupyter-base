@@ -1,0 +1,14 @@
+{
+  "name": "redis-client",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "redis-client",
+  "description": "Installs Redis command-line client tools",
+  "dependsOn": ["base-apt"],
+  "provides": ["redis-cli"],
+  "postInstallCheck": {
+    "command": "redis-cli --version",
+    "description": "Verify Redis CLI is installed"
+  },
+  "platforms": ["linux/amd64","linux/arm64"]
+}

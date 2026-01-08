@@ -1,0 +1,10 @@
+# Purpose: Generate data-science profile variant
+# Data science with Conda, Jupyter, and kernels
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+  - bundle-data-science
+matrix:
+  data-science:
+    options: {}

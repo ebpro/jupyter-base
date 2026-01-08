@@ -1,0 +1,15 @@
+{
+  "name": "kubernetes-dev",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "kubernetes-dev",
+  "description": "Kubernetes development and debugging tools: k9s terminal UI and other utilities",
+  "dependsOn": ["kubernetes-client", "_lib/download-release"],
+  "provides": ["k9s"],
+  "platforms": ["linux/amd64","linux/arm64"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "k9s version",
+    "description": "Verify k9s is available"
+  }
+}

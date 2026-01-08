@@ -1,0 +1,10 @@
+# Purpose: JetBrains Gateway for remote IDE access
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Remote IDE access
+jetbrains-gateway

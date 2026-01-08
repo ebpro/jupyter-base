@@ -1,5 +1,0 @@
-# Java 25 developer profile
-
-@parent:11-00-dev-java-sdk
-
-@options: JDK_VERSION=25

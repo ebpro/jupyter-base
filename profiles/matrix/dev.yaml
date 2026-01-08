@@ -1,0 +1,9 @@
+# Purpose: Generate dev profile variant
+# Development environment with Node, LSP, and pip tools
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+matrix:
+  dev:
+    options: {}

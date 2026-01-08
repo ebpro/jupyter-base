@@ -1,0 +1,22 @@
+{
+  "name": "bundle-base-full",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "bundle-base-full",
+  "description": "Complete base system (shell, VCS, tools, Python, utilities) for most profiles",
+  "dependsOn": [
+    "user",
+    "base-apt",
+    "zsh-config",
+    "prompt-helpers",
+    "startup",
+    "gh-cli",
+    "git-lfs",
+    "docker-cli-helper",
+    "python-base",
+    "dev-tools",
+    "_lib/checksum-verify",
+    "_lib/toolcache"
+  ],
+  "platforms": ["linux/amd64","linux/arm64"]
+}

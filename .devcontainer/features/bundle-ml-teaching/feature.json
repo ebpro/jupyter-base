@@ -1,0 +1,9 @@
+{
+  "name": "bundle-ml-teaching",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "bundle-ml-teaching",
+  "description": "Machine Learning teaching stack (Jupyter, scikit-learn, matplotlib, seaborn, pandas)",
+  "dependsOn": ["bundle-data-science", "ml-python-packages"],
+  "platforms": ["linux/amd64","linux/arm64"]
+}

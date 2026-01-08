@@ -1,0 +1,9 @@
+{
+  "id": "_lib/download-release",
+  "name": "Binary Release Downloader Helper",
+  "version": "1.0.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "description": "Shared helper for downloading and installing binary releases from GitHub or direct URLs. Provides download_github_release and download_direct functions.",
+  "provides": ["download_github_release", "download_direct"],
+  "supported_archs": ["amd64","arm64"]
+}

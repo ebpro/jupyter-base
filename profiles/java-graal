@@ -1,0 +1,15 @@
+# Purpose: Java development with GraalVM native compilation
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Java build tools
+bundle-java-build
+
+# GraalVM for native compilation
+graalvm
+
+@options: GRAALVM_VERSION=22.3.1

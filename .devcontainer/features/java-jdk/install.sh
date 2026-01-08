@@ -74,9 +74,9 @@ install_jdk() {
       oracle) suffix="-oracle" ;;
       *) suffix=".*" ;;
     esac
-    
+
     cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep \"${suffix}\$\" | head -n1") || true
-    
+
     if [ -n "${cand}" ]; then
       su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${cand}" || true
     else
@@ -96,9 +96,9 @@ install_jdk() {
       oracle) suffix="-oracle" ;;
       *) suffix=".*" ;;
     esac
-    
+
     cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep \"^${ver}\\..*${suffix}\" | head -n1") || true
-    
+
     if [ -n "${cand}" ]; then
       su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install java ${cand}" || true
     else

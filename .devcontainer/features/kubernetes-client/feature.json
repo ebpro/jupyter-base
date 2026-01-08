@@ -1,0 +1,15 @@
+{
+  "name": "kubernetes-client",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "id": "kubernetes-client",
+  "description": "Essential Kubernetes client tools: kubectl, helm, and kustomize",
+  "dependsOn": ["_lib/download-release"],
+  "provides": ["kubectl", "helm", "kustomize"],
+  "platforms": ["linux/amd64","linux/arm64"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "kubectl version --client && helm version",
+    "description": "Verify kubectl and helm are available"
+  }
+}

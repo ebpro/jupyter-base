@@ -1,6 +1,0 @@
-# Developer Java+Graal profile: dev tools + GraalVM + Java kernel (no Quarto)
-
-@parent:11-00-dev-java-sdk
-graalvm
-
-@options: GRAALVM_VERSION=22.3.1

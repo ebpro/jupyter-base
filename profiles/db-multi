@@ -1,0 +1,16 @@
+# Purpose: Multi-database development and teaching (PostgreSQL, MySQL, MongoDB, Redis)
+
+# Complete base system
+bundle-base-full
+
+# Development essentials
+bundle-dev-base
+
+# Notebooks and data science
+bundle-data-science
+
+# Database clients (list explicitly instead of deprecated bundle-db-multi)
+postgresql-client
+mysql-client
+mongodb-client
+redis-client

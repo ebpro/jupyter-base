@@ -1,0 +1,10 @@
+# Purpose: Generate k8s-dev profile variant
+# Kubernetes development with kubectl, kind, tilt
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+  - bundle-k8s
+matrix:
+  k8s-dev:
+    options: {}

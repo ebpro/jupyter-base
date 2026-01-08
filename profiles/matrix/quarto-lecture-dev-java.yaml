@@ -1,0 +1,22 @@
+# Purpose: Generate Quarto lecture profiles with Java and different JDK versions
+# Matrix expands to: quarto-lecture-java-ea, quarto-lecture-java-25
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+  - bundle-data-science
+  - bundle-quarto-base
+  - java-jdk
+  - java-maven
+  - java-gradle
+  - java-kernel
+options:
+  KERNEL_VERSION: v1.4.5
+  ARTIFACTS_BASE_URL: https://github.com/ebpro/IJava/releases
+matrix:
+  quarto-lecture-java-ea:
+    options:
+      JDK_VERSION: ea
+  quarto-lecture-java-25:
+    options:
+      JDK_VERSION: 25

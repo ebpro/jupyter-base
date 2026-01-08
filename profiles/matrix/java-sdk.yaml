@@ -1,0 +1,10 @@
+# Purpose: Generate java-sdk profile variant
+# Java development with SDK, Maven, and Gradle
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+  - bundle-java-build
+matrix:
+  java-sdk:
+    options: {}

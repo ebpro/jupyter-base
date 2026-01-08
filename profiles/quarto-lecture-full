@@ -1,0 +1,19 @@
+# Purpose: Full Quarto lecture environment with Java and PDF publishing (heavy)
+
+# Complete base system
+bundle-base-full
+
+# Development bundles
+bundle-dev-base
+
+# Notebooks and data science
+bundle-data-science
+
+# Quarto with TeX (for PDF output)
+bundle-quarto-full
+
+# Java tooling
+bundle-java-build
+java-jdk
+
+@options:JDK_VERSION=25

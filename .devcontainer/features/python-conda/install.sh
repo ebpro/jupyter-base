@@ -192,29 +192,6 @@ if [ -f /tmp/environment.yml ]; then
 fi
 
   chown -R "${NB_UID}":"${NB_GID}" "${CONDA_DIR}" || true
-# Ensure Jupyter is installed in the conda base environment so `jupyter` is available
-if [ ! -x "${CONDA_DIR}/bin/jupyter" ]; then
-  echo "python-conda: installing jupyter into base environment"
-  if [ -x "${CONDA_DIR}/bin/mamba" ]; then
-    "${CONDA_DIR}/bin/mamba" install -y -n base -c conda-forge jupyter || true
-  elif [ -x "${CONDA_DIR}/bin/conda" ]; then
-    "${CONDA_DIR}/bin/conda" install -y -n base -c conda-forge jupyter || true
-  else
-    "${CONDA_DIR}/bin/python" -m pip install --no-cache-dir jupyter || true
-  fi
-fi
-
-# Expose jupyter executables system-wide if present in the Miniforge bin
-for exe in jupyter jupyter-notebook jupyter-lab jupyter-server; do
-  if [ -x "${CONDA_DIR}/bin/${exe}" ] && [ ! -e "/usr/local/bin/${exe}" ]; then
-    cat > "/usr/local/bin/${exe}" <<EOF
-#!/bin/sh
-exec "${CONDA_DIR}/bin/${exe}" "\$@"
-EOF
-    chmod 0755 "/usr/local/bin/${exe}" || true
-    chown root:root "/usr/local/bin/${exe}" || true
-  fi
-done
 
 echo "python-conda: done"
 

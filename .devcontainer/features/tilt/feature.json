@@ -3,8 +3,9 @@
   "name": "tilt",
   "description": "Installs Tilt CLI (developer tool for iterative k8s development).",
   "options": {},
-  "version": "0.1.0",
+  "version": "0.2.0",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "dependsOn": ["_lib/download-release"],
   "provides": ["tilt"],
   "postInstallCheck": {"command": "tilt version"},
   "platforms": ["linux/amd64","linux/arm64"]

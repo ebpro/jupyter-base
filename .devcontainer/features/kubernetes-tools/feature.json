@@ -1,11 +1,12 @@
 {
   "name": "kubernetes-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "provides": ["kubectl","helm","k9s"],
+  "dependsOn": ["kubernetes-client", "kubernetes-dev"],
   "postInstallCheck": {"command": "kubectl version --client"},
   "platforms": ["linux/amd64","linux/arm64"],
   "id": "kubernetes-tools",
-  "description": "Installs kubectl, helm, k9s, kustomize and minikube using Artefacts/versions.json",
+  "description": "Meta-feature: Complete Kubernetes toolset (kubectl, helm, kustomize, k9s). Use kubernetes-client for essentials only.",
   "options": {}
 }

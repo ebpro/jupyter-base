@@ -13,7 +13,7 @@
     }
   },
   "postInstallCheck": {
-    "command": "conda --version && python --version && jupyter --version",
-    "description": "Verify conda, python, and jupyter are available"
+    "command": "conda --version && python --version",
+    "description": "Verify conda and python are available"
   }
 }

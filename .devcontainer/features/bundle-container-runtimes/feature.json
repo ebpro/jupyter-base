@@ -1,0 +1,17 @@
+{
+  "id": "bundle-container-runtimes",
+  "version": "2.0.0",
+  "name": "Container Runtimes Bundle",
+  "description": "Meta-feature bundling alternative container runtimes (Podman) and Docker CLI helpers for container development without Docker daemon.",
+  "maintainer": {
+    "name": "Bruno Parmentier",
+    "email": "bruno.parmentier@univ-tlse3.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["podman", "docker-cli"],
+  "dependsOn": [
+    "podman",
+    "docker-cli-helper"
+  ],
+  "options": {}
+}

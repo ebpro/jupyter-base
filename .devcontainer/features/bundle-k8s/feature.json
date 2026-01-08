@@ -1,0 +1,18 @@
+{
+  "id": "bundle-k8s",
+  "version": "1.1.0",
+  "name": "Kubernetes Development Bundle",
+  "description": "Meta-feature bundling kubectl, Helm, k9s, Tilt, and other Kubernetes development tools.",
+  "maintainer": {
+    "name": "Bruno Parmentier",
+    "email": "bruno.parmentier@univ-tlse3.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["kubectl", "helm", "tilt", "k9s"],
+  "dependsOn": [
+    "kubernetes-client",
+    "kubernetes-dev",
+    "tilt"
+  ],
+  "options": {}
+}
