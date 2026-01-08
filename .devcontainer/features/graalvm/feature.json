@@ -12,5 +12,10 @@
   "provides":["graalvm", "java", "javac"],
   "conflicts": ["java-jdk"],
   "postInstallCheck": {"command": "java -version"},
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "oracle.oracle-java"
+    ]
+  }
 }

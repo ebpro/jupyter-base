@@ -25,5 +25,14 @@
     "command": "node --version && npm --version",
     "description": "Verify node and npm are available"
   },
-  "platforms": ["linux/amd64", "linux/arm64"]
+  "platforms": ["linux/amd64", "linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode"
+    ],
+    "settings": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+  }
 }

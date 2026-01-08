@@ -27,5 +27,10 @@
   "postInstallCheck": {
     "command": "k3d version",
     "description": "Verify k3d is available"
+  },
+  "vscode": {
+    "extensions": [
+      "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
   }
 }

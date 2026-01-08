@@ -15,5 +15,10 @@
   "postInstallCheck": {
     "command": "conda --version && python --version",
     "description": "Verify conda and python are available"
+  },
+  "vscode": {
+    "settings": {
+      "python.defaultInterpreterPath": "/opt/conda/bin/python"
+    }
   }
 }

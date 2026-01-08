@@ -1,0 +1,10 @@
+registry:
+  image: registry:2
+  environment:
+    REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+  volumes:
+    - registry-data:/var/lib/registry
+  networks:
+    - notebooknet
+  ports:
+    - "5000:5000"

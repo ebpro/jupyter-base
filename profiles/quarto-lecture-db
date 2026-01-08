@@ -17,3 +17,6 @@ postgresql-client
 bundle-python-db
 
 @options:INSTALL_NOTEBOOK_EXTENSIONS=true
+
+# Services/Sidecars
+@services:postgres:version=16

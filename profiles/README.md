@@ -1,5 +1,97 @@
-Profile naming and usage
-========================
+## Profile Syntax
+
+```
+# Purpose: Description
+
+# Features (one per line)
+bundle-base-full
+bundle-dev-base
+your-feature
+
+# Options
+@options:OPTION=value
+@options:ANOTHER=value2
+
+# Services (sidecar containers)
+@services:postgres:version=16
+@services:dind
+```
+
+### Directives
+
+- **Features** - Plain text, one per line (e.g., `python-base`, `java-jdk`)
+- **@options:** - Build/runtime options (e.g., `JDK_VERSION=25`)
+- **@services:** - Sidecar services (e.g., `postgres:version=16`, `dind`, `mysql:version=8.0`)
+
+## Workflows
+
+### Create Hand-Written Profile
+
+1. Create `profiles/<name>`:
+   ```bash
+   cat > profiles/my-profile <<'EOF'
+   # Purpose: My custom profile
+
+   bundle-base-full
+   bundle-dev-base
+   python-base
+
+   @options:PYTHON_VERSION=3.12
+   @services:postgres:version=16
+   EOF
+   ```
+
+2. Generate devcontainer:
+   ```bash
+   python3 scripts/generate-devcontainer-json.py my-profile
+   ```
+
+3. Test:
+   ```bash
+   docker compose -f generated/devcontainer/my-profile/docker-compose.yml up -d
+   ```
+
+### Create Matrix Profile
+
+1. Create `profiles/matrix/my-variants.yaml`:
+   ```yaml
+   # Purpose: Generate my-profile variants
+   features:
+     - bundle-base-full
+     - bundle-dev-base
+   options:
+     COMMON_OPTION: value
+   matrix:
+     my-profile-basic:
+       options: {}
+     my-profile-db:
+       features:
+         - postgresql-client
+       services:
+         - postgres:version=16
+   ```
+
+2. Generate:
+   ```bash
+   ./scripts/generate-all-matrix-profiles.sh
+   ./scripts/generate-all-devcontainers.sh
+   ```
+
+### Bulk Regeneration
+
+After modifying features or matrix files:
+
+```bash
+# Regenerate matrix profiles
+./scripts/generate-all-matrix-profiles.sh
+
+# Regenerate all devcontainers
+./scripts/generate-all-devcontainers.sh
+```
+
+## Legacy Documentation
+
+The sections below describe the old profile system and are kept for reference.
 
 Profile directory convention
 ----------------------------
@@ -47,38 +139,29 @@ Examples
 
 This directory contains build/runtime profiles that compose features from `.devcontainer/features/`.
 
-Each profile is a plain text file listing features (one per line). Lines starting with `#` are comments. A profile can include another profile using `@profile:<name>`.
+Each profile is a plain text file listing features (one per line). Lines starting with `#` are comments.
 
-Parent vs composition
----------------------
-- `@parent:<profile>` declares a single inheritance parent profile. The parent is used by the Dockerfile generator to inherit a base stage and avoid reapplying shared features.
-- `@profile:<profile>` composes another profile into this profile (inclusion), useful when you want to aggregate features from multiple profiles without making one the single parent.
+## Profile Types
 
-Placement convention
---------------------
-- Place `@parent:` as the first non-comment, non-empty directive in the profile file. This makes inheritance explicit and easy to locate for maintainers and the generator scripts.
-- Use `@profile:` after the `@parent:` directive (if present) or within the feature list to express composition.
-- Keep heavy features (TeX, browsers, IDE servers) out of common/base profiles; prefer feature flags or separate profiles to keep images small by default.
+### Hand-Written Profiles (`profiles/`)
 
-Examples:
-- `minimal` — smallest useful development image
-- `dev` — developer workstation
-- `data-science` — developer + Quarto + Jupyter
-- `quarto-lecture` — lecture-focused image for Quarto dynamic execution
-- `codeserver` — image variant for embedded Code‑Server UI
+Manually maintained profiles for specialized use cases:
+- `base` - minimal foundation (shell, git, docker-cli)
+- `full` - kitchen sink (all features, heavy)
+- `codeserver`, `jetbrains-gateway` - remote IDE variants
+- `web-dev`, `kotlin`, `java-graal` - specialized dev environments
+- `db-multi`, `java-db-jdk25`, `ml-teaching` - domain-specific
 
-Usage:
+Edit these directly when creating unique configurations.
 
-1. Generate a Dockerfile for a profile:
+### Matrix-Generated Profiles (`profiles/matrix/*.yaml`)
 
-```bash
-./scripts/generate-dockerfile.sh --profile quarto-lecture --out Dockerfile.generated
-```
+YAML files that generate multiple variants with different options:
+- `java-dev.yaml` → 5 variants (java-8, 21, 25, ea, latest)
+- `quarto-lecture.yaml` → 4 variants (base, full, db, containers)
+- `data-science.yaml` → 2 variants (data-science, python-db)
+- `k8s-dev.yaml` → 2 variants (k8s-dev, k8s-sim)
 
-2. Generate a `devcontainer.json` for a profile (for Codespaces/VS Code):
+Generated profiles output to `generated/profiles/`.
 
-```bash
-./scripts/generate-devcontainer.sh --profile quarto-lecture --out .devcontainer/devcontainer.generated.json
-```
-
-The generator scripts validate that each feature exists under `.devcontainer/features/`.
+## Profile Syntax

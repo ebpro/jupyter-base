@@ -16,3 +16,6 @@ image-digest.txt
 # Generated profiles from matrix expansion
 generated/
 
+
+# Generated devcontainer files
+generated/devcontainer/

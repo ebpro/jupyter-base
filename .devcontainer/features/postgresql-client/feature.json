@@ -30,5 +30,11 @@
   "installsAfter": [
     "base-apt",
     "python-base"
-  ]
+  ],
+  "vscode": {
+    "extensions": [
+      "cweijan.vscode-database-client2"
+    ],
+    "forwardPorts": [5432]
+  }
 }

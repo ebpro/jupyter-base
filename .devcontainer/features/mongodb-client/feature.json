@@ -19,5 +19,11 @@
     "command": "mongosh --version",
     "description": "Verify MongoDB shell is installed"
   },
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "mongodb.mongodb-vscode"
+    ],
+    "forwardPorts": [27017]
+  }
 }

@@ -1,11 +1,44 @@
-# Purpose: Generate quarto-lecture profile variant
-# Quarto lecture environment with notebooks and publishing
+# Purpose: Generate quarto-lecture profile variants
+# Quarto lecture environments with different focuses
 
 features:
   - bundle-base-full
   - bundle-dev-base
   - bundle-data-science
-  - bundle-quarto-base
+options:
+  INSTALL_NOTEBOOK_EXTENSIONS: true
 matrix:
   quarto-lecture:
+    features:
+      - bundle-quarto-base
     options: {}
+  quarto-lecture-full:
+    features:
+      - bundle-quarto-full
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: 25
+  quarto-lecture-db:
+    features:
+      - bundle-quarto-base
+      - postgresql-client
+      - bundle-python-db
+    services:
+      - postgres:version=16
+  quarto-lecture-containers:
+    features:
+      - bundle-quarto-full
+      - bundle-java-build
+      - java-jdk
+      - docker-dind
+      - postgresql-client
+      - bundle-python-db
+      - startup
+    options:
+      JDK_VERSION: 25
+      ENABLEBUILDKIT: true
+      STORAGEDRIVER: overlay2
+    services:
+      - dind
+      - postgres:version=16

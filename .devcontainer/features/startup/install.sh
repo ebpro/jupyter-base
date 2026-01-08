@@ -29,9 +29,26 @@ else
     chmod +x /usr/local/bin/run-startup-scripts.sh
     echo "startup: installed run-startup-scripts from /tmp"
   else
-    echo "startup: no run-startup-scripts.sh found in repo; skipping"
+    echo "startup: no run-startup-scripts.sh found in repo; creating default"
+    cat > /usr/local/bin/run-startup-scripts.sh <<'EOF'
+#!/usr/bin/env bash
+# Run all executable scripts in /etc/startup.d
+set -e
+if [ -d /etc/startup.d ]; then
+  for script in /etc/startup.d/*.sh; do
+    if [ -x "$script" ]; then
+      echo "Running startup script: $script"
+      "$script" || echo "Warning: $script failed with exit code $?"
+    fi
+  done
+fi
+EOF
+    chmod +x /usr/local/bin/run-startup-scripts.sh
   fi
 fi
+
+# Ensure startup.d directory exists
+mkdir -p /etc/startup.d
 
 # Provide a smoke check script
 cat > /usr/local/bin/devcontainer-smoke <<'EOF'

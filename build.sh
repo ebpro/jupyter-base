@@ -20,7 +20,7 @@ get_git_tag() {
 get_git_sha() {
     git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 }
- 
+
 get_git_branch() {
     git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo "main"
 }
@@ -223,8 +223,7 @@ TAGS_LIST+=("${TAG1}")
 if [ -n "${TAG2}" ]; then
     TAGS_LIST+=("${TAG2}")
 fi
-# Add branch-shortsha and short sha tags for traceability
-TAGS_LIST+=("${GIT_BRANCH}-${GIT_SHA_SHORT}")
+# Add short sha tag for traceability (skip branch-shortsha since TAG2 already has it)
 TAGS_LIST+=("${GIT_SHA_SHORT}")
 # Add a build-date tag to help identify the build
 TAGS_LIST+=("build-${BUILD_DATE_UTC}")
@@ -347,12 +346,15 @@ fi
 
 # Default behavior: always generate the canonical Dockerfile with all profiles
 # (the `--profile` option will still select which `final-<profile>` target to build)
+log_info "Generating matrix profiles and devcontainers"
+# First generate matrix profiles from YAML definitions
+bash "${PWD}/scripts/generate-all-matrix-profiles.sh" || true
+# Then generate Dockerfile for all profiles
 log_info "Generating Dockerfile for all profiles (default)"
 bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
-# `generate-devcontainer.sh` does not support --all-profiles; only generate a devcontainer
-# when a single profile is requested. Skip bulk generation to avoid unknown-arg errors.
+# Generate devcontainer for single profile if requested
 if [ -n "${PROFILE:-}" ]; then
-    bash "${PWD}/scripts/generate-devcontainer.sh" --profile "$PROFILE" --out devcontainer.generated.json || true
+    python3 "${PWD}/scripts/generate-devcontainer-json.py" "$PROFILE" || true
 fi
 DOCKERFILE="Dockerfile.generated"
 if [ "${GENERATE_ONLY}" = true ]; then
@@ -361,9 +363,13 @@ if [ "${GENERATE_ONLY}" = true ]; then
 fi
 
 if [ "${ALL_PROFILES:-false}" = true ]; then
-    log_info "Generating Dockerfile for all profiles"
+    log_info "Generating matrix profiles and devcontainers for all profiles"
+    # Generate matrix profiles from YAML definitions
+    bash "${PWD}/scripts/generate-all-matrix-profiles.sh" || true
+    # Generate Dockerfile for all profiles
     bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
-    bash "${PWD}/scripts/generate-devcontainer.sh" --all-profiles --out devcontainer.generated.json || true
+    # Generate devcontainers for all profiles (matrix + hand-written)
+    bash "${PWD}/scripts/generate-all-devcontainers.sh" || true
     # Prepare bake platforms and archs for HCL generation
     if [ "${ALL_ARCHS}" = true ]; then
         RAW_ARCHS="${ARCHS:-amd64,arm64}"

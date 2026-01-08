@@ -9,5 +9,11 @@
   "postInstallCheck": {
     "command": "gcc --version && cmake --version && which htop jq fd rg",
     "description": "Verify core dev tools are available"
+  },
+  "vscode": {
+    "extensions": [
+      "redhat.vscode-yaml",
+      "editorconfig.editorconfig"
+    ]
   }
 }

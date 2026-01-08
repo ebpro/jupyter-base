@@ -90,6 +90,14 @@ expand_profile(){
           fi
         done
         ;;
+      @services:*)
+        # Skip service declarations - they are for devcontainer only
+        continue
+        ;;
+      @*)
+        # Skip other @ directives
+        continue
+        ;;
       *) eval "$out_feat_array+=(\"$local_trim\")" ;;
     esac
   done < "$f"

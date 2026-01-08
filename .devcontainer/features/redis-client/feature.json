@@ -10,5 +10,11 @@
     "command": "redis-cli --version",
     "description": "Verify Redis CLI is installed"
   },
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "cweijan.vscode-database-client2"
+    ],
+    "forwardPorts": [6379]
+  }
 }

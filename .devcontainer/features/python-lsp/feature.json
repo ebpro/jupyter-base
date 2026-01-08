@@ -9,5 +9,10 @@
   "postInstallCheck": {
     "command": "which pyright",
     "description": "Verify pyright language server is installed"
+  },
+  "vscode": {
+    "settings": {
+      "python.languageServer": "Pylance"
+    }
   }
 }

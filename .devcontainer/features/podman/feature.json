@@ -8,5 +8,10 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "provides": ["podman"],
   "postInstallCheck": {"command": "podman --version"},
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "ms-azuretools.vscode-docker"
+    ]
+  }
 }

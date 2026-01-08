@@ -20,5 +20,10 @@
   "postInstallCheck": {
     "command": "gradle --version",
     "description": "Verify Gradle is available"
+  },
+  "vscode": {
+    "extensions": [
+      "vscjava.vscode-gradle"
+    ]
   }
 }

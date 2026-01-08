@@ -14,5 +14,10 @@
   "postInstallCheck": {
     "command": "pdflatex --version && tlmgr --version",
     "description": "Verify pdflatex and tlmgr are available"
+  },
+  "vscode": {
+    "extensions": [
+      "James-Yu.latex-workshop"
+    ]
   }
 }

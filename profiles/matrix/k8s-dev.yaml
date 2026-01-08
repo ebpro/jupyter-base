@@ -1,5 +1,5 @@
-# Purpose: Generate k8s-dev profile variant
-# Kubernetes development with kubectl, kind, tilt
+# Purpose: Generate Kubernetes development profile variants
+# Kubernetes development with kubectl, kind, tilt, and optional podman/k3s
 
 features:
   - bundle-base-full
@@ -8,3 +8,9 @@ features:
 matrix:
   k8s-dev:
     options: {}
+  k8s-sim:
+    features:
+      - podman
+    services:
+      - k3s:version=v1.31-latest
+      - registry

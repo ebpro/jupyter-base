@@ -81,34 +81,74 @@ fi
 
 # Download and extract Quarto using shared helper
 mkdir -p /opt/quarto
+# Build explicit filename to avoid placeholder/template issues during build
+FNAME="quarto-${QUARTO_VERSION}-linux-${ARCH}.tar.gz"
 download_github_release \
   "quarto-dev/quarto-cli" \
   "quarto" \
   "${QUARTO_VERSION}" \
-  "quarto-{{version}}-linux-{{arch}}.tar.gz" \
-  "quarto-{{version}}:/opt/quarto/quarto-{{version}}"
+  "/opt/quarto" \
+  "${FNAME}" \
+  "true"
 
-# Find extracted directory
+## Determine runtime location and create wrappers that point to the real executable
 INSTDIR=""
 extracted_dir=$(find /opt/quarto -maxdepth 1 -type d -name "quarto*" -print -quit || true)
+
+# Prefer extracted_dir/bin/quarto
 if [ -n "$extracted_dir" ] && [ -x "${extracted_dir}/bin/quarto" ]; then
   INSTDIR="$extracted_dir"
 fi
 
-if [ -z "${INSTDIR}" ] || [ ! -x "${INSTDIR}/bin/quarto" ]; then
+# If not found, accept a top-level binary or /opt/quarto/bin/quarto
+if [ -z "$INSTDIR" ]; then
+  if [ -x "/opt/quarto/quarto" ]; then
+    INSTDIR="/opt/quarto"
+  elif [ -x "/opt/quarto/bin/quarto" ]; then
+    INSTDIR="/opt/quarto"
+  else
+    # Try to find any quarto binary under /opt/quarto and derive INSTDIR
+    maybe_bin=$(find /opt/quarto -type f -name 'quarto' -print -quit || true)
+    if [ -n "$maybe_bin" ] && [ -f "$maybe_bin" ]; then
+      if [ -x "$maybe_bin" ]; then
+        # If it's under .../bin/quarto set INSTDIR to parent dir
+        parent_dir=$(dirname "$(dirname "$maybe_bin")")
+        INSTDIR="$parent_dir"
+      else
+        # make it executable and set INSTDIR to its parent dir
+        chmod +x "$maybe_bin" 2>/dev/null || true
+        parent_dir=$(dirname "$(dirname "$maybe_bin")")
+        INSTDIR="$parent_dir"
+      fi
+    fi
+  fi
+fi
+
+# Final verification: prefer ${INSTDIR}/bin/quarto, fallback to ${INSTDIR}/quarto
+if [ -n "$INSTDIR" ]; then
+  if [ -x "${INSTDIR}/bin/quarto" ]; then
+    QUARTO_EXE="${INSTDIR}/bin/quarto"
+  elif [ -x "${INSTDIR}/quarto" ]; then
+    QUARTO_EXE="${INSTDIR}/quarto"
+  else
+    QUARTO_EXE=""
+  fi
+fi
+
+if [ -z "$QUARTO_EXE" ] || [ ! -x "$QUARTO_EXE" ]; then
   echo "quarto-cli: installation failed - quarto binary not found" >&2
   exit 1
 fi
 
-echo "quarto-cli: found runtime at ${INSTDIR}"
+echo "quarto-cli: found runtime at ${INSTDIR} -> ${QUARTO_EXE}"
 
 # Create wrapper in /usr/local/bin
 mkdir -p /usr/local/bin
 cat > /usr/local/bin/quarto <<WRAPPER
 #!/bin/sh
-export PATH="${CONDA_DIR}/bin:${INSTDIR}/bin:\$PATH"
+export PATH="${CONDA_DIR}/bin:$(dirname "$QUARTO_EXE"):\$PATH"
 export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
-exec "${INSTDIR}/bin/quarto" "\$@"
+exec "$QUARTO_EXE" "\$@"
 WRAPPER
 chmod 0755 /usr/local/bin/quarto
 chown root:root /usr/local/bin/quarto
@@ -116,7 +156,7 @@ chown root:root /usr/local/bin/quarto
 # Add to system PATH via profile.d
 mkdir -p /etc/profile.d
 cat > /etc/profile.d/quarto.sh <<PROFILE
-export PATH="${CONDA_DIR}/bin:${INSTDIR}/bin:\$PATH"
+export PATH="${CONDA_DIR}/bin:$(dirname "$QUARTO_EXE"):\$PATH"
 export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
 PROFILE
 chmod 644 /etc/profile.d/quarto.sh
@@ -129,7 +169,7 @@ if [ -d "${HOME_DIR}" ]; then
 set -euo pipefail
 mkdir -p ~/.local/bin 2>/dev/null || true
 BASH
-  echo "ln -sf \"${INSTDIR}/bin/quarto\" ~/.local/bin/quarto || true" >> "${TMP_SCRIPT}"
+  echo "ln -sf \"$QUARTO_EXE\" ~/.local/bin/quarto || true" >> "${TMP_SCRIPT}"
   cat >> "${TMP_SCRIPT}" <<'BASH'
 if [ -f ~/.zshrc ]; then
   grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.zshrc 2>/dev/null || \

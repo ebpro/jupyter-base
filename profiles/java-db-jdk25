@@ -12,3 +12,6 @@ bundle-java-db
 java-jdk
 
 @options:JDK_VERSION=25
+
+# Services/Sidecars
+@services:postgres:version=16

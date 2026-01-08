@@ -12,5 +12,10 @@
   "postInstallCheck": {
     "command": "kotlinc -version",
     "description": "Verify Kotlin compiler is available"
+  },
+  "vscode": {
+    "extensions": [
+      "mathiasfrohlich.kotlin"
+    ]
   }
 }

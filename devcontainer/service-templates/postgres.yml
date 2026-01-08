@@ -1,0 +1,17 @@
+postgres:
+  image: postgres:${POSTGRES_VERSION:-16}-alpine
+  environment:
+    POSTGRES_USER: ${DB_USERNAME:-dba}
+    POSTGRES_PASSWORD: ${DB_PASSWORD:-secretsecret}
+    POSTGRES_DB: ${DB_NAME:-notebook-db}
+  volumes:
+    - postgres-data:/var/lib/postgresql/data
+  networks:
+    - notebooknet
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-dba}"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  ports:
+    - "5432:5432"

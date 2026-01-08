@@ -11,5 +11,10 @@
   "postInstallCheck": {
     "command": "kubectl version --client && helm version",
     "description": "Verify kubectl and helm are available"
+  },
+  "vscode": {
+    "extensions": [
+      "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
   }
 }

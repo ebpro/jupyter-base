@@ -8,5 +8,8 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "provides": ["code-server"],
   "postInstallCheck": {"command": "code-server --version"},
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "forwardPorts": [8080]
+  }
 }

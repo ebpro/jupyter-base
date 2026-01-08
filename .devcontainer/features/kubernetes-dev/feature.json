@@ -11,5 +11,10 @@
   "postInstallCheck": {
     "command": "k9s version",
     "description": "Verify k9s is available"
+  },
+  "vscode": {
+    "extensions": [
+      "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
   }
 }

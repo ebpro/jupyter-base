@@ -6,5 +6,10 @@
   "description": "Installs essential ML/Data Science Python packages (scikit-learn, matplotlib, seaborn, pandas)",
   "dependsOn": ["python-conda", "jupyter-base"],
   "provides": ["scikit-learn", "matplotlib", "seaborn", "pandas"],
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "ms-toolsai.vscode-ai"
+    ]
+  }
 }

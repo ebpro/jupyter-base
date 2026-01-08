@@ -1,0 +1,50 @@
+version: "3.8"
+
+# Template for MySQL service
+# Copy this to /compose/<your-profile>/ and customize as needed
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_NAME:-notebook-db}
+      MYSQL_USER: ${DB_USERNAME:-dba}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secretsecret}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - devnet
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootsecret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "3306:3306"
+
+  devcontainer:
+    image: ${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+    user: jovyan
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-dba}
+      DB_PASSWORD: ${DB_PASSWORD:-secretsecret}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-notebook-db}
+      DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-notebook-db}
+    volumes:
+      - ${PWD}:/home/jovyan/work/local
+    networks:
+      - devnet
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: sleep infinity
+
+volumes:
+  mysql-data:
+
+networks:
+  devnet:

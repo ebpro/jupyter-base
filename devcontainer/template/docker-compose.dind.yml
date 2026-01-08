@@ -1,0 +1,51 @@
+version: "3.8"
+
+# Template for Docker-in-Docker (dind) sidecar
+# Copy this to /compose/<your-profile>/ and customize as needed
+
+services:
+  docker:
+    image: docker:27-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - certs-ca:/certs/ca
+      - certs-client:/certs/client
+      - docker-data:/var/lib/docker
+    networks:
+      - devnet
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    tmpfs:
+      - /tmp
+
+  devcontainer:
+    image: ${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+    user: jovyan
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+    volumes:
+      - ${PWD}:/home/jovyan/work/local
+      - certs-client:/certs/client:ro
+    networks:
+      - devnet
+    depends_on:
+      docker:
+        condition: service_healthy
+    command: sleep infinity
+
+volumes:
+  certs-ca:
+  certs-client:
+  docker-data:
+
+networks:
+  devnet:

@@ -59,19 +59,36 @@ def generate(profile_spec: dict, out_dir: Path, prefix: str = "") -> list[str]:
         out_path = out_dir / name
         out_dir.mkdir(parents=True, exist_ok=True)
 
+        # Build feature list: base features + variant-specific features
+        all_features = features.copy()
+        if isinstance(opts, dict) and "features" in opts:
+            all_features.extend(opts["features"])
+
         with open(out_path, "w", encoding="utf-8") as f:
             if comment:
                 f.write(f"# {comment}\n\n")
             if parent:
                 f.write(f"@parent:{parent}\n\n")
-            # Emit feature lines if present
-            for feat in features:
+            # Emit feature lines
+            for feat in all_features:
                 f.write(f"{feat}\n")
-            if features:
+            if all_features:
                 f.write("\n")
-            opts_line = render_options(opts)
-            if opts_line:
-                f.write(f"@options: {opts_line}\n")
+
+            # Write @options lines
+            if isinstance(opts, dict) and "options" in opts:
+                options = opts["options"]
+                if options:
+                    opts_line = render_options(options)
+                    f.write(f"@options:{opts_line}\n")
+                    f.write("\n")
+
+            # Write @services lines
+            if isinstance(opts, dict) and "services" in opts:
+                services = opts["services"]
+                if services:
+                    for svc in services:
+                        f.write(f"@services:{svc}\n")
 
         created.append(str(out_path))
 
@@ -134,13 +151,36 @@ def main(argv: list[str] | None = None) -> int:
         top_opts = data.get("options", {}) if isinstance(data.get("options", {}), dict) else {}
         labels = data.get("matrix", {})
         for label, spec in labels.items():
-            label_opts = spec.get("options", {}) if isinstance(spec, dict) else {}
+            # Support both simple dict format and nested structure
+            if isinstance(spec, dict):
+                label_opts = spec.get("options", {})
+                label_features = spec.get("features", [])
+                label_services = spec.get("services", [])
+            else:
+                label_opts = {}
+                label_features = []
+                label_services = []
+
             # Merge top-level options with label-specific options (label wins)
             merged_opts = dict(top_opts)
             merged_opts.update(label_opts)
+
+            # Build variant spec with features and services
+            variant_spec = {
+                "options": merged_opts,
+                "features": label_features,
+                "services": label_services
+            }
+
             # Use the derived base as the profile base; generate() will append the label.
             profile_base = base if base else label
-            profile_spec = {"base": profile_base, "parent": parent, "comment": comment, "labels": {label: merged_opts}, "features": features}
+            profile_spec = {
+                "base": profile_base,
+                "parent": parent,
+                "comment": comment,
+                "labels": {label: variant_spec},
+                "features": features
+            }
             created = generate(profile_spec, out_dir, prefix=args.prefix)
             created_files.extend(created)
     else:

@@ -145,6 +145,25 @@ fh_ensure_user_dirs() {
 }
 
 export -f fh_ensure_user_dirs
+
+# Safely chown paths only when running as root
+fh_safe_chown() {
+  local uid=${1:-}
+  local gid=${2:-}
+  shift 2 || true
+  local paths=("$@")
+  if [ -z "$uid" ] || [ -z "$gid" ] || [ ${#paths[@]} -eq 0 ]; then
+    fh_log "fh_safe_chown requires: uid gid path..."
+    return 2
+  fi
+  if [ "$(id -u)" -eq 0 ]; then
+    chown -R "${uid}:${gid}" "${paths[@]}" >/dev/null 2>&1 || true
+  else
+    fh_log "Not running as root; skipping chown ${paths[*]}"
+  fi
+}
+
+export -f fh_safe_chown
 #!/usr/bin/env bash
 set -euo pipefail
 

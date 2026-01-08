@@ -25,5 +25,20 @@
   "postInstallCheck": {
     "command": "java -version && javac -version",
     "description": "Verify Java and compiler are available"
+  },
+  "vscode": {
+    "extensions": [
+      "vscjava.vscode-java-pack",
+      "vscjava.vscode-gradle",
+      "vscjava.vscode-maven"
+    ],
+    "settings": {
+      "java.configuration.runtimes": [
+        {
+          "name": "JavaSE-25",
+          "path": "/usr/local/sdkman/candidates/java/current"
+        }
+      ]
+    }
   }
 }

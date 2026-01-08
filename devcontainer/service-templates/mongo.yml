@@ -1,0 +1,17 @@
+mongo:
+  image: mongo:${MONGO_VERSION:-8.0}
+  environment:
+    MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME:-admin}
+    MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:-secretsecret}
+    MONGO_INITDB_DATABASE: ${DB_NAME:-notebook-db}
+  volumes:
+    - mongo-data:/data/db
+  networks:
+    - notebooknet
+  healthcheck:
+    test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  ports:
+    - "27017:27017"

@@ -10,5 +10,11 @@
     "command": "npx vite --version",
     "description": "Verify Vite is available"
   },
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "dsznajder.es7-react-js-snippets"
+    ],
+    "forwardPorts": [3000, 5173]
+  }
 }

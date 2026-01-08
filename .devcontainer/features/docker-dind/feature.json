@@ -21,5 +21,10 @@
   "postInstallCheck": {
     "command": "docker --version && docker-compose --version",
     "description": "Verify docker and docker-compose are available"
+  },
+  "vscode": {
+    "extensions": [
+      "ms-azuretools.vscode-docker"
+    ]
   }
 }

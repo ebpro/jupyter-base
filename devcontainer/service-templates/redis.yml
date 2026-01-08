@@ -1,0 +1,14 @@
+redis:
+  image: redis:${REDIS_VERSION:-7}-alpine
+  command: redis-server --appendonly yes
+  volumes:
+    - redis-data:/data
+  networks:
+    - notebooknet
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  ports:
+    - "6379:6379"

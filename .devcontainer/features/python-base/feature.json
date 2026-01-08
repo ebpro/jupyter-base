@@ -10,5 +10,14 @@
   "postInstallCheck": {
     "command": "python3 --version && pip3 --version",
     "description": "Verify python3 and pip3 are available"
+  },
+  "vscode": {
+    "extensions": [
+      "ms-python.python",
+      "ms-python.vscode-pylance"
+    ],
+    "settings": {
+      "python.defaultInterpreterPath": "/usr/bin/python3"
+    }
   }
 }

@@ -1,10 +1,18 @@
-# Purpose: Generate data-science profile variant
-# Data science with Conda, Jupyter, and kernels
+# Purpose: Generate data-science profile variants
+# Data science with Conda, Jupyter, kernels, and optional database
 
 features:
   - bundle-base-full
   - bundle-dev-base
   - bundle-data-science
+options:
+  INSTALL_NOTEBOOK_EXTENSIONS: true
 matrix:
   data-science:
     options: {}
+  python-db:
+    features:
+      - postgresql-client
+      - bundle-python-db
+    services:
+      - postgres:version=16

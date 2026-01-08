@@ -7,5 +7,10 @@
   "platforms": ["linux/amd64","linux/arm64"],
   "id": "git-lfs",
   "description": "Installs Git LFS and configures it for the dev user",
-  "options": {}
+  "options": {},
+  "vscode": {
+    "extensions": [
+      "eamodio.gitlens"
+    ]
+  }
 }

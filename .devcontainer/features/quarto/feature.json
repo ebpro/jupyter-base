@@ -10,5 +10,12 @@
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "vscode": {
+    "extensions": [
+      "quarto.quarto",
+      "yzhang.markdown-all-in-one",
+      "DavidAnson.vscode-markdownlint"
+    ]
   }
 }

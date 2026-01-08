@@ -20,5 +20,10 @@
   "postInstallCheck": {
     "command": "mvn --version",
     "description": "Verify Maven is available"
+  },
+  "vscode": {
+    "extensions": [
+      "vscjava.vscode-maven"
+    ]
   }
 }

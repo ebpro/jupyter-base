@@ -40,15 +40,49 @@ LOCAL_BIN="${HOME_DIR}/bin"
 
 mkdir -p "${LOCAL_BIN}"
 
-# Resolve version from Artefacts
+# Resolve version from Artefacts (check common mounted paths)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 resolve_version() {
   local tool="$1" v=""
+  read_tool_from_json() {
+    local file="$1" t="$2"
+    if [ ! -f "$file" ]; then echo ""; return 0; fi
+    if command -v jq >/dev/null 2>&1; then
+      jq -r --arg t "$t" '.tools[$t] // empty' "$file" 2>/dev/null || true
+      return 0
+    fi
+    grep -E "\"$t\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" "$file" 2>/dev/null | sed -E 's/.*:[[:space:]]*"(.*)".*/\1/' | head -n1 || true
+  }
+
+  # Check repository-mounted Artefacts
   if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
-  elif [ -f /tmp/versions.json ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+    v=$(read_tool_from_json "${PWD}/Artefacts/versions.json" "$tool")
+    [ -n "$v" ] && { echo "$v"; return 0; }
   fi
-  echo "$v"
+
+  # Check feature-scoped Artefacts
+  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
+    v=$(read_tool_from_json "${PWD}/Artefacts/features/${tool}/versions.json" "$tool")
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+
+  # Check script-relative Artefacts (when mounted into /tmp during build)
+  if [ -f "${SCRIPT_DIR}/../../Artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "${SCRIPT_DIR}/../../Artefacts/versions.json" "$tool")
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+
+  # Check /tmp/Artefacts and /tmp/versions.json (common build mounts)
+  if [ -f "/tmp/Artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "/tmp/Artefacts/versions.json" "$tool")
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  if [ -f "/tmp/versions.json" ]; then
+    v=$(read_tool_from_json "/tmp/versions.json" "$tool")
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+
+  echo ""
 }
 
 GH_VERSION=$(resolve_version "gh")
@@ -59,8 +93,18 @@ fi
 
 echo "📦 Installing GitHub CLI version: ${GH_VERSION}"
 
-# Use shared download helper
-download_github_release "cli/cli" "gh" "${GH_VERSION}" "${LOCAL_BIN}"
+# Resolve architecture using shared helper function if present
+if command -v _map_architecture >/dev/null 2>&1; then
+  ARCH=$(_map_architecture)
+else
+  ARCH=$(case "$(uname -m)" in x86_64|X86_64) echo "amd64" ;; aarch64|arm64) echo "arm64" ;; *) echo "amd64" ;; esac)
+fi
+
+# Build explicit filename to avoid placeholder substitution issues during build
+FILENAME="gh_${GH_VERSION}_linux_${ARCH}.tar.gz"
+
+# Use shared download helper with explicit filename
+download_github_release "cli/cli" "gh" "${GH_VERSION}" "${LOCAL_BIN}" "${FILENAME}"
 
 # Set ownership
 chown -R "${NB_UID}":"${NB_GID}" "${LOCAL_BIN}" 2>/dev/null || true

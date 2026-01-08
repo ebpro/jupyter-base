@@ -8,5 +8,11 @@
   "platforms": ["linux/amd64","linux/arm64"],
   "id": "gh-cli",
   "description": "Installs GitHub CLI into the dev user's bin using Artefacts/versions.json",
-  "options": {}
+  "options": {},
+  "vscode": {
+    "extensions": [
+      "github.vscode-pull-request-github",
+      "github.copilot"
+    ]
+  }
 }

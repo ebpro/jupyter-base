@@ -1,0 +1,45 @@
+{
+    "name": "Solen - <Profile Name>",
+    "dockerComposeFile": [
+        "docker-compose.dind.yml"
+    ],
+    "service": "devcontainer",
+    "workspaceFolder": "/home/jovyan/work/local",
+    "remoteUser": "jovyan",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                // Add profile-specific extensions here
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter",
+                "ms-azuretools.vscode-docker",
+                "github.vscode-pull-request-github",
+                "editorconfig.editorconfig"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "terminal.integrated.profiles.linux": {
+                    "zsh": {
+                        "path": "/bin/zsh",
+                        "args": [
+                            "-l"
+                        ]
+                    }
+                },
+                "python.defaultInterpreterPath": "/opt/conda/bin/python",
+                "files.watcherExclude": {
+                    "**/.git/objects/**": true,
+                    "**/node_modules/**": true,
+                    "**/.venv/**": true,
+                    "**/__pycache__/**": true
+                },
+                "editor.formatOnSave": true
+            }
+        }
+    },
+    "forwardPorts": [],
+    "postStartCommand": "echo 'Dev environment ready.'",
+    "features": {},
+    "remoteEnv": {}
+}

@@ -14,3 +14,9 @@ postgresql-client
 mysql-client
 mongodb-client
 redis-client
+
+# Services/Sidecars
+@services:postgres:version=16
+@services:mysql:version=8.0
+@services:mongo:version=8.0
+@services:redis:version=7

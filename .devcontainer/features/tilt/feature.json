@@ -8,5 +8,10 @@
   "dependsOn": ["_lib/download-release"],
   "provides": ["tilt"],
   "postInstallCheck": {"command": "tilt version"},
-  "platforms": ["linux/amd64","linux/arm64"]
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "tilt-dev.tiltfile"
+    ]
+  }
 }
