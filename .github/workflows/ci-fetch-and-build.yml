@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload SBOM
         if: env.IMAGE_REF != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom
           path: sbom.json
@@ -81,13 +81,13 @@ jobs:
 
       - name: Upload Trivy report
         if: env.IMAGE_REF != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy
           path: trivy.json
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifact
           path: build-artifact.json

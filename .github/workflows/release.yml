@@ -82,7 +82,7 @@ jobs:
           done < digests.csv
 
       - name: Upload digests artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: promoted-digests
           path: digests.csv
