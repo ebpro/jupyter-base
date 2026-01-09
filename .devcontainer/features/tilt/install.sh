@@ -43,7 +43,9 @@ esac
 
 # Build URL manually since Tilt uses non-standard naming
 if [ "$TILT_VER" = "latest" ]; then
-  URL="https://github.com/tilt-dev/tilt/releases/latest/download/tilt.latest.linux.${TILT_ARCH}.tar.gz"
+  # For latest, use the GitHub API to get the actual version tag first
+  LATEST_TAG=$(curl -sL https://api.github.com/repos/tilt-dev/tilt/releases/latest | jq -r '.tag_name // "v0.33.20"' | sed 's/^v//')
+  URL="https://github.com/tilt-dev/tilt/releases/download/v${LATEST_TAG}/tilt.${LATEST_TAG}.linux.${TILT_ARCH}.tar.gz"
 else
   URL="https://github.com/tilt-dev/tilt/releases/download/v${TILT_VER}/tilt.${TILT_VER}.linux.${TILT_ARCH}.tar.gz"
 fi

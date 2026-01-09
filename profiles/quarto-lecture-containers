@@ -16,9 +16,6 @@ bundle-quarto-full
 bundle-java-build
 java-jdk
 
-# Docker-in-Docker for container demonstrations
-docker-dind
-
 # Auto-start services
 startup
 
@@ -30,10 +27,8 @@ bundle-python-db
 java-kernel
 
 @options:JDK_VERSION=25
-@options:ENABLEBUILDKIT=true
-@options:STORAGEDRIVER=overlay2
 @options:INSTALL_NOTEBOOK_EXTENSIONS=true
 
-# Services/Sidecars
+# Services/Sidecars (un conteneur = un service)
 @services:dind
 @services:postgres:version=16

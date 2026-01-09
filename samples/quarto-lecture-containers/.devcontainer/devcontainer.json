@@ -14,7 +14,8 @@
                 "redhat.java",
                 "vscjava.vscode-java-debug",
                 "ms-azuretools.vscode-docker",
-                "GitHub.copilot"
+                "GitHub.copilot",
+                "eamodio.gitlens"
             ],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "zsh",
@@ -32,11 +33,18 @@
         }
     },
     "remoteUser": "jovyan",
-    "postCreateCommand": "echo 'unset DOCKER_HOST' >> ~/.zshrc && echo 'export DOCKER_HOST=tcp://dind:2375' >> ~/.zshrc && echo '✅ Dev container ready! Try: quarto render lecture.qmd' && quarto check",
+    "containerEnv": {
+        "DOCKER_HOST": "tcp://dind:2375",
+        "DOCKER_TLS_CERTDIR": "",
+        "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
+        "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new"
+    },
+    "postCreateCommand": "echo '✅ Dev container created'",
+    "postStartCommand": "echo '🔍 Git identity:'; git config --get user.name || echo '❌ user.name non défini'; git config --get user.email || echo '❌ user.email non défini'; quarto check || true",
     "forwardPorts": [
-        8888,
-        5432
+        8888
     ],
+    "shutdownAction": "stopCompose",
     "portsAttributes": {
         "8888": {
             "label": "Jupyter/Quarto Preview",
@@ -48,6 +56,8 @@
         }
     },
     "mounts": [
-        "source=${localWorkspaceFolder},target=/home/jovyan/work,type=bind,consistency=cached"
+        "source=${localWorkspaceFolder},target=/home/jovyan/work,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/jovyan/.gitconfig,type=bind,readonly",
+        "source=${env:SSH_AUTH_SOCK},target=/tmp/ssh-agent.sock,type=bind"
     ]
 }

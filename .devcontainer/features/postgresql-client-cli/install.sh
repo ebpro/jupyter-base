@@ -8,10 +8,13 @@ echo "===================================================================="
 # Install pgcli via pip
 echo "📦 Installing pgcli (enhanced PostgreSQL CLI)..."
 
-if command -v pip3 >/dev/null 2>&1; then
-    pip3 install --no-cache-dir pgcli
+# Prefer conda pip if available (avoids PEP 668 externally-managed-environment)
+if [ -n "${CONDA_DIR:-}" ] && [ -f "${CONDA_DIR}/bin/pip" ]; then
+    "${CONDA_DIR}/bin/pip" install --no-cache-dir pgcli
+elif command -v pip3 >/dev/null 2>&1; then
+    pip3 install --no-cache-dir --break-system-packages pgcli
 elif command -v pip >/dev/null 2>&1; then
-    pip install --no-cache-dir pgcli
+    pip install --no-cache-dir --break-system-packages pgcli
 else
     echo "⚠️  Python/pip not available, falling back to apt"
     export DEBIAN_FRONTEND=noninteractive
