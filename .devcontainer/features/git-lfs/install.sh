@@ -31,7 +31,8 @@ if ! command -v git-lfs >/dev/null 2>&1; then
   GIT_LFS_VERSION="3.4.1"
   if command -v download_github_release >/dev/null 2>&1; then
     echo "git-lfs: installing ${GIT_LFS_VERSION} via download_github_release helper"
-    download_github_release "git-lfs/git-lfs" "git-lfs" "${GIT_LFS_VERSION}" || true
+    # git-lfs release naming: git-lfs-linux-amd64-v3.4.1.tar.gz
+    download_github_release "git-lfs/git-lfs" "git-lfs" "${GIT_LFS_VERSION}" "/usr/local/bin" "git-lfs-linux-{arch}-v{version}.tar.gz" || true
   else
     if command -v apt_install >/dev/null 2>&1; then
       apt_install git-lfs || true
