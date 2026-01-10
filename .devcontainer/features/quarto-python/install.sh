@@ -33,13 +33,34 @@ else
 set -euo pipefail
 source "$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
 export PATH="$HOME/miniforge3/bin:$PATH"
-python3 -m pip install --upgrade --user pip setuptools wheel --no-cache-dir || true
-python3 -m pip install --upgrade --user ipykernel notebook PyYAML --no-cache-dir || true
+python3 -m pip install --upgrade --user pip setuptools wheel || true
+python3 -m pip install --upgrade --user ipykernel notebook PyYAML || true
 BASH
     chmod +x "${TMP_SCRIPT}"
     su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
     rm -f "${TMP_SCRIPT}"
   fi
+fi
+
+# Install jupyter-cache, nbgitpuller, ipython-sql and common SQL drivers
+echo "quarto-python: ensuring jupyter-cache, nbgitpuller, ipython-sql and SQL drivers are available"
+if [ -x "${HOME_DIR}/miniforge3/bin/mamba" ]; then
+  "${HOME_DIR}/miniforge3/bin/mamba" install -y -n base -c conda-forge \
+    jupyter-cache nbgitpuller ipython-sql sqlalchemy psycopg2 mysqlclient || true
+elif [ -x "${HOME_DIR}/miniforge3/bin/conda" ]; then
+  "${HOME_DIR}/miniforge3/bin/conda" install -y -n base -c conda-forge \
+    jupyter-cache nbgitpuller ipython-sql sqlalchemy psycopg2 mysqlclient || true
+else
+  TMP_SCRIPT="/tmp/quarto-extra-install-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install --upgrade --user pip setuptools wheel || true
+python3 -m pip install --user jupyter-cache nbgitpuller ipython-sql sqlalchemy psycopg2-binary mysqlclient || true
+BASH
+  chmod +x "${TMP_SCRIPT}"
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+  rm -f "${TMP_SCRIPT}"
 fi
 
 # Register kernel for Quarto
