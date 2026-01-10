@@ -27,12 +27,19 @@ HOME_DIR="/home/${NB_USER}"
 echo "git-lfs: installing git-lfs"
 
 if ! command -v git-lfs >/dev/null 2>&1; then
-  if command -v apt_install >/dev/null 2>&1; then
-    apt_install git-lfs || true
+  # Prefer release binary install (works under qemu/emulation). Fall back to apt if helper missing.
+  GIT_LFS_VERSION="3.4.1"
+  if command -v download_github_release >/dev/null 2>&1; then
+    echo "git-lfs: installing ${GIT_LFS_VERSION} via download_github_release helper"
+    download_github_release "git-lfs/git-lfs" "git-lfs" "${GIT_LFS_VERSION}" || true
   else
-    apt-get update && apt-get install -y --no-install-recommends git-lfs || true
+    if command -v apt_install >/dev/null 2>&1; then
+      apt_install git-lfs || true
+    else
+      apt-get update && apt-get install -y --no-install-recommends git-lfs || true
+    fi
+    rm -rf /var/lib/apt/lists/* || true
   fi
-  rm -rf /var/lib/apt/lists/* || true
 fi
 
 # Ensure git-lfs is initialized for the user
