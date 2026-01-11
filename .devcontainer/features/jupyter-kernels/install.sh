@@ -55,9 +55,9 @@ install_pkg_if_missing() {
     else
       # fallback to pip using conda python if available; if not, run pip as the notebook user
       if [ -x "${CONDA_DIR}/bin/python" ]; then
-        "${CONDA_DIR}/bin/python" -m pip install --no-cache-dir "$install_name" || true
+        "${CONDA_DIR}/bin/python" -m pip install "$install_name" || true
       else
-        su - ${NB_USER:-jovyan} -s /bin/bash -c "python3 -m pip install --no-cache-dir '$install_name'" || true
+        su - ${NB_USER:-jovyan} -s /bin/bash -c "python3 -m pip install '$install_name'" || true
       fi
     fi
 
@@ -65,9 +65,9 @@ install_pkg_if_missing() {
     if ! "$py" -c "import importlib; print(importlib.util.find_spec('$pkg') is not None)" 2>/dev/null | grep -q True; then
       echo "jupyter-kernels: package $install_name not available after conda install; trying pip fallback"
       if [ -x "${CONDA_DIR}/bin/python" ]; then
-        "${CONDA_DIR}/bin/python" -m pip install --no-cache-dir "$install_name" || true
+        "${CONDA_DIR}/bin/python" -m pip install "$install_name" || true
       else
-        su - ${NB_USER:-jovyan} -s /bin/bash -c "python3 -m pip install --no-cache-dir '$install_name'" || true
+        su - ${NB_USER:-jovyan} -s /bin/bash -c "python3 -m pip install '$install_name'" || true
       fi
       # ensure caches and local dirs are owned by the notebook user after pip fallback
       chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.cache" "${HOME_DIR}/.local" "${HOME_DIR}/.ipython" >/dev/null 2>&1 || true

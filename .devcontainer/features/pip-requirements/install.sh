@@ -39,14 +39,15 @@ if [ -f /tmp/requirements.txt ]; then
 set -euo pipefail
 source "$HOME/miniforge3/etc/profile.d/conda.sh" >/dev/null 2>&1 || true
 export PATH="$HOME/miniforge3/bin:$PATH"
-python3 -m pip install --no-cache-dir -r /tmp/requirements.txt || true
+python3 -m pip install -r /tmp/requirements.txt || true
 BASH
     chmod +x "${TMP_SCRIPT}" || true
     su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
     rm -f "${TMP_SCRIPT}" || true
   else
-    pip install --no-cache-dir -r /tmp/requirements.txt || true
-    # if pip ran as root, ensure user caches and ipython dir are owned by the notebook user
+    # Run pip with HOME set to the notebook user's home so cache is written there
+    HOME="${HOME_DIR}" python3 -m pip install -r /tmp/requirements.txt || true
+    # ensure user caches and ipython dir are owned by the notebook user
     chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" "${HOME_DIR}/.local" "${HOME_DIR}/.ipython" >/dev/null 2>&1 || true
   fi
 else

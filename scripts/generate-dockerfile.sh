@@ -202,6 +202,14 @@ RUN mkdir -p /opt/.features /scripts && \\
     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
 EOF
 
+# If a prebaked toolcache exists in the repo, copy it into the image
+# so generated builds can reuse local artefacts instead of downloading.
+if [ -d "$ROOT/Artefacts/toolcache" ]; then
+  echo "# Inject prebaked toolcache from repository" >> "$OUT"
+  echo "COPY Artefacts/toolcache /opt/toolcache" >> "$OUT"
+  echo "RUN chmod -R a+rX /opt/toolcache || true" >> "$OUT"
+fi
+
 # --- Argument Parsing ---
 PROFILE=""
 ALL=false

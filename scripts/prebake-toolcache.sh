@@ -11,7 +11,8 @@ VERSIONS_FILE="${VERSIONS_FILE:-$ROOT_DIR/Artefacts/versions.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/opt/toolcache}"
 
 # Default tools to prebake (can be overridden via --tools)
-DEFAULT_TOOLS="gh,kubectl,helm,k9s,kustomize,quarto,tilt,gitstatus"
+DEFAULT_TOOLS="gh,kubectl,helm,k9s,kustomize,quarto,tilt,gitstatus,miniforge,node"
+DEFAULT_ARCHS="amd64,arm64"
 
 usage() {
   cat <<EOF
@@ -21,6 +22,7 @@ Prebake toolcache by downloading common tools specified in versions.json
 
 Options:
   --tools TOOLS       Comma-separated list of tools to prebake (default: ${DEFAULT_TOOLS})
+  --archs ARCHS       Comma-separated list of architectures (default: ${DEFAULT_ARCHS})
   --output DIR        Output directory for toolcache (default: ${OUTPUT_DIR})
   --versions FILE     Path to versions.json (default: ${VERSIONS_FILE})
   --help              Show this help message
@@ -45,10 +47,15 @@ EOF
 
 # Parse arguments
 TOOLS="${DEFAULT_TOOLS}"
+ARCHS="${DEFAULT_ARCHS}"
 while [[ $# -gt 0 ]]; do
   case $1 in
     --tools)
       TOOLS="$2"
+      shift 2
+      ;;
+    --archs)
+      ARCHS="$2"
       shift 2
       ;;
     --output)
@@ -70,12 +77,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "===================================================================="
-echo "Prebaking Toolcache"
+echo "Prebaking Toolcache (Multi-Arch)"
 echo "===================================================================="
 echo "Versions file: ${VERSIONS_FILE}"
 echo "Output directory: ${OUTPUT_DIR}"
+echo "Architectures: ${ARCHS}"
 echo "Tools: ${TOOLS}"
-echo "===================================================================="
+echo "====================================================================="
 
 # Verify versions.json exists
 if [ ! -f "${VERSIONS_FILE}" ]; then
@@ -92,9 +100,9 @@ fi
 # Create output directory
 mkdir -p "${OUTPUT_DIR}"
 
-# Architecture detection
+# Architecture detection and mapping
 map_arch() {
-  local arch="$(uname -m)"
+  local arch="$1"
   case "$arch" in
     x86_64|X86_64|amd64) echo "amd64" ;;
     aarch64|arm64) echo "arm64" ;;
@@ -102,124 +110,173 @@ map_arch() {
   esac
 }
 
-ARCH=$(map_arch)
-echo "Architecture: ${ARCH}"
+HOST_ARCH=$(map_arch "$(uname -m)")
+echo "Host architecture: ${HOST_ARCH}"
+echo "Target architectures: ${ARCHS}"
 echo ""
 
 # Tool-specific download functions
 download_gh() {
   local version="$1"
-  local url="https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_${ARCH}.tar.gz"
-  echo "📦 Downloading gh ${version}..."
-  local tmpdir="${OUTPUT_DIR}/gh/${version}"
+  local arch="$2"
+  local url="https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_${arch}.tar.gz"
+  echo "📦 Downloading gh ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/gh/${version}/${arch}"
   mkdir -p "${tmpdir}"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}" --strip-components=1
-  echo "   ✅ gh ${version} cached"
+  echo "   ✅ gh ${version} (${arch}) cached"
 }
 
 download_kubectl() {
   local version="$1"
-  local url="https://dl.k8s.io/release/v${version}/bin/linux/${ARCH}/kubectl"
-  echo "📦 Downloading kubectl ${version}..."
-  local tmpdir="${OUTPUT_DIR}/kubectl/${version}"
+  local arch="$2"
+  local url="https://dl.k8s.io/release/v${version}/bin/linux/${arch}/kubectl"
+  echo "📦 Downloading kubectl ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/kubectl/${version}/${arch}"
   mkdir -p "${tmpdir}/bin"
   curl -fsSL "${url}" -o "${tmpdir}/bin/kubectl"
   chmod +x "${tmpdir}/bin/kubectl"
-  echo "   ✅ kubectl ${version} cached"
+  echo "   ✅ kubectl ${version} (${arch}) cached"
 }
 
 download_helm() {
   local version="$1"
-  local url="https://get.helm.sh/helm-v${version}-linux-${ARCH}.tar.gz"
-  echo "📦 Downloading helm ${version}..."
-  local tmpdir="${OUTPUT_DIR}/helm/${version}"
+  local arch="$2"
+  local url="https://get.helm.sh/helm-v${version}-linux-${arch}.tar.gz"
+  echo "📦 Downloading helm ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/helm/${version}/${arch}"
   mkdir -p "${tmpdir}"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}" --strip-components=1
-  echo "   ✅ helm ${version} cached"
+  echo "   ✅ helm ${version} (${arch}) cached"
 }
 
 download_k9s() {
   local version="$1"
-  # k9s uses different arch naming
-  local k9s_arch="${ARCH}"
-  [ "${ARCH}" = "amd64" ] && k9s_arch="amd64"
-  [ "${ARCH}" = "arm64" ] && k9s_arch="arm64"
-  local url="https://github.com/derailed/k9s/releases/download/v${version}/k9s_Linux_${k9s_arch}.tar.gz"
-  echo "📦 Downloading k9s ${version}..."
-  local tmpdir="${OUTPUT_DIR}/k9s/${version}"
+  local arch="$2"
+  # k9s uses same arch naming
+  local url="https://github.com/derailed/k9s/releases/download/v${version}/k9s_Linux_${arch}.tar.gz"
+  echo "📦 Downloading k9s ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/k9s/${version}/${arch}"
   mkdir -p "${tmpdir}/bin"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}/bin" k9s
   chmod +x "${tmpdir}/bin/k9s"
-  echo "   ✅ k9s ${version} cached"
+  echo "   ✅ k9s ${version} (${arch}) cached"
 }
 
 download_kustomize() {
   local version="$1"
-  # kustomize uses different arch naming
-  local kust_arch="${ARCH}"
-  [ "${ARCH}" = "amd64" ] && kust_arch="amd64"
-  [ "${ARCH}" = "arm64" ] && kust_arch="arm64"
-  local url="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${version}/kustomize_v${version}_linux_${kust_arch}.tar.gz"
-  echo "📦 Downloading kustomize ${version}..."
-  local tmpdir="${OUTPUT_DIR}/kustomize/${version}"
+  local arch="$2"
+  # kustomize uses same arch naming
+  local url="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${version}/kustomize_v${version}_linux_${arch}.tar.gz"
+  echo "📦 Downloading kustomize ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/kustomize/${version}/${arch}"
   mkdir -p "${tmpdir}/bin"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}/bin"
   chmod +x "${tmpdir}/bin/kustomize"
-  echo "   ✅ kustomize ${version} cached"
+  echo "   ✅ kustomize ${version} (${arch}) cached"
 }
 
 download_quarto() {
   local version="$1"
-  # Quarto uses different arch naming
-  local quarto_arch="${ARCH}"
-  [ "${ARCH}" = "amd64" ] && quarto_arch="amd64"
-  [ "${ARCH}" = "arm64" ] && quarto_arch="arm64"
-  local url="https://github.com/quarto-dev/quarto-cli/releases/download/v${version}/quarto-${version}-linux-${quarto_arch}.tar.gz"
-  echo "📦 Downloading quarto ${version}..."
-  local tmpdir="${OUTPUT_DIR}/quarto/${version}"
+  local arch="$2"
+  # Quarto uses same arch naming
+  local url="https://github.com/quarto-dev/quarto-cli/releases/download/v${version}/quarto-${version}-linux-${arch}.tar.gz"
+  echo "📦 Downloading quarto ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/quarto/${version}/${arch}"
   mkdir -p "${tmpdir}"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}" --strip-components=1
-  echo "   ✅ quarto ${version} cached"
+  echo "   ✅ quarto ${version} (${arch}) cached"
 }
 
 download_tilt() {
   local version="$1"
-  local url="https://github.com/tilt-dev/tilt/releases/download/v${version}/tilt.${version}.linux.${ARCH}.tar.gz"
-  echo "📦 Downloading tilt ${version}..."
-  local tmpdir="${OUTPUT_DIR}/tilt/${version}"
+  local arch="$2"
+  echo "📦 Downloading tilt ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/tilt/${version}/${arch}"
   mkdir -p "${tmpdir}/bin"
-  curl -fsSL "${url}" | tar -xz -C "${tmpdir}/bin"
-  chmod +x "${tmpdir}/bin/tilt"
-  echo "   ✅ tilt ${version} cached"
+
+  # Try multiple common asset name patterns for different arch namings
+  local tried=0
+  local arch_candidates=("${arch}" "arm64" "aarch64" "x86_64" "amd64")
+  for a in "${arch_candidates[@]}"; do
+    local url="https://github.com/tilt-dev/tilt/releases/download/v${version}/tilt.${version}.linux.${a}.tar.gz"
+    tried=$((tried + 1))
+    if curl -fsSL "${url}" | tar -xz -C "${tmpdir}/bin" 2>/dev/null; then
+      # Make sure the tilt binary is executable and located at tmpdir/bin/tilt
+      if [ -f "${tmpdir}/bin/tilt" ]; then
+        chmod +x "${tmpdir}/bin/tilt"
+      else
+        # Some archives may contain a directory; try to find the binary
+        found=$(find "${tmpdir}/bin" -type f -name 'tilt' -print -quit || true)
+        if [ -n "${found}" ]; then
+          mv "$found" "${tmpdir}/bin/tilt" || true
+          chmod +x "${tmpdir}/bin/tilt" || true
+        fi
+      fi
+      echo "   ✅ tilt ${version} (${arch}) cached (using arch=${a})"
+      return 0
+    fi
+  done
+
+  echo "   ❌ tilt ${version} (${arch}) could not be downloaded with tried arch patterns (${arch_candidates[*]})" >&2
+  return 1
+}
+
+download_miniforge() {
+  local version="$1"
+  local arch="$2"
+  echo "📦 Downloading Miniforge ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/miniforge/${version}/${arch}"
+  mkdir -p "${tmpdir}"
+  # Map arch to Miniforge asset naming (e.g. Miniforge3-Linux-x86_64.sh)
+  local osname="Linux"
+  local arch_alias
+  case "${arch}" in
+    amd64) arch_alias="x86_64" ;;
+    arm64) arch_alias="aarch64" ;;
+    *) arch_alias="${arch}" ;;
+  esac
+  local installer_name="Miniforge3-${osname}-${arch_alias}.sh"
+  local url
+  if [ "${version}" = "latest" ]; then
+    url="https://github.com/conda-forge/miniforge/releases/latest/download/${installer_name}"
+  else
+    url="https://github.com/conda-forge/miniforge/releases/download/${version}/${installer_name}"
+  fi
+  curl -fsSL "${url}" -o "${tmpdir}/${installer_name}"
+  chmod +x "${tmpdir}/${installer_name}"
+  echo "   ✅ Miniforge ${version} (${arch}) cached -> ${tmpdir}/${installer_name}"
 }
 
 download_gitstatus() {
   local version="$1"
+  local arch="$2"
   # gitstatus uses different arch naming
-  local gs_arch="${ARCH}"
-  [ "${ARCH}" = "amd64" ] && gs_arch="x86_64"
-  [ "${ARCH}" = "arm64" ] && gs_arch="aarch64"
+  local gs_arch="${arch}"
+  [ "${arch}" = "amd64" ] && gs_arch="x86_64"
+  [ "${arch}" = "arm64" ] && gs_arch="aarch64"
   local url="https://github.com/romkatv/gitstatus/releases/download/v${version}/gitstatusd-linux-${gs_arch}.tar.gz"
-  echo "📦 Downloading gitstatus ${version}..."
-  local tmpdir="${OUTPUT_DIR}/gitstatus/${version}"
+  echo "📦 Downloading gitstatus ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/gitstatus/${version}/${arch}"
   mkdir -p "${tmpdir}/bin"
   curl -fsSL "${url}" | tar -xz -C "${tmpdir}/bin"
   chmod +x "${tmpdir}/bin/gitstatusd"
-  echo "   ✅ gitstatus ${version} cached"
+  echo "   ✅ gitstatus ${version} (${arch}) cached"
 }
 
 download_node() {
   local version="$1"
+  local arch="$2"
   # Node.js uses different arch naming
-  local node_arch="${ARCH}"
-  [ "${ARCH}" = "amd64" ] && node_arch="x64"
-  [ "${ARCH}" = "arm64" ] && node_arch="arm64"
+  local node_arch="${arch}"
+  [ "${arch}" = "amd64" ] && node_arch="x64"
+  [ "${arch}" = "arm64" ] && node_arch="arm64"
   local url="https://nodejs.org/dist/v${version}/node-v${version}-linux-${node_arch}.tar.xz"
-  echo "📦 Downloading node ${version}..."
-  local tmpdir="${OUTPUT_DIR}/node/${version}"
+  echo "📦 Downloading node ${version} (${arch})..."
+  local tmpdir="${OUTPUT_DIR}/node/${version}/${arch}"
   mkdir -p "${tmpdir}"
   curl -fsSL "${url}" | tar -xJ -C "${tmpdir}" --strip-components=1
-  echo "   ✅ node ${version} cached"
+  echo "   ✅ node ${version} (${arch}) cached"
 }
 
 # Process each tool
@@ -232,29 +289,29 @@ FAILED=0
 for tool in "${TOOL_ARRAY[@]}"; do
   tool=$(echo "$tool" | xargs)  # trim whitespace
   CURRENT=$((CURRENT + 1))
-  
+
   echo ""
   echo "[${CURRENT}/${TOTAL}] Processing: ${tool}"
   echo "--------------------------------------------------------------------"
-  
+
   # Get version from versions.json
   version=$(jq -r ".tools[\"${tool}\"] // empty" "${VERSIONS_FILE}" 2>/dev/null || true)
-  
+
   if [ -z "$version" ] || [ "$version" = "null" ]; then
     echo "⚠️  Warning: Version not found in versions.json for ${tool}, skipping"
     FAILED=$((FAILED + 1))
     continue
   fi
-  
+
   echo "Version: ${version}"
-  
+
   # Check if already cached
   if [ -d "${OUTPUT_DIR}/${tool}/${version}" ]; then
     echo "✓ Already cached, skipping download"
     SUCCEEDED=$((SUCCEEDED + 1))
     continue
   fi
-  
+
   # Download based on tool type
   case "$tool" in
     gh)
@@ -277,6 +334,9 @@ for tool in "${TOOL_ARRAY[@]}"; do
       ;;
     tilt)
       download_tilt "$version" && SUCCEEDED=$((SUCCEEDED + 1)) || FAILED=$((FAILED + 1))
+      ;;
+    miniforge)
+      download_miniforge "$version" && SUCCEEDED=$((SUCCEEDED + 1)) || FAILED=$((FAILED + 1))
       ;;
     gitstatus)
       download_gitstatus "$version" && SUCCEEDED=$((SUCCEEDED + 1)) || FAILED=$((FAILED + 1))

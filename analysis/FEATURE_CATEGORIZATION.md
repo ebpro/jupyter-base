@@ -165,31 +165,31 @@ You can enhance your analyzer to automatically categorize:
 ```python
 def categorize_feature_type(self, feature_name: str) -> str:
     """Categorize feature by installation type."""
-    
+
     # Define patterns
     isolated_patterns = {
-        'java-sdkman', 'java-jdk', 'java-gradle', 'java-maven', 
+        'java-sdkman', 'java-jdk', 'java-gradle', 'java-maven',
         'java-devtools', 'graalvm', 'kotlin', 'node', 'texlive',
         'quarto-cli', 'quarto-chromium', 'gh-cli', 'git-lfs',
         'jetbrains-gateway', 'tilt'
     }
-    
+
     python_packages = {
         'python-conda', 'python-base', 'pip-requirements',
         'jupyter-base', 'jupyter-kernels', 'ml-python-packages',
         'quarto-python', 'python-lsp'
     }
-    
+
     apt_packages = {
         'base-apt', 'dev-tools', 'mysql-client', 'mongodb-client',
         'postgresql-client', 'redis-client', 'kubernetes-client'
     }
-    
+
     config_features = {
         'user', 'zsh-config', 'prompt-helpers', 'startup',
         'code-server', 'codeserver-extensions'
     }
-    
+
     if feature_name in isolated_patterns:
         return 'DIRECTORY_ISOLATED'
     elif feature_name in python_packages or feature_name in apt_packages:

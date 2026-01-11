@@ -1,9 +1,7 @@
 work
 local
 # Generated artifacts
-Dockerfile.generated
-docker-bake.generated.hcl
-devcontainer.generated.json
+*.generated.*
 
 # Ignore packed artefacts and tool caches (these are large binaries; keep checksums only)
 /Artefacts/**/toolcache/

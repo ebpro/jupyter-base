@@ -5,13 +5,42 @@ echo "===================================================================="
 echo "Feature: MySQL Enhanced CLI (mycli)"
 echo "===================================================================="
 
-# Install mycli via pip
+# Ensure notebook user variables
+NB_USER=${NB_USER:-jovyan}
+NB_UID=${NB_UID:-1001}
+NB_GID=${NB_GID:-1001}
+HOME_DIR="/home/${NB_USER}"
+
+# Ensure pip cache owned by notebook user to avoid warnings
+mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
+chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
+
 echo "📦 Installing mycli (enhanced MySQL/MariaDB CLI)..."
 
-if command -v pip3 >/dev/null 2>&1; then
-    pip3 install --no-cache-dir mycli
+# Prefer conda pip when available, otherwise install as the notebook user so cache is used
+if [ -n "${CONDA_DIR:-}" ] && [ -f "${CONDA_DIR}/bin/pip" ]; then
+    "${CONDA_DIR}/bin/pip" install mycli || true
+elif command -v pip3 >/dev/null 2>&1; then
+    # Run pip as NB_USER to use user's pip cache
+    TMP_SCRIPT="/tmp/install-mycli-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install mycli || true
+BASH
+    chmod +x "${TMP_SCRIPT}"
+    su - ${NB_USER:-jovyan} -s /bin/bash -c "${TMP_SCRIPT}" || true
+    rm -f "${TMP_SCRIPT}"
 elif command -v pip >/dev/null 2>&1; then
-    pip install --no-cache-dir mycli
+    TMP_SCRIPT="/tmp/install-mycli-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python -m pip install mycli || true
+BASH
+    chmod +x "${TMP_SCRIPT}"
+    su - ${NB_USER:-jovyan} -s /bin/bash -c "${TMP_SCRIPT}" || true
+    rm -f "${TMP_SCRIPT}"
 else
     echo "⚠️  Python/pip not available. mycli requires Python."
     echo "Please install python-base feature first."

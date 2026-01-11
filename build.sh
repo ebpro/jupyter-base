@@ -11,6 +11,9 @@ NC='\033[0m' # No Color
 DRY_RUN=false
 QUIET=false
 PROGRESS=plain
+PREBAKE=false
+FORCE_PREBAKE=false
+IGNORE_PREBAKE_ERRORS=false
 
 # Git version detection functions
 get_git_tag() {
@@ -250,6 +253,9 @@ Options:
     --all-architectures  Build images for multiple architectures (uses ARCHS env or default amd64,arm64)
     --load              Attempt to load multi-platform images locally (may not work with all platforms)
     --profile <name>    Generate a Dockerfile from profile and build it
+    --prebake           Run prebake toolcache before generation/build (optional)
+    --force-prebake     Force prebake even if Artefacts/toolcache exists
+    --ignore-prebake-errors  Continue build even if prebake fails
     --generate-only     Only generate Dockerfile/devcontainer and exit
     --dry-run           Print the build command but do not execute it
     --quiet             Disable colored output
@@ -292,6 +298,9 @@ while [[ $# -gt 0 ]]; do
         --all-architectures) ALL_ARCHS=true; shift ;;
         --profile) PROFILE="$2"; shift 2 ;;
         --generate-only) GENERATE_ONLY=true; shift ;;
+        --prebake) PREBAKE=true; shift ;;
+        --force-prebake) FORCE_PREBAKE=true; shift ;;
+        --ignore-prebake-errors) IGNORE_PREBAKE_ERRORS=true; shift ;;
         --all-profiles) ALL_PROFILES=true; shift ;;
         --list-profiles) LIST_PROFILES=true; shift ;;
         *) break ;;
@@ -350,6 +359,24 @@ log_info "Generating matrix profiles and devcontainers"
 # First generate matrix profiles from YAML definitions
 bash "${PWD}/scripts/generate-all-matrix-profiles.sh" || true
 # Then generate Dockerfile for all profiles
+# Optionally run prebake to populate Artefacts/toolcache for faster builds
+if [ "${PREBAKE}" = true ] || [ "${PREBAKE:-0}" = "1" ] || [ "${PREBAKE}" = "true" ]; then
+    TB_DIR="${PWD}/Artefacts/toolcache"
+    if [ -d "${TB_DIR}" ] && [ "${FORCE_PREBAKE}" != true ]; then
+        log_info "Prebake: found existing Artefacts/toolcache, skipping (use --force-prebake to override)"
+    else
+        log_info "Prebake: running prebake to populate Artefacts/toolcache"
+        if ! bash "${PWD}/scripts/prebake-toolcache.sh" --output "${PWD}/Artefacts/toolcache"; then
+            if [ "${IGNORE_PREBAKE_ERRORS}" = true ]; then
+                log_warn "Prebake failed but continuing due to --ignore-prebake-errors"
+            else
+                log_error "Prebake failed; aborting build (use --ignore-prebake-errors to continue)"
+                exit 1
+            fi
+        fi
+    fi
+fi
+
 log_info "Generating Dockerfile for all profiles (default)"
 bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
 # Generate devcontainer for single profile if requested
@@ -517,7 +544,15 @@ if [ "${DRY_RUN}" = true ]; then
     printf '%s ' "${BUILDX_CMD[@]}"
     echo
 else
-    "${BUILDX_CMD[@]}"
+    # Run buildx and filter any Docker Desktop dashboard URLs from output
+    # (some buildx instances print "View build details: docker-desktop://..." which
+    # is confusing for users running Colima or other builders). We rewrite those
+    # links in the live output to a neutral placeholder while preserving exit code.
+    "${BUILDX_CMD[@]}" 2>&1 | sed -E 's#docker-desktop://[^[:space:]]*#builder-dashboard://<omitted>#g'
+    rc=${PIPESTATUS[0]:-1}
+    if [ "$rc" -ne 0 ]; then
+        exit $rc
+    fi
 fi
 
 # Attempt to determine the resulting image digest for CI/promotion workflows.

@@ -34,6 +34,16 @@ Common tasks
 - Build and push multi-arch images (CI or with registry credentials):
   - `./build.sh --all --push`
 
+Prebake toolcache (optional)
+------------------------------
+- You can pre-download common large tools into `Artefacts/toolcache` to speed local builds and avoid network downloads during image builds.
+- To run prebake as part of the build, use the new flags on `build.sh`:
+  - `./build.sh --prebake --profile quarto-lecture-full` will run `./scripts/prebake-toolcache.sh --output Artefacts/toolcache` before generating Dockerfiles.
+  - Use `--force-prebake` to re-run prebake even if `Artefacts/toolcache` already exists.
+  - Use `--ignore-prebake-errors` to continue the build even when prebake fails.
+
+Note: prebake is opt-in to avoid surprising CI runs; it is recommended for local development when you want repeatable, fast builds.
+
 Tagging and artifacts
 ---------------------
 - Built images produce `build-artifact.json` and `image-digest.txt` in the workspace. CI consumes `build-artifact.json` as the single source of truth for SBOMs, vulnerability scans, and promotion by digest.

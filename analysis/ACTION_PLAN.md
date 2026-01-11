@@ -45,7 +45,7 @@ layers:
       - zsh-config
       - startup
     cache_forever: true
-    
+
   # Core toolchains, moderate stability
   foundation:
     priority: 2
@@ -55,7 +55,7 @@ layers:
       - node
     depends_on: [base]
     cache_for: "30 days"
-    
+
   # Higher-level stacks, built on demand
   python-dev:
     priority: 3
@@ -63,7 +63,7 @@ layers:
       - jupyter-base
       - python-lsp
     depends_on: [foundation]
-    
+
   java-dev:
     priority: 3
     features:
@@ -77,7 +77,7 @@ profile_mapping:
   quarto-lecture-containers:
     layers: [base, foundation, python-dev, java-dev]
     specific: [quarto-cli, docker-dind, java-kernel, texlive]
-    
+
   python-db:
     layers: [base, foundation, python-dev]
     specific: [postgresql-client]
@@ -145,7 +145,7 @@ Target: ~80 GB (50% reduction)
 
 ### Risk 1: Layer Coupling
 **Problem:** Changing one layer forces rebuilds of dependent layers
-**Mitigation:** 
+**Mitigation:**
 - Keep base/foundation stable
 - Version layers semantically
 - Use feature flags for experiments

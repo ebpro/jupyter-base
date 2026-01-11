@@ -22,7 +22,8 @@ fi
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
 NB_GID=${NB_GID:-1001}
-CONDA_DIR=${CONDA_DIR:-/opt/miniforge3}
+HOME_DIR=${HOME_DIR:-/home/${NB_USER}}
+CONDA_DIR=${CONDA_DIR:-${HOME_DIR}/miniforge3}
 
 echo "jupyter-base: installing core Jupyter packages into conda base"
 
@@ -45,7 +46,7 @@ elif [ -x "${CONDA_DIR}/bin/conda" ]; then
     ipython || true
 else
   echo "jupyter-base: no conda/mamba found, trying pip"
-  "${CONDA_DIR}/bin/python" -m pip install --no-cache-dir \
+  "${CONDA_DIR}/bin/python" -m pip install \
     jupyter \
     jupyterlab \
     ipykernel \

@@ -1,0 +1,13 @@
+---
+title: Notebooks de démonstration
+subtitle: "Démontrer les fonctionnalités des devcontainers avec Quarto"
+description: "Collection de notebooks Quarto démontrant l'usage des devcontainers avec des exemples pratiques."
+
+metadata-files:
+  - _quarto-utils/index-listing.yml
+
+listing: true
+
+
+jupyter: java
+---

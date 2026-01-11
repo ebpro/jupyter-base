@@ -10,11 +10,39 @@ echo "📦 Installing pgcli (enhanced PostgreSQL CLI)..."
 
 # Prefer conda pip if available (avoids PEP 668 externally-managed-environment)
 if [ -n "${CONDA_DIR:-}" ] && [ -f "${CONDA_DIR}/bin/pip" ]; then
-    "${CONDA_DIR}/bin/pip" install --no-cache-dir pgcli
+    "${CONDA_DIR}/bin/pip" install pgcli || true
 elif command -v pip3 >/dev/null 2>&1; then
-    pip3 install --no-cache-dir --break-system-packages pgcli
+    NB_USER=${NB_USER:-jovyan}
+    NB_UID=${NB_UID:-1001}
+    NB_GID=${NB_GID:-1001}
+    HOME_DIR="/home/${NB_USER}"
+    mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
+    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
+    TMP_SCRIPT="/tmp/install-pgcli-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install --break-system-packages pgcli || true
+BASH
+    chmod +x "${TMP_SCRIPT}"
+    su - ${NB_USER:-jovyan} -s /bin/bash -c "${TMP_SCRIPT}" || true
+    rm -f "${TMP_SCRIPT}"
 elif command -v pip >/dev/null 2>&1; then
-    pip install --no-cache-dir --break-system-packages pgcli
+    NB_USER=${NB_USER:-jovyan}
+    NB_UID=${NB_UID:-1001}
+    NB_GID=${NB_GID:-1001}
+    HOME_DIR="/home/${NB_USER}"
+    mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
+    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
+    TMP_SCRIPT="/tmp/install-pgcli-${NB_USER}.sh"
+    cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python -m pip install --break-system-packages pgcli || true
+BASH
+    chmod +x "${TMP_SCRIPT}"
+    su - ${NB_USER:-jovyan} -s /bin/bash -c "${TMP_SCRIPT}" || true
+    rm -f "${TMP_SCRIPT}"
 else
     echo "⚠️  Python/pip not available, falling back to apt"
     export DEBIAN_FRONTEND=noninteractive
@@ -78,7 +106,16 @@ chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.config" 2>/dev/null || tr
 # Verify installation
 echo ""
 echo "✅ Verifying pgcli installation..."
-pgcli --version
+# Source conda to get pgcli in PATH, or check if it exists in conda bin
+if [ -f "${HOME_DIR}/miniforge3/etc/profile.d/conda.sh" ]; then
+  source "${HOME_DIR}/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
+  conda activate base 2>/dev/null || true
+fi
+if command -v pgcli >/dev/null 2>&1; then
+  pgcli --version
+else
+  echo "pgcli installed but not yet in PATH (will be available after sourcing conda)"
+fi
 
 echo ""
 echo "✅ pgcli installed successfully!"

@@ -1,0 +1,1228 @@
+# Generated Dockerfile
+ARG VARIANT="ubuntu-24.04"
+FROM mcr.microsoft.com/devcontainers/base:${VARIANT} AS base
+LABEL org.solen.vendor="Solen"
+ARG NB_USER=jovyan
+ARG NB_UID=1001
+ARG NB_GID=1001
+ENV HOME=/home/jovyan
+WORKDIR /home/jovyan
+
+COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY Artefacts /opt/solen/Artefacts
+ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts
+RUN mkdir -p /opt/.features /scripts && \
+    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
+# Inject prebaked toolcache from repository
+COPY Artefacts/toolcache /opt/toolcache
+RUN chmod -R a+rX /opt/toolcache || true
+
+# --- Profile: codeserver ---
+FROM base AS profile-codeserver
+LABEL org.solen.profile="codeserver" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper prompt-helpers gh-cli node pip-requirements dev-tools python-lsp code-server codeserver-extensions" \
+      org.solen.features.provides="code-server,download_direct,download_github_release,gh,git-lfs,node,npm,pip,python3"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/code-server,target=/tmp/features/code-server,readonly \
+  --mount=type=bind,source=.devcontainer/features/codeserver-extensions,target=/tmp/features/codeserver-extensions,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "python-lsp" "code-server" "codeserver-extensions" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-codeserver AS final-codeserver
+
+# --- Profile: containers-tools ---
+FROM base AS profile-containers-tools
+LABEL org.solen.profile="containers-tools" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper podman prompt-helpers gh-cli node pip-requirements dev-tools python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,node,npm,pip,podman,python3"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/podman,target=/tmp/features/podman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "podman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-containers-tools AS final-containers-tools
+
+# --- Profile: data-science ---
+FROM base AS profile-data-science
+LABEL org.solen.profile="data-science" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda prompt-helpers gh-cli node pip-requirements dev-tools jupyter-base python-lsp jupyter-kernels" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,node,npm,pip,python3"
+ENV INSTALL_NOTEBOOK_EXTENSIONS="True"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "jupyter-base" "python-lsp" "jupyter-kernels" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-data-science AS final-data-science
+
+# --- Profile: db-multi ---
+FROM base AS profile-db-multi
+LABEL org.solen.profile="db-multi" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda prompt-helpers gh-cli node pip-requirements dev-tools postgresql-client mysql-client mongodb-client redis-client jupyter-base python-lsp jupyter-kernels" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,mongodump,mongoexport,mongoimport,mongorestore,mongosh,mycli,mysql,mysqladmin,mysqlcheck,mysqldump,node,npm,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3,redis-cli"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/mysql-client,target=/tmp/features/mysql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/mongodb-client,target=/tmp/features/mongodb-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/redis-client,target=/tmp/features/redis-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "postgresql-client" "mysql-client" "mongodb-client" "redis-client" "jupyter-base" "python-lsp" "jupyter-kernels" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-db-multi AS final-db-multi
+
+# --- Profile: dev ---
+FROM base AS profile-dev
+LABEL org.solen.profile="dev" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper prompt-helpers gh-cli node pip-requirements dev-tools python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,node,npm,pip,python3"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-dev AS final-dev
+
+# --- Profile: full ---
+FROM base AS profile-full
+LABEL org.solen.profile="full" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common java-sdkman podman jetbrains-gateway prompt-helpers gh-cli node kubernetes-client tilt pip-requirements dev-tools texlive jupyter-base quarto-cli java-maven java-gradle java-jdk python-lsp code-server kubernetes-dev jupyter-kernels quarto-python codeserver-extensions" \
+      org.solen.features.provides="code-server,download_direct,download_github_release,gh,git-lfs,gradle,helm,java,javac,jupyter,jupyterlab,k9s,kubectl,kustomize,maven,mvn,node,npm,pip,podman,python3,quarto-cli,quarto-python,sdkman,tilt"
+ENV JDK_VERSION="25"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/podman,target=/tmp/features/podman,readonly \
+  --mount=type=bind,source=.devcontainer/features/jetbrains-gateway,target=/tmp/features/jetbrains-gateway,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/tilt,target=/tmp/features/tilt,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/texlive,target=/tmp/features/texlive,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/code-server,target=/tmp/features/code-server,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=.devcontainer/features/codeserver-extensions,target=/tmp/features/codeserver-extensions,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "podman" "jetbrains-gateway" "prompt-helpers" "gh-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "dev-tools" "texlive" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "code-server" "kubernetes-dev" "jupyter-kernels" "quarto-python" "codeserver-extensions" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-full AS final-full
+
+# --- Profile: java-8 ---
+FROM base AS profile-java-8
+LABEL org.solen.profile="java-8" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV JDK_VERSION="8"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-8 AS final-java-8
+
+# --- Profile: java-21 ---
+FROM base AS profile-java-21
+LABEL org.solen.profile="java-21" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV JDK_VERSION="21"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-21 AS final-java-21
+
+# --- Profile: java-25 ---
+FROM base AS profile-java-25
+LABEL org.solen.profile="java-25" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV JDK_VERSION="25"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-25 AS final-java-25
+
+# --- Profile: java-db-jdk25 ---
+FROM base AS profile-java-db-jdk25
+LABEL org.solen.profile="java-db-jdk25" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools postgresql-client java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3,sdkman"
+ENV JDK_VERSION="25"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "postgresql-client" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-db-jdk25 AS final-java-db-jdk25
+
+# --- Profile: java-ea ---
+FROM base AS profile-java-ea
+LABEL org.solen.profile="java-ea" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV JDK_VERSION="ea"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-ea AS final-java-ea
+
+# --- Profile: java-graal ---
+FROM base AS profile-java-graal
+LABEL org.solen.profile="java-graal" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle graalvm python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,graalvm,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV GRAALVM_VERSION="22.3.1"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/graalvm,target=/tmp/features/graalvm,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "graalvm" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-graal AS final-java-graal
+
+# --- Profile: java-latest ---
+FROM base AS profile-java-latest
+LABEL org.solen.profile="java-latest" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle java-jdk python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,maven,mvn,node,npm,pip,python3,sdkman"
+ENV JDK_VERSION="latest"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "java-jdk" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-latest AS final-java-latest
+
+# --- Profile: java-sdk ---
+FROM base AS profile-java-sdk
+LABEL org.solen.profile="java-sdk" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,maven,mvn,node,npm,pip,python3,sdkman"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-java-sdk AS final-java-sdk
+
+# --- Profile: jetbrains-gateway ---
+FROM base AS profile-jetbrains-gateway
+LABEL org.solen.profile="jetbrains-gateway" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper jetbrains-gateway prompt-helpers gh-cli node pip-requirements dev-tools python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,node,npm,pip,python3"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/jetbrains-gateway,target=/tmp/features/jetbrains-gateway,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "jetbrains-gateway" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-jetbrains-gateway AS final-jetbrains-gateway
+
+# --- Profile: k8s-dev ---
+FROM base AS profile-k8s-dev
+LABEL org.solen.profile="k8s-dev" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper prompt-helpers gh-cli node kubernetes-client tilt pip-requirements dev-tools python-lsp kubernetes-dev" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,helm,k9s,kubectl,kustomize,node,npm,pip,python3,tilt"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/tilt,target=/tmp/features/tilt,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "prompt-helpers" "gh-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "dev-tools" "python-lsp" "kubernetes-dev" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-k8s-dev AS final-k8s-dev
+
+# --- Profile: k8s-sim ---
+FROM base AS profile-k8s-sim
+LABEL org.solen.profile="k8s-sim" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper podman prompt-helpers gh-cli node kubernetes-client tilt pip-requirements dev-tools python-lsp kubernetes-dev" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,helm,k9s,kubectl,kustomize,node,npm,pip,podman,python3,tilt"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/podman,target=/tmp/features/podman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/tilt,target=/tmp/features/tilt,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "podman" "prompt-helpers" "gh-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "dev-tools" "python-lsp" "kubernetes-dev" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-k8s-sim AS final-k8s-sim
+
+# --- Profile: kotlin ---
+FROM base AS profile-kotlin
+LABEL org.solen.profile="kotlin" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools java-maven java-gradle kotlin python-lsp" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,maven,mvn,node,npm,pip,python3,sdkman"
+ENV INSTALL_KOTLIN="true"
+ENV INSTALL_KOTLIN_KERNEL="true"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/kotlin,target=/tmp/features/kotlin,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "java-maven" "java-gradle" "kotlin" "python-lsp" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-kotlin AS final-kotlin
+
+# --- Profile: minimal ---
+FROM base AS profile-minimal
+LABEL org.solen.profile="minimal" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper prompt-helpers gh-cli dev-tools" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,pip,python3"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "prompt-helpers" "gh-cli" "dev-tools" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-minimal AS final-minimal
+
+# --- Profile: ml-teaching ---
+FROM base AS profile-ml-teaching
+LABEL org.solen.profile="ml-teaching" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda prompt-helpers gh-cli node pip-requirements dev-tools jupyter-base python-lsp jupyter-kernels ml-python-packages" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,matplotlib,node,npm,pandas,pip,python3,scikit-learn,seaborn"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/ml-python-packages,target=/tmp/features/ml-python-packages,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "jupyter-base" "python-lsp" "jupyter-kernels" "ml-python-packages" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-ml-teaching AS final-ml-teaching
+
+# --- Profile: python-db ---
+FROM base AS profile-python-db
+LABEL org.solen.profile="python-db" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda prompt-helpers gh-cli node pip-requirements dev-tools postgresql-client jupyter-base python-lsp jupyter-kernels" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,node,npm,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3"
+ENV INSTALL_NOTEBOOK_EXTENSIONS="true"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "postgresql-client" "jupyter-base" "python-lsp" "jupyter-kernels" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-python-db AS final-python-db
+
+# --- Profile: quarto-lecture ---
+FROM base AS profile-quarto-lecture
+LABEL org.solen.profile="quarto-lecture" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common prompt-helpers gh-cli node pip-requirements dev-tools jupyter-base quarto-cli python-lsp jupyter-kernels quarto-python" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,node,npm,pip,python3,quarto-cli,quarto-python"
+ENV INSTALL_NOTEBOOK_EXTENSIONS="True"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "jupyter-base" "quarto-cli" "python-lsp" "jupyter-kernels" "quarto-python" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture AS final-quarto-lecture
+
+# --- Profile: quarto-lecture-containers ---
+FROM base AS profile-quarto-lecture-containers
+LABEL org.solen.profile="quarto-lecture-containers" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools texlive postgresql-client jupyter-base quarto-cli java-maven java-gradle java-jdk python-lsp jupyter-kernels quarto-python java-kernel" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,jupyter,jupyterlab,maven,mvn,node,npm,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3,quarto-cli,quarto-python,sdkman"
+ENV JDK_VERSION="25"
+ENV INSTALL_NOTEBOOK_EXTENSIONS="true"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/texlive,target=/tmp/features/texlive,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-kernel,target=/tmp/features/java-kernel,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "texlive" "postgresql-client" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "jupyter-kernels" "quarto-python" "java-kernel" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture-containers AS final-quarto-lecture-containers
+
+# --- Profile: quarto-lecture-db ---
+FROM base AS profile-quarto-lecture-db
+LABEL org.solen.profile="quarto-lecture-db" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common prompt-helpers gh-cli node pip-requirements dev-tools postgresql-client jupyter-base quarto-cli python-lsp jupyter-kernels quarto-python" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,jupyter,jupyterlab,node,npm,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3,quarto-cli,quarto-python"
+ENV INSTALL_NOTEBOOK_EXTENSIONS="true"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "postgresql-client" "jupyter-base" "quarto-cli" "python-lsp" "jupyter-kernels" "quarto-python" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture-db AS final-quarto-lecture-db
+
+# --- Profile: quarto-lecture-full ---
+FROM base AS profile-quarto-lecture-full
+LABEL org.solen.profile="quarto-lecture-full" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common java-sdkman prompt-helpers gh-cli node kubernetes-client tilt pip-requirements dev-tools texlive postgresql-client jupyter-base quarto-cli java-maven java-gradle java-jdk python-lsp typescript kubernetes-dev postgresql-client-cli jupyter-kernels ml-python-packages quarto-python quarto-chromium react-tools java-kernel" \
+      org.solen.features.provides="create-next-app,create-react-app,download_direct,download_github_release,gh,git-lfs,gradle,helm,java,javac,jupyter,jupyterlab,k9s,kubectl,kustomize,matplotlib,maven,mvn,node,npm,pandas,pg_dump,pg_isready,pg_restore,pgcli,pip,psql,python3,quarto-chromium,quarto-cli,quarto-python,scikit-learn,sdkman,seaborn,tilt,tsc,tsserver,vite"
+ENV JDK_VERSION="25"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/tilt,target=/tmp/features/tilt,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/texlive,target=/tmp/features/texlive,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/typescript,target=/tmp/features/typescript,readonly \
+  --mount=type=bind,source=.devcontainer/features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly \
+  --mount=type=bind,source=.devcontainer/features/postgresql-client-cli,target=/tmp/features/postgresql-client-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/ml-python-packages,target=/tmp/features/ml-python-packages,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-chromium,target=/tmp/features/quarto-chromium,readonly \
+  --mount=type=bind,source=.devcontainer/features/react-tools,target=/tmp/features/react-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-kernel,target=/tmp/features/java-kernel,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "prompt-helpers" "gh-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "dev-tools" "texlive" "postgresql-client" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "typescript" "kubernetes-dev" "postgresql-client-cli" "jupyter-kernels" "ml-python-packages" "quarto-python" "quarto-chromium" "react-tools" "java-kernel" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture-full AS final-quarto-lecture-full
+
+# --- Profile: quarto-lecture-java-25 ---
+FROM base AS profile-quarto-lecture-java-25
+LABEL org.solen.profile="quarto-lecture-java-25" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools jupyter-base quarto-cli java-jdk java-maven java-gradle python-lsp jupyter-kernels quarto-python java-kernel" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,jupyter,jupyterlab,maven,mvn,node,npm,pip,python3,quarto-cli,quarto-python,sdkman"
+ENV KERNEL_VERSION="v1.4.5"
+ENV ARTIFACTS_BASE_URL="https://github.com/ebpro/IJava/releases"
+ENV JDK_VERSION="25"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-kernel,target=/tmp/features/java-kernel,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "jupyter-base" "quarto-cli" "java-jdk" "java-maven" "java-gradle" "python-lsp" "jupyter-kernels" "quarto-python" "java-kernel" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture-java-25 AS final-quarto-lecture-java-25
+
+# --- Profile: quarto-lecture-java-ea ---
+FROM base AS profile-quarto-lecture-java-ea
+LABEL org.solen.profile="quarto-lecture-java-ea" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper python-conda quarto-common java-sdkman prompt-helpers gh-cli node pip-requirements dev-tools jupyter-base quarto-cli java-jdk java-maven java-gradle python-lsp jupyter-kernels quarto-python java-kernel" \
+      org.solen.features.provides="download_direct,download_github_release,gh,git-lfs,gradle,java,javac,jupyter,jupyterlab,maven,mvn,node,npm,pip,python3,quarto-cli,quarto-python,sdkman"
+ENV KERNEL_VERSION="v1.4.5"
+ENV ARTIFACTS_BASE_URL="https://github.com/ebpro/IJava/releases"
+ENV JDK_VERSION="ea"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  --mount=type=bind,source=.devcontainer/features/java-kernel,target=/tmp/features/java-kernel,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "jupyter-base" "quarto-cli" "java-jdk" "java-maven" "java-gradle" "python-lsp" "jupyter-kernels" "quarto-python" "java-kernel" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-quarto-lecture-java-ea AS final-quarto-lecture-java-ea
+
+# --- Profile: web-dev ---
+FROM base AS profile-web-dev
+LABEL org.solen.profile="web-dev" \
+      org.solen.features.added="user _lib/download-release git-lfs python-base _lib/checksum-verify _lib/toolcache base-apt zsh-config startup docker-cli-helper prompt-helpers gh-cli node pip-requirements dev-tools python-lsp typescript react-tools" \
+      org.solen.features.provides="create-next-app,create-react-app,download_direct,download_github_release,gh,git-lfs,node,npm,pip,python3,tsc,tsserver,vite"
+RUN \
+  --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly \
+  --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly \
+  --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly \
+  --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly \
+  --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly \
+  --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly \
+  --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  --mount=type=bind,source=.devcontainer/features/typescript,target=/tmp/features/typescript,readonly \
+  --mount=type=bind,source=.devcontainer/features/react-tools,target=/tmp/features/react-tools,readonly \
+  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "prompt-helpers" "gh-cli" "node" "pip-requirements" "dev-tools" "python-lsp" "typescript" "react-tools" ); for f in "${feats[@]}"; do \
+    if [ -d "/tmp/features/$f" ]; then \
+      chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+      [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+    fi; \
+  done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+FROM profile-web-dev AS final-web-dev

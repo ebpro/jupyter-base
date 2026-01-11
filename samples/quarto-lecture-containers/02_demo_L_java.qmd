@@ -1,0 +1,440 @@
+---
+title: "Java"
+subtitle: "Java Notebook Demo"
+description: "Démonstration complète d'exécution de code Java dans un notebook : types de base, structures de contrôle, et programmation orientée objet."
+jupyter: java
+image: _quarto-utils/MyMedia/images/optimized/taiki-ishikawa-PUXFKuVf_84-unsplash_java-400.webp
+
+content_type: Lecture
+tech_tags:
+  - Java
+  - OOP
+course_codes:
+  - PO43
+  - I111
+provide_notes: true
+provide_slides: true
+---
+
+::: {.content-visible when-profile="notes"}
+## Introduction
+
+Ce document présente Java dans un environnement notebook interactif (IJava). Il couvre les fondamentaux du langage : types primitifs, structures de contrôle, tableaux, méthodes, et principes de programmation orientée objet avec des exemples concrets et exécutables.
+
+### Contexte
+
+Le noyau IJava permet d'exécuter du code Java de manière interactive dans Jupyter, offrant un environnement idéal pour l'apprentissage et l'expérimentation. Contrairement aux scripts Java traditionnels nécessitant une classe `main`, le notebook permet d'exécuter des instructions individuelles et de voir immédiatement les résultats.
+
+### Pré-requis
+
+- **Java JDK** installé (version 11+ recommandée)
+- **Noyau IJava** pour Jupyter
+- Environnement devcontainer ou installation locale compatible
+
+### Premier programme
+
+Le traditionnel "Hello World" :
+
+```{java}
+//| echo: true
+//| output: true
+System.out.println("Hello World !");
+```
+
+Cette instruction utilise :
+- `System.out` : flux de sortie standard
+- `println()` : méthode pour afficher une ligne avec retour à la ligne automatique
+- Les chaînes de caractères sont délimitées par des guillemets doubles `""`
+
+### Types primitifs et calculs
+
+Java est un langage fortement typé. Voici quelques types de base :
+
+```{java}
+//| echo: true
+//| output: true
+// Types numériques
+int entier = 42;
+double decimal = 3.14159;
+boolean vrai = true;
+char lettre = 'A';
+
+System.out.println("Entier: " + entier);
+System.out.println("Décimal: " + decimal);
+System.out.println("Boolean: " + vrai);
+System.out.println("Caractère: " + lettre);
+```
+
+Opérations arithmétiques :
+
+```{java}
+//| echo: true
+//| output: true
+int a = 10;
+int b = 3;
+System.out.println("Addition: " + (a + b));
+System.out.println("Soustraction: " + (a - b));
+System.out.println("Multiplication: " + (a * b));
+System.out.println("Division entière: " + (a / b));
+System.out.println("Modulo: " + (a % b));
+```
+
+### Structures de contrôle
+
+**Conditions** :
+
+```{java}
+//| echo: true
+//| output: true
+int age = 20;
+if (age >= 18) {
+  System.out.println("Majeur");
+} else {
+  System.out.println("Mineur");
+}
+```
+
+**Boucle for** :
+
+```{java}
+//| echo: true
+//| output: true
+System.out.println("Comptage de 1 à 5:");
+for (int i = 1; i <= 5; i++) {
+  System.out.println("  " + i);
+}
+```
+
+**Boucle while** :
+
+```{java}
+//| echo: true
+//| output: true
+int compteur = 0;
+while (compteur < 3) {
+  System.out.println("Tour " + compteur);
+  compteur++;
+}
+```
+
+### Tableaux
+
+Déclaration et manipulation de tableaux :
+
+```{java}
+//| echo: true
+//| output: true
+// Déclaration et initialisation
+int[] nombres = {10, 20, 30, 40, 50};
+
+// Accès aux éléments
+System.out.println("Premier élément: " + nombres[0]);
+System.out.println("Dernier élément: " + nombres[nombres.length - 1]);
+
+// Parcours avec boucle
+System.out.println("Tous les éléments:");
+for (int n : nombres) {
+  System.out.println("  " + n);
+}
+```
+
+### Méthodes
+
+Définition et appel de méthodes :
+
+```{java}
+//| echo: true
+//| output: true
+// Définition d'une méthode
+int additionner(int x, int y) {
+  return x + y;
+}
+
+String saluer(String nom) {
+  return "Bonjour, " + nom + " !";
+}
+
+// Utilisation
+System.out.println(additionner(5, 7));
+System.out.println(saluer("Alice"));
+```
+
+### Programmation orientée objet
+
+Java est un langage orienté objet. Créons une classe complète :
+
+```{java}
+//| echo: true
+//| output: true
+class Person {
+  // Attributs (champs)
+  private String name;
+  private int age;
+
+  // Constructeur
+  public Person(String name, int age) {
+    this.name = name;
+    this.age = age;
+  }
+
+  // Méthodes (comportements)
+  public void greet() {
+    System.out.println("Bonjour, je suis " + name + ", " + age + " ans.");
+  }
+
+  public boolean isAdult() {
+    return age >= 18;
+  }
+
+  // Getters
+  public String getName() { return name; }
+  public int getAge() { return age; }
+}
+
+// Utilisation
+Person alice = new Person("Alice", 29);
+Person bob = new Person("Bob", 16);
+
+alice.greet();
+bob.greet();
+System.out.println(alice.getName() + " est majeur: " + alice.isAdult());
+System.out.println(bob.getName() + " est majeur: " + bob.isAdult());
+```
+
+**Exemple avec héritage** :
+
+```{java}
+//| echo: true
+//| output: true
+class Animal {
+  protected String nom;
+
+  public Animal(String nom) {
+    this.nom = nom;
+  }
+
+  public void faireDuBruit() {
+    System.out.println(nom + " fait du bruit");
+  }
+}
+
+class Chien extends Animal {
+  public Chien(String nom) {
+    super(nom);
+  }
+
+  @Override
+  public void faireDuBruit() {
+    System.out.println(nom + " aboie: Ouaf ouaf !");
+  }
+}
+
+class Chat extends Animal {
+  public Chat(String nom) {
+    super(nom);
+  }
+
+  @Override
+  public void faireDuBruit() {
+    System.out.println(nom + " miaule: Miaou !");
+  }
+}
+
+// Polymorphisme
+Animal[] animaux = {
+  new Chien("Rex"),
+  new Chat("Félix"),
+  new Chien("Max")
+};
+
+for (Animal a : animaux) {
+  a.faireDuBruit();
+}
+```
+
+### Concepts clés illustrés
+
+- **Encapsulation** : attributs privés (`private`), accès via méthodes publiques
+- **Constructeur** : initialise l'objet lors de sa création
+- **Méthodes** : définissent le comportement des objets
+- **Héritage** : `extends` pour créer une classe dérivée
+- **Polymorphisme** : `@Override` pour redéfinir les méthodes, traitement uniforme via la classe parente
+- **Typage statique** : les types sont vérifiés à la compilation
+
+### Bonnes pratiques
+
+- **Nommage** : CamelCase pour les classes (`Person`), camelCase pour les méthodes et variables (`getName`)
+- **Encapsulation** : marquer les champs `private` et fournir des getters/setters publics
+- **Immutabilité** : privilégier `final` pour les constantes
+- **Documentation** : commenter le code avec des JavaDoc pour les APIs publiques
+- **Convention** : une classe par fichier, nom du fichier = nom de la classe
+
+### Dans un notebook
+
+- Les notebooks Java supportent la définition de classes puis leur utilisation dans la même session
+- Pas besoin de classe `main` : les instructions sont exécutées directement
+- Idéal pour l'apprentissage et le prototypage rapide
+- Pour la production, compiler en `.class` ou packager en `.jar`
+
+## Conclusion
+
+Cette démonstration couvre les bases de Java :
+
+- Types primitifs et opérateurs
+- Structures de contrôle (if, for, while)
+- Tableaux et méthodes
+- Programmation orientée objet (classes, héritage, polymorphisme)
+
+Pour aller plus loin : interfaces, classes abstraites, collections (`ArrayList`, `HashMap`), gestion des exceptions, streams et lambda expressions (Java 8+).
+:::
+
+::: {.content-visible when-profile="slides"}
+## Java — Introduction
+
+- **Environnement** : noyau IJava pour Jupyter
+- **Avantages** : exécution interactive, feedback immédiat
+- **Pré-requis** : JDK 11+
+
+## Hello World
+
+```java
+System.out.println("Hello World !");
+```
+
+💡 `System.out.println()` — sortie standard avec retour ligne
+
+## Types primitifs
+
+```java
+int entier = 42;
+double decimal = 3.14159;
+boolean vrai = true;
+char lettre = 'A';
+```
+
+- **Types numériques** : `int`, `long`, `double`, `float`
+- **Autres** : `boolean`, `char`
+- **Typage statique** : déclaration obligatoire
+
+## Opérateurs
+
+```java
+int a = 10, b = 3;
+a + b   // 13
+a - b   // 7
+a * b   // 30
+a / b   // 3 (division entière)
+a % b   // 1 (modulo)
+```
+
+## Structures de contrôle
+
+**If / Else** :
+
+```java
+if (age >= 18) {
+  System.out.println("Majeur");
+} else {
+  System.out.println("Mineur");
+}
+```
+
+**Boucles** :
+
+```java
+for (int i = 0; i < 5; i++) { ... }
+while (condition) { ... }
+```
+
+## Tableaux
+
+```java
+int[] nombres = {10, 20, 30, 40, 50};
+nombres[0]          // premier élément
+nombres.length      // taille
+
+for (int n : nombres) {
+  System.out.println(n);
+}
+```
+
+## Méthodes
+
+```java
+int additionner(int x, int y) {
+  return x + y;
+}
+
+String saluer(String nom) {
+  return "Bonjour, " + nom;
+}
+```
+
+- **Signature** : type de retour + nom + paramètres
+- **Réutilisation** : DRY (Don't Repeat Yourself)
+
+## POO — Classes
+
+```java
+class Person {
+  private String name;
+  private int age;
+
+  public Person(String name, int age) {
+    this.name = name;
+    this.age = age;
+  }
+
+  public void greet() {
+    System.out.println("Bonjour, " + name);
+  }
+}
+
+Person p = new Person("Alice", 29);
+p.greet();
+```
+
+## POO — Concepts clés
+
+- **Encapsulation** : `private` + getters/setters
+- **Constructeur** : initialise l'objet
+- **Héritage** : `extends` pour réutiliser du code
+- **Polymorphisme** : `@Override` pour redéfinir
+
+## POO — Héritage
+
+```java
+class Animal {
+  void faireDuBruit() { ... }
+}
+
+class Chien extends Animal {
+  @Override
+  void faireDuBruit() {
+    System.out.println("Ouaf !");
+  }
+}
+```
+
+✅ Réutilisation + spécialisation
+
+## Récapitulatif
+
+✅ **Fondamentaux**
+
+- Types, opérateurs, contrôle
+- Tableaux et méthodes
+
+✅ **POO**
+
+- Classes, objets
+- Encapsulation, héritage, polymorphisme
+
+📚 **Pour aller plus loin**
+
+- Interfaces et classes abstraites
+- Collections (`ArrayList`, `HashMap`)
+- Exceptions, streams, lambdas
+:::
+
+<!-- End of file -->

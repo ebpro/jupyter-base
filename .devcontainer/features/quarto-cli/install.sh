@@ -184,4 +184,22 @@ BASH
   [ -d "${HOME_DIR}/.local" ] && chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.local" || true
 fi
 
+# Ensure jupyter-cache available for users invoking Quarto CLI (idempotent)
+echo "quarto-cli: ensuring jupyter-cache is available"
+if [ -x "${CONDA_DIR}/bin/mamba" ]; then
+  "${CONDA_DIR}/bin/mamba" install -y -n base -c conda-forge jupyter-cache || true
+elif [ -x "${CONDA_DIR}/bin/conda" ]; then
+  "${CONDA_DIR}/bin/conda" install -y -n base -c conda-forge jupyter-cache || true
+else
+  TMP_SCRIPT="/tmp/quarto-cli-jcache-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install --user jupyter-cache || true
+BASH
+  chmod +x "${TMP_SCRIPT}"
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+  rm -f "${TMP_SCRIPT}"
+fi
+
 echo "quarto-cli: installation complete"

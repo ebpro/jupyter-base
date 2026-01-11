@@ -23,7 +23,7 @@ python3 scripts/analyze-profile-features.py --threshold-universal 0.75 --thresho
 - **Universal Layers (7 features):** Used by 80%+ of profiles
   - `base`: 4 features - core system setup
   - `foundation`: 3 features - essential tools
-  
+
 - **Specialized Layers (33 features):** Profile-specific or rarely shared
   - Multiple small stacks (python, java, jupyter, quarto, docker, databases, utils)
   - **misc layer with 17 features** - needs attention!
@@ -35,7 +35,7 @@ The misc layer contains **17 features (42.5% of total)** for two reasons:
 1. **Bundle Expansion Incomplete**: The script has hardcoded bundle definitions that don't match all your bundles:
    - Script knows: `bundle-base-full`, `bundle-data-science`, `bundle-quarto-full`, etc.
    - You also have: `bundle-k8s`, `bundle-quarto-base`, and others
-   
+
 2. **True Specialization**: Many features really are profile-specific:
    - Features from _lib/* (internal helpers)
    - Specialized tools like texlive, gh-cli, specific language support
@@ -104,20 +104,20 @@ layers:
       - zsh-config
       - startup
     dependencies: []
-    
+
   foundation:
     features:
       - python-conda
       - java-sdkman
       - node
     dependencies: [base]
-    
+
   python-dev:
     features:
       - jupyter-base
       - python-lsp
     dependencies: [foundation]
-    
+
   java-dev:
     features:
       - java-jdk
@@ -219,7 +219,7 @@ time ./build.sh --profile quarto-lecture-containers
 # ~10-15 minutes for full build
 
 # After (first time - cold cache)
-time ./build-layered.sh --profile quarto-lecture-containers  
+time ./build-layered.sh --profile quarto-lecture-containers
 # ~12 minutes (slightly longer due to layer overhead)
 
 # After (layer cached, feature changed)
@@ -248,7 +248,7 @@ jobs:
     steps:
       - build base, foundation, python, java
       - push to registry with version tags
-  
+
   build-profiles:
     needs: build-layers
     strategy:
@@ -263,7 +263,7 @@ jobs:
 
 ## Questions?
 
-1. **"Should I consolidate layers?"** 
+1. **"Should I consolidate layers?"**
    - Not yet - 10 layers is manageable
    - Focus on getting base + foundation stable first
 

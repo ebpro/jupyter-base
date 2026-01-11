@@ -1,0 +1,108 @@
+[1;33mWARN: Git repository has uncommitted changes[0m
+[1;33mWARN: Consider committing changes before building[0m
+[0;32mINFO: Generating matrix profiles and devcontainers[0m
+🔨 Generating profiles from matrix definitions...
+
+Processing base-minimal...
+Generated 1 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/minimal
+[0;32mINFO: Generating Dockerfile for all profiles (default)[0m
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/base-minimal.yaml
+Generated 1 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/minimal
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/data-science.yaml
+Generated 2 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/data-science
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/python-db
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/dev.yaml
+Generated 1 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/dev
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/java-dev.yaml
+Generated 5 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-latest
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-ea
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-8
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-21
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-25
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/java-sdk.yaml
+Generated 1 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/java-sdk
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/k8s-dev.yaml
+Generated 2 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/k8s-dev
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/k8s-sim
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/quarto-lecture-dev-java.yaml
+Generated 2 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture-java-ea
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture-java-25
+Expanding profile matrix: /Users/bruno/Documents/GitHub/solen/profiles/matrix/quarto-lecture.yaml
+Generated 4 profiles in /Users/bruno/Documents/GitHub/solen/generated/profiles
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture-full
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture-db
+ - /Users/bruno/Documents/GitHub/solen/generated/profiles/quarto-lecture-containers
+Profile 'quarto-lecture-full' uses 6 features and 0 services
+Collected 16 extensions
+Generated: /Users/bruno/Documents/GitHub/solen/generated/devcontainer/quarto-lecture-full/devcontainer.json
+[0;32mINFO: Building profile image ghcr.io/ebpro/solen (profile=quarto-lecture-full) with tags: develop, develop-51fc8c5[0m
+#0 building with "multi-platform-builder" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile.generated
+#1 transferring dockerfile: 115.01kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+#2 DONE 0.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 656B done
+#3 DONE 0.0s
+
+#4 [internal] setting cache mount permissions
+#4 DONE 0.0s
+
+#5 [base 1/5] FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae
+#5 resolve mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 12.54kB 0.0s done
+#6 DONE 0.0s
+
+#7 [base 3/5] COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh
+#7 CACHED
+
+#8 [base 4/5] COPY Artefacts /opt/solen/Artefacts
+#8 CACHED
+
+#9 [base 5/5] RUN mkdir -p /opt/.features /scripts &&     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
+#9 CACHED
+
+#10 [base 2/5] WORKDIR /home/jovyan
+#10 CACHED
+
+#11 [profile-quarto-lecture-full 1/1] RUN   --mount=type=bind,source=.devcontainer/features/user,target=/tmp/features/user,readonly   --mount=type=bind,source=.devcontainer/features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly   --mount=type=bind,source=.devcontainer/features/git-lfs,target=/tmp/features/git-lfs,readonly   --mount=type=bind,source=.devcontainer/features/python-base,target=/tmp/features/python-base,readonly   --mount=type=bind,source=.devcontainer/features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly   --mount=type=bind,source=.devcontainer/features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly   --mount=type=bind,source=.devcontainer/features/base-apt,target=/tmp/features/base-apt,readonly   --mount=type=bind,source=.devcontainer/features/zsh-config,target=/tmp/features/zsh-config,readonly   --mount=type=bind,source=.devcontainer/features/startup,target=/tmp/features/startup,readonly   --mount=type=bind,source=.devcontainer/features/docker-cli-helper,target=/tmp/features/docker-cli-helper,readonly   --mount=type=bind,source=.devcontainer/features/python-conda,target=/tmp/features/python-conda,readonly   --mount=type=bind,source=.devcontainer/features/quarto-common,target=/tmp/features/quarto-common,readonly   --mount=type=bind,source=.devcontainer/features/java-sdkman,target=/tmp/features/java-sdkman,readonly   --mount=type=bind,source=.devcontainer/features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly   --mount=type=bind,source=.devcontainer/features/gh-cli,target=/tmp/features/gh-cli,readonly   --mount=type=bind,source=.devcontainer/features/node,target=/tmp/features/node,readonly   --mount=type=bind,source=.devcontainer/features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly   --mount=type=bind,source=.devcontainer/features/tilt,target=/tmp/features/tilt,readonly   --mount=type=bind,source=.devcontainer/features/pip-requirements,target=/tmp/features/pip-requirements,readonly   --mount=type=bind,source=.devcontainer/features/dev-tools,target=/tmp/features/dev-tools,readonly   --mount=type=bind,source=.devcontainer/features/texlive,target=/tmp/features/texlive,readonly   --mount=type=bind,source=.devcontainer/features/postgresql-client,target=/tmp/features/postgresql-client,readonly   --mount=type=bind,source=.devcontainer/features/jupyter-base,target=/tmp/features/jupyter-base,readonly   --mount=type=bind,source=.devcontainer/features/quarto-cli,target=/tmp/features/quarto-cli,readonly   --mount=type=bind,source=.devcontainer/features/java-maven,target=/tmp/features/java-maven,readonly   --mount=type=bind,source=.devcontainer/features/java-gradle,target=/tmp/features/java-gradle,readonly   --mount=type=bind,source=.devcontainer/features/java-jdk,target=/tmp/features/java-jdk,readonly   --mount=type=bind,source=.devcontainer/features/python-lsp,target=/tmp/features/python-lsp,readonly   --mount=type=bind,source=.devcontainer/features/typescript,target=/tmp/features/typescript,readonly   --mount=type=bind,source=.devcontainer/features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly   --mount=type=bind,source=.devcontainer/features/postgresql-client-cli,target=/tmp/features/postgresql-client-cli,readonly   --mount=type=bind,source=.devcontainer/features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly   --mount=type=bind,source=.devcontainer/features/ml-python-packages,target=/tmp/features/ml-python-packages,readonly   --mount=type=bind,source=.devcontainer/features/quarto-python,target=/tmp/features/quarto-python,readonly   --mount=type=bind,source=.devcontainer/features/quarto-chromium,target=/tmp/features/quarto-chromium,readonly   --mount=type=bind,source=.devcontainer/features/react-tools,target=/tmp/features/react-tools,readonly   --mount=type=bind,source=.devcontainer/features/java-kernel,target=/tmp/features/java-kernel,readonly   --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly   --mount=type=bind,source=scripts,target=/tmp/scripts,readonly   --mount=type=cache,target=/var/cache/apt,sharing=locked   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked   --mount=type=cache,target=/opt/toolcache,sharing=locked   --mount=type=cache,target=/root/.cache,sharing=locked   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001   bash -eux -o pipefail -c 'feats=("user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "base-apt" "zsh-config" "startup" "docker-cli-helper" "python-conda" "quarto-common" "java-sdkman" "prompt-helpers" "gh-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "dev-tools" "texlive" "postgresql-client" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "typescript" "kubernetes-dev" "postgresql-client-cli" "jupyter-kernels" "ml-python-packages" "quarto-python" "quarto-chromium" "react-tools" "java-kernel" ); for f in "${feats[@]}"; do     if [ -d "/tmp/features/$f" ]; then       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true;       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; };     fi;   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+#11 CACHED
+
+#12 exporting to oci image format
+#12 exporting layers done
+#12 exporting manifest sha256:32d872491b432b5c0d73d05202de7c7f28c7d47839dba67e93c447d843db3ee3 done
+#12 exporting config sha256:8f8429683c74f9696635ca701322d4f6befbe5350dd284293162ef0bf28ccfef done
+#12 sending tarball
+#12 ...
+
+#13 importing to docker
+#13 DONE 0.0s
+
+#12 exporting to oci image format
+#12 sending tarball 20.6s done
+#12 DONE 20.6s
+
+View build details: docker-desktop://dashboard/build/multi-platform-builder/multi-platform-builder0/o3nbw6v630xux96p521fo646l
+[0;32mINFO: Image digest: sha256:32d872491b432b5c0d73d05202de7c7f28c7d47839dba67e93c447d843db3ee3 (saved to image-digest.txt)[0m
+
+Image loaded locally as: ghcr.io/ebpro/solen:quarto-lecture-full-develop
+To run: docker run -it --rm -u jovyan -w /home/jovyan ghcr.io/ebpro/solen:quarto-lecture-full-develop zsh
+
+[0;32mINFO: Wrote build artifact: build-artifact.json[0m
+[0;32mINFO: Build completed successfully[0m

@@ -1,6 +1,6 @@
 services:
   workspace:
-    image: ghcr.io/ebpro/solen:quarto-lecture-containers-develop
+    image: ghcr.io/ebpro/solen:quarto-lecture-full-develop
     volumes:
       - ../..:/home/jovyan/work:cached
     command: sleep infinity

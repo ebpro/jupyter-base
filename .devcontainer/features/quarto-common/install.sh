@@ -41,4 +41,22 @@ chmod -R u+rwX,go+rX,go-w "${LOCAL_DIR}" || true
 
 echo "quarto-common: created ${LOCAL_DIR} with subdirs: work, repos, generated, templates"
 
+# Ensure jupyter-cache available for users of Quarto templates/kernels
+echo "quarto-common: ensuring jupyter-cache is available"
+if [ -x "${CONDA_DIR}/bin/mamba" ]; then
+  "${CONDA_DIR}/bin/mamba" install -y -n base -c conda-forge jupyter-cache || true
+elif [ -x "${CONDA_DIR}/bin/conda" ]; then
+  "${CONDA_DIR}/bin/conda" install -y -n base -c conda-forge jupyter-cache || true
+else
+  TMP_SCRIPT="/tmp/quarto-common-jcache-${NB_USER}.sh"
+  cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install --user jupyter-cache || true
+BASH
+  chmod +x "${TMP_SCRIPT}"
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+  rm -f "${TMP_SCRIPT}"
+fi
+
 exit 0

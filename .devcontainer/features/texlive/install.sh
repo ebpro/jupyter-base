@@ -27,6 +27,15 @@ TEXDIR="${HOME_DIR}/.TinyTeX"
 INSTALLER="installer-unix"
 TINYTEX_VERSION="2025.05"
 
+# Pin CTAN repository to a France mirror by default to avoid auto mirror selection.
+# User-provided mirrors (preferred):
+# - https://ctan.ceremade.dauphine.fr (Paris)
+# - https://ctan.mines-albi.fr (Albi)
+# - https://ctan.tetaneutral.net (Toulouse)
+# - https://distrib-coffee.ipsl.jussieu.fr (Paris)
+# Default to ceremade.dauphine.fr for TLS/https access; can be overridden by setting CTAN_REPO env var.
+CTAN_REPO="${CTAN_REPO:-https://ctan.ceremade.dauphine.fr/systems/texlive/tlnet}"
+
 # Resolve version helper (prefer per-feature Artefacts/features/*, then central, then /tmp)
 resolve_version() {
   local tool="$1" v=""

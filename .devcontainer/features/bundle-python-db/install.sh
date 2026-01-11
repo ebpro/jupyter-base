@@ -85,10 +85,35 @@ if [ ${#PACKAGES[@]} -gt 0 ]; then
     if [ "${INSTALL_METHOD}" = "conda" ]; then
         conda install -y -n base "${PACKAGES[@]}" || {
             echo "⚠️  Some packages failed via conda, trying pip fallback..."
-            pip3 install --no-cache-dir "${PACKAGES[@]}"
+            # Run pip fallback as NB_USER so user's cache is used
+            NB_USER=${NB_USER:-jovyan}
+            TMP_SCRIPT="/tmp/pip-fallback-${NB_USER}.sh"
+            cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install "${PACKAGES[@]}" || true
+BASH
+            chmod +x "${TMP_SCRIPT}"
+            su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+            rm -f "${TMP_SCRIPT}"
         }
     else
-        pip3 install --no-cache-dir "${PACKAGES[@]}"
+        # Ensure notebook user pip cache exists and is owned to avoid warnings
+        NB_USER=${NB_USER:-jovyan}
+        NB_UID=${NB_UID:-1001}
+        NB_GID=${NB_GID:-1001}
+        HOME_DIR="/home/${NB_USER}"
+        mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
+        chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
+        TMP_SCRIPT="/tmp/pip-install-${NB_USER}.sh"
+        cat > "${TMP_SCRIPT}" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install "${PACKAGES[@]}" || true
+BASH
+        chmod +x "${TMP_SCRIPT}"
+        su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
+        rm -f "${TMP_SCRIPT}"
     fi
 fi
 
