@@ -11,6 +11,10 @@ bundle-data-science
 
 # Quarto with TeX (for PDF output)
 bundle-quarto-full
+quarto-chromium
+
+# Container CLI tools (docker, podman)
+bundle-container-runtimes
 
 # Java tooling for examples
 bundle-java-build

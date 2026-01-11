@@ -21,6 +21,9 @@ java-kernel
 # Kubernetes development (kubectl, helm, k9s, tilt)
 bundle-k8s
 
+# Container CLI tools (docker, podman)
+bundle-container-runtimes
+
 # Database clients for demos with sidecars
 postgresql-client-cli
 bundle-python-db
