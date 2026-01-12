@@ -1,0 +1,205 @@
+---
+title: "Java"
+subtitle: "Java Notebook Demo"
+description: "Démonstration complète d'exécution de code Java dans un notebook : types de base, structures de contrôle, et programmation orientée objet."
+jupyter: java
+image: _quarto-utils/MyMedia/images/optimized/taiki-ishikawa-PUXFKuVf_84-unsplash_java-400.webp
+programs:
+  - M1-InfoMath
+  - CNAM-I
+
+categories:
+  - Lecture
+  - Java
+  - OOP
+  - PO43
+  - I111
+
+provide_notes: true
+provide_slides: true
+---
+
+Related practice: [Java exercises](02_demo_P_java.ipynb)
+
+::: {.content-visible when-profile="notes"}
+## Introduction
+
+Ce document présente Java dans un environnement notebook interactif (IJava). Il couvre les fondamentaux du langage : types primitifs, structures de contrôle, tableaux, méthodes, et principes de programmation orientée objet avec des exemples concrets et exécutables.
+
+### Contexte
+
+Le noyau IJava permet d'exécuter du code Java de manière interactive dans Jupyter, offrant un environnement idéal pour l'apprentissage et l'expérimentation. Contrairement aux scripts Java traditionnels nécessitant une classe `main`, le notebook permet d'exécuter des instructions individuelles et de voir immédiatement les résultats.
+:::
+
+::: {.content-visible when-profile="slides"}
+## Java — Introduction
+
+- **Environnement** : noyau IJava pour Jupyter
+- **Avantages** : exécution interactive, feedback immédiat
+- **Pré-requis** : JDK 11+
+:::
+
+### Premier programme
+
+::: {.content-visible when-profile="notes"}
+Voici un exemple minimal — les notes contenant une brève explication avant l'exécution.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+System.out.println("Hello World !");
+```
+
+::: {.content-visible when-profile="slides"}
+Sur la diapositive, montrez uniquement la ligne et une brève explication : `System.out.println("Hello World !")`.
+:::
+
+### Types primitifs et calculs
+
+::: {.content-visible when-profile="notes"}
+Exemples et explications sur les types numériques, booléens et caractères.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+int entier = 42;
+double decimal = 3.14159;
+boolean vrai = true;
+char lettre = 'A';
+
+System.out.println("Entier: " + entier);
+System.out.println("Décimal: " + decimal);
+System.out.println("Boolean: " + vrai);
+System.out.println("Caractère: " + lettre);
+```
+
+::: {.content-visible when-profile="slides"}
+Affichez les déclarations et 1–2 résultats clés sur la diapositive.
+:::
+
+### Opérateurs
+
+::: {.content-visible when-profile="notes"}
+Opérations arithmétiques de base — montrez les résultats pour expliquer les différences (ex: division entière).
+:::
+
+```{java}
+//| echo: true
+//| output: true
+int a = 10;
+int b = 3;
+System.out.println("Addition: " + (a + b));
+System.out.println("Soustraction: " + (a - b));
+System.out.println("Multiplication: " + (a * b));
+System.out.println("Division entière: " + (a / b));
+System.out.println("Modulo: " + (a % b));
+```
+
+::: {.content-visible when-profile="slides"}
+Sur la diapositive, présentez seulement les résultats clefs et la note sur la division entière.
+:::
+
+### Structures de contrôle
+
+::: {.content-visible when-profile="notes"}
+Présentez `if/else`, `for` et `while` avec commentaires sur l'usage et les bonnes pratiques.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+int age = 20;
+if (age >= 18) {
+  System.out.println("Majeur");
+} else {
+  System.out.println("Mineur");
+}
+
+for (int i = 1; i <= 5; i++) {
+  System.out.println(i);
+}
+
+int compteur = 0;
+while (compteur < 3) {
+  System.out.println("Tour " + compteur);
+  compteur++;
+}
+```
+
+::: {.content-visible when-profile="slides"}
+Montrez des extraits courts d'`if` et `for` sur la diapositive; évitez les longues boucles.
+:::
+
+### Tableaux
+
+::: {.content-visible when-profile="notes"}
+Déclaration, accès et itération sur tableaux.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+int[] nombres = {10, 20, 30, 40, 50};
+System.out.println("Premier élément: " + nombres[0]);
+System.out.println("Dernier élément: " + nombres[nombres.length - 1]);
+for (int n : nombres) System.out.println(n);
+```
+
+::: {.content-visible when-profile="slides"}
+Affichez la déclaration et un exemple d'itération sur la diapositive.
+:::
+
+### Méthodes
+
+::: {.content-visible when-profile="notes"}
+Définition et appel de méthodes simples — montrez la signature et un exemple d'utilisation.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+int additionner(int x, int y) { return x + y; }
+System.out.println(additionner(5,7));
+```
+
+::: {.content-visible when-profile="slides"}
+Présentez la signature d'une méthode et un appel simple sur la diapositive.
+:::
+
+### Programmation orientée objet
+
+::: {.content-visible when-profile="notes"}
+Exemple de classe, constructeur et utilisation — commentez l'encapsulation et les getters/setters.
+:::
+
+```{java}
+//| echo: true
+//| output: true
+class Person {
+  private String name; private int age;
+  public Person(String name, int age){ this.name = name; this.age = age; }
+  public void greet(){ System.out.println("Bonjour, je suis " + name + ", " + age + " ans."); }
+}
+
+Person alice = new Person("Alice",29);
+alice.greet();
+```
+
+::: {.content-visible when-profile="slides"}
+Sur la diapositive, montrez la signature de la classe et un exemple d'utilisation concis.
+:::
+
+### Conclusion
+
+::: {.content-visible when-profile="notes"}
+Cette démonstration couvre les bases de Java et fournit des exemples exécutables directement dans le notebook.
+
+Pour aller plus loin : interfaces, classes abstraites, collections (`ArrayList`, `HashMap`), gestion des exceptions, streams et lambda expressions (Java 8+).
+:::
+
+::: {.content-visible when-profile="slides"}
+Récapitulatif : types, opérateurs, structures de contrôle, tableaux, méthodes et POO.
+:::
+- Types primitifs et opérateurs

@@ -12,7 +12,6 @@
     "startup",
     "gh-cli",
     "git-lfs",
-    "docker-cli-helper",
     "python-base",
     "dev-tools",
     "_lib/checksum-verify",

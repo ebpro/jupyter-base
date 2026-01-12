@@ -258,30 +258,29 @@ The codebase has accumulated significant technical debt with **dual systems** (p
 
 ---
 
-### Phase 3: Feature Cleanup 🎯
+### Phase 3: Feature Cleanup ✅ COMPLETED
 
 **Goal:** Remove unused/misleading features
 
-**Action:**
-1. **Delete** `docker-cli-helper` feature
-   - Replaced by `docker-cli` (actual CLI binary)
-   - Only created group (useless with TCP dind)
+**Completed Actions:**
+1. ✅ **Deleted** `docker-cli-helper` feature
+   - Only created docker group without installing CLI
+   - Replaced by proper `docker-cli` feature (installs docker-ce-cli)
+   - Removed from `bundle-base-full` and `bundle-cicd-teaching`
    
-2. **Audit unused features:**
-   ```bash
-   # Find features never referenced in any profile
-   ./scripts/analyze-profile-features.py --unused
-   ```
+2. ✅ **Updated** bundle dependencies:
+   - `bundle-base-full`: Removed docker-cli-helper
+   - `bundle-cicd-teaching`: Removed docker-cli-helper
+   - Container tools now properly provided by docker-cli, docker-compose, docker-buildx
    
-3. **Document** each feature's purpose in `features/README.md`
-   - What it installs
-   - When to use it
-   - Dependencies
+3. ✅ **Updated** analysis script bundle map to reference modern container tools
 
-**Benefits:**
-- Clearer feature inventory
-- Less maintenance burden
-- Easier for new contributors
+**Results:**
+- Removed misleading feature that didn't install docker CLI
+- Bundle dependencies now accurate
+- Profile generation and Dockerfile generation verified working
+- No docker-cli-helper references in generated Dockerfile
+- Cleaner feature inventory
 
 ---
 

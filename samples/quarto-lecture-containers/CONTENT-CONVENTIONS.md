@@ -269,3 +269,40 @@ provide_slides: true
 ---
 
 **Dernière mise à jour :** 10 janvier 2026
+
+## 6. Registre des formations (`programs`) — recommandation
+
+Pour gérer le fait que les mêmes `course_codes` ne s'appliquent pas à toutes les formations, nous recommandons de centraliser la correspondance formation → codes de cours dans un registre `programs`.
+
+Format recommandé (YAML). Placez ce bloc dans un fichier de données project-level (par ex. `_quarto-utils/programs.yml`) ou conservez une section d'exemple ici pour référence :
+
+```yaml
+programs:
+  MSc-DS:
+    name: "MSc Data Science"
+    course_codes: [I111, PO43]
+  Bootcamp-Java:
+    name: "Bootcamp Java"
+    course_codes: [BJ-01]
+  Continuing-Ed:
+    name: "Continuing Education"
+    course_codes: [CE-2026]
+```
+
+Recommandations d'usage :
+- Dans le frontmatter d'un document, **référencer les programmes par ID** :
+
+```yaml
+programs:
+  - MSc-DS
+  - Bootcamp-Java
+```
+
+- Ne dupliquez pas systématiquement `course_codes` dans le frontmatter. Si `course_codes` est absent, la template peut récupérer les codes depuis le(s) `programs` référencés. Si un document a besoin d'un code spécifique différent, **utilisez `course_codes` en override explicite**.
+
+- Conserver un registre central facilite le renommage des programmes, la recherche et le filtrage par formation.
+
+Template & implémentation :
+- La galerie lit `item.programs` (frontmatter) et, si un registre global est disponible (par ex. `site.programs` ou `_quarto-utils/programs.yml` importé comme données), elle peut rechercher les `course_codes` associés. Le frontmatter `course_codes` a priorité sur les codes dérivés du registre.
+
+---

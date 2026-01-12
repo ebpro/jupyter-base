@@ -38,7 +38,7 @@ class FeatureAnalyzer:
             'jupyter': ['jupyter-base', 'jupyter-kernels', 'java-kernel'],
             'dev': ['dev-tools', 'gh-cli', 'git-lfs', 'node'],
             'quarto': ['quarto-common', 'quarto-cli', 'quarto-python'],
-            'docker': ['docker-cli-helper', 'docker-dind'],
+            'docker': ['docker-cli', 'docker-compose', 'docker-buildx', 'podman'],
             'databases': ['postgresql-client'],
             'utils': ['prompt-helpers', 'texlive'],
         }

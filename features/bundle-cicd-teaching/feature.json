@@ -13,8 +13,7 @@
     "kubernetes-dev",
     "gh-cli",
     "git-lfs",
-    "tilt",
-    "docker-cli-helper"
+    "tilt"
   ],
   "options": {}
 }
