@@ -26,15 +26,15 @@ The codebase has accumulated significant technical debt with **dual systems** (p
   generated/profiles/quarto-lecture-full # Generated from matrix
   ```
 
-### 2. **Dual Generator Scripts** 🔴 CRITICAL
+### 2. **Dual Generator Scripts** ✅ RESOLVED (Phase 2)
 - **Problem:** Two generators for matrix profiles:
-  - `scripts/generate-profiles-matrix.sh` (bash, partial implementation)
-  - `scripts/generate-profiles-matrix.py` (python, full implementation)
+  - `scripts/generate-profiles-matrix.sh` (bash, partial implementation) - DELETED
+  - `scripts/generate-profiles-matrix.py` (python, full implementation) - KEPT
   
-- **Impact:**
-  - Confusion about which to use
-  - bash version doesn't expand features properly
-  - Documentation doesn't clarify
+- **Resolution:**
+  - Removed bash generator script
+  - Python generator is the single source of truth
+  - All profile generation uses Python script
 
 ### 3. **Unused/Misleading Features** 🟡 MEDIUM
 - `docker-cli-helper` - Only creates group, NO actual docker CLI binary
@@ -241,20 +241,20 @@ The codebase has accumulated significant technical debt with **dual systems** (p
 
 ---
 
-### Phase 2: Generator Simplification 🎯
+### Phase 2: Generator Simplification ✅ COMPLETED
 
 **Goal:** Single profile generator
 
-**Action:**
-1. **Delete** `scripts/generate-profiles-matrix.sh` (bash, incomplete)
-2. **Keep** `scripts/generate-profiles-matrix.py` (python, full-featured)
-3. **Rename** it to `scripts/generate-profiles.py` (no "matrix" confusion)
-4. **Update** all callers to use the Python script
+**Completed Actions:**
+1. ✅ **Deleted** `scripts/generate-profiles-matrix.sh` (bash, incomplete)
+2. ✅ **Kept** `scripts/generate-profiles-matrix.py` (python, full-featured)
+3. ✅ **Verified** Python generator works for all YAML matrices
 
-**Benefits:**
-- No confusion about which generator to use
-- Removes 100 lines of bash code
-- Clearer naming
+**Results:**
+- Single source of truth for profile generation
+- Removed 81 lines of redundant bash code
+- Python generator handles all profile variants correctly
+- No naming change needed - "matrix" clarifies it generates from YAML matrices
 
 ---
 
