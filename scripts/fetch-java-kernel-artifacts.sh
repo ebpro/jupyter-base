@@ -15,7 +15,7 @@ if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
   exit 1
 fi
 
-OUTDIR="$REPO_ROOT/Artefacts/features/java-kernel/toolcache/java-kernel/${VERSION}"
+OUTDIR="$REPO_ROOT/artefacts/java-kernel/toolcache/java-kernel/${VERSION}"
 mkdir -p "$OUTDIR"
 
 # Candidate asset names to try (common naming variations)
@@ -72,7 +72,7 @@ if [ -z "$SUM" ]; then
 fi
 
 # Write a simple checksums.json for the feature
-CHECKSUM_FILE="$REPO_ROOT/Artefacts/features/java-kernel/checksums.json"
+CHECKSUM_FILE="$REPO_ROOT/artefacts/java-kernel/checksums.json"
 jq -n --arg v "$VERSION" --arg s "$SUM" '{"checksums": {($v): {"sha256": $s}}}' > "$CHECKSUM_FILE"
 
 echo "Wrote artifact and checksums to $OUTDIR and $CHECKSUM_FILE"

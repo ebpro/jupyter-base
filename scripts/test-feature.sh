@@ -135,13 +135,13 @@ ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
 # Copy shared helpers
-COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
 COPY Artefacts /opt/solen/Artefacts
 ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts
 
 # Initialize feature helpers
 RUN mkdir -p /opt/.features /scripts && \\
-    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
+    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
 
 # Install dependencies first
 EOF

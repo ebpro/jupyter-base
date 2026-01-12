@@ -32,8 +32,8 @@ resolve_version() {
   local default="$2"
   
   # Try feature-specific versions.json first
-  if [ -f "/tmp/Artefacts/features/typescript/versions.json" ]; then
-    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/Artefacts/features/typescript/versions.json" 2>/dev/null || true)
+  if [ -f "/tmp/artefacts/typescript/versions.json" ]; then
+    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/artefacts/typescript/versions.json" 2>/dev/null || true)
     if [ -n "$ver" ] && [ "$ver" != "null" ]; then
       echo "$ver"
       return

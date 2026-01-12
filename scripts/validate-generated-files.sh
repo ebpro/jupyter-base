@@ -21,13 +21,13 @@ bash "$SCRIPT_DIR/generate-all-devcontainers.sh"
 
 echo ""
 echo "🏗️  Step 3: Regenerate Dockerfile for all profiles"
-bash "$SCRIPT_DIR/generate-dockerfile.sh" --all-profiles --out "$REPO_ROOT/Dockerfile.generated"
+bash "$SCRIPT_DIR/generate-dockerfile.sh" --all-profiles --out "$REPO_ROOT/generated/Dockerfile"
 
 echo ""
 echo "📝 Step 4: Check for uncommitted changes in generated files"
 
 # Check if generated files have changed
-git_diff=$(git diff --name-only generated/ Dockerfile.generated 2>/dev/null || true)
+git_diff=$(git diff --name-only generated/ generated/Dockerfile 2>/dev/null || true)
 
 if [ -n "$git_diff" ]; then
     echo ""
@@ -41,10 +41,10 @@ if [ -n "$git_diff" ]; then
     echo "To fix this issue, run locally:"
     echo "  ./scripts/generate-all-matrix-profiles.sh"
     echo "  ./scripts/generate-all-devcontainers.sh"
-    echo "  ./scripts/generate-dockerfile.sh --all-profiles --out Dockerfile.generated"
+    echo "  ./scripts/generate-dockerfile.sh --all-profiles --out generated/Dockerfile"
     echo ""
     echo "Then commit the changes:"
-    echo "  git add generated/ Dockerfile.generated"
+    echo "  git add generated/ generated/Dockerfile"
     echo "  git commit -m 'chore: regenerate profiles and devcontainers'"
     echo ""
     exit 1

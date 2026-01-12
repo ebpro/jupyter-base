@@ -61,8 +61,8 @@ resolve_version() {
   fi
 
   # Check feature-scoped Artefacts
-  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
-    v=$(read_tool_from_json "${PWD}/Artefacts/features/${tool}/versions.json" "$tool")
+  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+    v=$(read_tool_from_json "${PWD}/artefacts/${tool}/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
 

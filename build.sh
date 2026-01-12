@@ -112,7 +112,7 @@ if [ "$#" -gt 0 ]; then
             shift
             check_buildx || exit 2
             export REPO=${REPO:-${REPO:-}}
-            docker buildx bake --file docker-bake.generated.hcl --print all
+            docker buildx bake --file generated/docker-bake.hcl --print all
             exit $?
             ;;
         build-one)
@@ -338,7 +338,7 @@ if [ "${LIST_PROFILES:-false}" = true ]; then
     echo
     echo "Detected build stages in Dockerfile(s):"
     found=false
-    for df in Dockerfile Dockerfile.generated; do
+    for df in Dockerfile generated/Dockerfile; do
         [ ! -f "$df" ] && continue
         echo " - $df:"
         # Find 'AS name' occurrences (case-insensitive)
@@ -348,7 +348,7 @@ if [ "${LIST_PROFILES:-false}" = true ]; then
         done
     done
     if [ "$found" = false ]; then
-        echo "   (no named stages found in Dockerfile or Dockerfile.generated)"
+        echo "   (no named stages found in Dockerfile or generated/Dockerfile)"
     fi
     exit 0
 fi
@@ -378,12 +378,12 @@ if [ "${PREBAKE}" = true ] || [ "${PREBAKE:-0}" = "1" ] || [ "${PREBAKE}" = "tru
 fi
 
 log_info "Generating Dockerfile for all profiles (default)"
-bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
+bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out generated/Dockerfile
 # Generate devcontainer for single profile if requested
 if [ -n "${PROFILE:-}" ]; then
     python3 "${PWD}/scripts/generate-devcontainer-json.py" "$PROFILE" || true
 fi
-DOCKERFILE="Dockerfile.generated"
+DOCKERFILE="generated/Dockerfile"
 if [ "${GENERATE_ONLY}" = true ]; then
     log_info "Generation complete; exiting due to --generate-only"
     exit 0
@@ -394,7 +394,7 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
     # Generate matrix profiles from YAML definitions
     bash "${PWD}/scripts/generate-all-matrix-profiles.sh" || true
     # Generate Dockerfile for all profiles
-    bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out Dockerfile.generated
+    bash "${PWD}/scripts/generate-dockerfile.sh" --all-profiles --out generated/Dockerfile
     # Generate devcontainers for all profiles (matrix + hand-written)
     bash "${PWD}/scripts/generate-all-devcontainers.sh" || true
     # Prepare bake platforms and archs for HCL generation
@@ -420,7 +420,7 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
     TAGS_CSV=$(IFS=,; echo "${TAGS_LIST[*]}")
     export REPO IMAGE_NAME TAG1 TAG2 BAKE_PLATFORMS BAKE_ARCHS TAGS_CSV
     bash "${PWD}/scripts/generate-bake.sh" || true
-    DOCKERFILE="Dockerfile.generated"
+    DOCKERFILE="generated/Dockerfile"
     if [ "${GENERATE_ONLY}" = true ]; then
         log_info "Generation complete; exiting due to --generate-only"
         exit 0
@@ -430,7 +430,7 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
         log_info "Attempting to build all profiles via docker buildx bake"
         # Explicitly target the generated "all" group so `bake` doesn't look for a missing default
         # Use the bake platforms computed earlier (BAKE_PLATFORMS) so generated HCL gets correct platforms
-        BAKE_CMD=(docker buildx bake -f docker-bake.generated.hcl all --set "*.platform=${BAKE_PLATFORMS}")
+        BAKE_CMD=(docker buildx bake -f generated/docker-bake.hcl all --set "*.platform=${BAKE_PLATFORMS}")
         if [ "${PUSH}" = true ]; then
             BAKE_CMD+=(--push)
         fi
@@ -449,7 +449,7 @@ if [ "${ALL_PROFILES:-false}" = true ]; then
             prof=$(basename "$p")
             [ "$prof" = "README.md" ] && continue
             log_info "Building profile: $prof"
-            docker buildx build --platform=${TARGET_PLATFORM} -f Dockerfile.generated --target final-$prof -t "${REPO}/${IMAGE_NAME}:${prof}-${TAG1}" ${LOAD:+--load} ${PUSH:+--push} . || true
+            docker buildx build --platform=${TARGET_PLATFORM} -f generated/Dockerfile --target final-$prof -t "${REPO}/${IMAGE_NAME}:${prof}-${TAG1}" ${LOAD:+--load} ${PUSH:+--push} . || true
         done
         exit 0
     fi
@@ -584,9 +584,9 @@ if command -v docker >/dev/null 2>&1; then
 fi
 
 if [ -n "${IMAGE_DIGEST}" ]; then
-    echo "${IMAGE_DIGEST}" > image-digest.txt
+    echo "${IMAGE_DIGEST}" > generated/image-digest.txt
     export IMAGE_DIGEST
-    log_info "Image digest: ${IMAGE_DIGEST} (saved to image-digest.txt)"
+    log_info "Image digest: ${IMAGE_DIGEST} (saved to generated/image-digest.txt)"
 else
     log_warn "Could not determine image digest. If you need an immutable digest, run with --push or inspect the registry after pushing."
 fi
@@ -610,7 +610,7 @@ if [ "${DRY_RUN}" != true ]; then
                 echo ""
                 echo "Image built but not loaded locally (multi-platform or output driver used)."
                 echo "To run locally, rebuild for your host or pull the pushed image. Example:"
-                echo "  docker build --target final-${PROFILE} -t ${PRIMARY_TAG} -f Dockerfile.generated . && docker run -it --rm -u jovyan -w /home/jovyan ${PRIMARY_TAG} zsh"
+                echo "  docker build --target final-${PROFILE} -t ${PRIMARY_TAG} -f generated/Dockerfile . && docker run -it --rm -u jovyan -w /home/jovyan ${PRIMARY_TAG} zsh"
                 echo ""
             fi
         fi
@@ -618,7 +618,7 @@ if [ "${DRY_RUN}" != true ]; then
 fi
 
 # Emit a structured build artifact for CI consumption
-BUILD_ARTIFACT_FILE=${BUILD_ARTIFACT_FILE:-build-artifact.json}
+BUILD_ARTIFACT_FILE=${BUILD_ARTIFACT_FILE:-generated/build-artifact.json}
 profile_name=""
 profile_slug_json=""
 if [ -n "${PROFILE:-}" ]; then

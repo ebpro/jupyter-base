@@ -26,8 +26,8 @@ HOME_DIR="/home/${NB_USER}"
 
 resolve_version() {
   local tool="$1" v=""
-  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/features/${tool}/versions.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then

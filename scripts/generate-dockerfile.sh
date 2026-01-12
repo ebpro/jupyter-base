@@ -10,7 +10,7 @@ fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
 FEATURES_DIR="$ROOT/features"
-OUT="Dockerfile.generated"
+OUT="generated/Dockerfile"
 
 # --- Helpers ---
 docker_escape() {
@@ -159,7 +159,8 @@ emit_run_features() {
   done
 
   # Shared bind mounts (read-only)
-  echo "  --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \\" >> "$OUT"
+  echo "  --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \\" >> "$OUT"
+  echo "  --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \\" >> "$OUT"
   echo "  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \\" >> "$OUT"
 
   # BuildKit cache mounts for performance (shared across builds)
@@ -195,18 +196,19 @@ ARG NB_GID=1001
 ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
-COPY shared/_lib/helpers.sh /opt/solen/_lib/helpers.sh
-COPY Artefacts /opt/solen/Artefacts
-ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts
+COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY inputs /opt/solen/inputs
+COPY artefacts /opt/solen/artefacts
+ENV FEATURE_HELPERS_DIR=/opt/solen/_lib INPUTS_DIR=/opt/solen/inputs ARTEFACTS_DIR=/opt/solen/artefacts
 RUN mkdir -p /opt/.features /scripts && \\
-    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/feature_helpers.sh
+    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
 EOF
 
 # If a prebaked toolcache exists in the repo, copy it into the image
 # so generated builds can reuse local artefacts instead of downloading.
-if [ -d "$ROOT/Artefacts/toolcache" ]; then
+if [ -d "$ROOT/generated/toolcache" ]; then
   echo "# Inject prebaked toolcache from repository" >> "$OUT"
-  echo "COPY Artefacts/toolcache /opt/toolcache" >> "$OUT"
+  echo "COPY generated/toolcache /opt/toolcache" >> "$OUT"
   echo "RUN chmod -R a+rX /opt/toolcache || true" >> "$OUT"
 fi
 

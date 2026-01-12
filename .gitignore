@@ -1,19 +1,6 @@
 work
 local
-# Generated artifacts
-*.generated.*
 
-# Ignore packed artefacts and tool caches (these are large binaries; keep checksums only)
-/Artefacts/**/toolcache/
-/Artefacts/toolcache/
-/Artefacts/**/toolcache/**
-build-artifact.json
-image-digest.txt
-
-
-# Generated profiles from matrix expansion
-generated/
-
-
-# Generated devcontainer files
-generated/devcontainer/
+# Generated content (all generated files now in /generated/)
+/generated/
+!generated/profiles/.gitkeep

@@ -40,12 +40,12 @@ resolve_version() {
     fi
     grep -E "\"$t\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" "$file" 2>/dev/null | sed -E 's/.*:[[:space:]]*"(.*)".*/\1/' | head -n1 || true
   }
-  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
-    v=$(read_tool_from_json "${PWD}/Artefacts/features/${tool}/versions.json" "$tool")
+  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+    v=$(read_tool_from_json "${PWD}/artefacts/${tool}/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
-  if [ -f "${SCRIPT_DIR}/../../Artefacts/features/${tool}/versions.json" ]; then
-    v=$(read_tool_from_json "${SCRIPT_DIR}/../../Artefacts/features/${tool}/versions.json" "$tool")
+  if [ -f "${SCRIPT_DIR}/../../artefacts/${tool}/versions.json" ]; then
+    v=$(read_tool_from_json "${SCRIPT_DIR}/../../artefacts/${tool}/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then

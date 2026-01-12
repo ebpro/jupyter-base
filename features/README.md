@@ -9,6 +9,22 @@ Each feature lives in `features/<feature-name>/` with:
 - `install.sh` - installation script
 - `files/` (optional) - additional files to copy
 
+## Project Directory Structure
+
+**Build Inputs** (git tracked):
+- `features/` - feature installers (this directory)
+- `inputs/` - shared build inputs (apt packages, conda, python, static files)
+- `profiles/matrix/` - YAML profile definitions
+
+**Generated Content** (.gitignore):
+- `generated/profiles/` - expanded profiles from matrix
+- `generated/toolcache/` - pre-downloaded tools
+- `generated/Dockerfile` - multi-stage Dockerfile
+- `generated/docker-bake.hcl` - buildx configuration
+
+**Static Artefacts**:
+- `artefacts/` - feature-specific static data (java-kernel, quarto, etc.)
+
 ## Feature Dependencies
 
 ### Declaring Dependencies

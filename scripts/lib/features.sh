@@ -168,7 +168,7 @@ export -f fh_safe_chown
 set -euo pipefail
 
 # Helper functions for feature install scripts
-# Usage: source /path/to/scripts/feature_helpers.sh
+# Usage: source /path/to/scripts/lib/features.sh
 
 FEATURE_MARKER_DIR="/opt/.features"
 

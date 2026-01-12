@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
-OUT="docker-bake.generated.hcl"
+OUT="generated/docker-bake.hcl"
 
 echo "generate-bake: scanning profiles in $PROFILES_DIR"
 
@@ -68,7 +68,7 @@ for t in "${targets[@]}"; do
   cat >> "$OUT" <<HCL
 target "final-$t" {
   context = "."
-  dockerfile = "Dockerfile.generated"
+  dockerfile = "generated/Dockerfile"
   target = "final-$t"
   platforms = [
 HCL

@@ -26,9 +26,9 @@ EOF
 }
 
 install_from_prebaked() {
-  # Check for prebaked artifacts in /tmp/Artefacts/features/java-kernel/toolcache
+  # Check for prebaked artifacts in /tmp/artefacts/java-kernel/toolcache
   local ver="${KERNEL_VERSION#v}"  # remove leading 'v'
-  local prebaked_dir="/tmp/Artefacts/features/java-kernel/toolcache/java-kernel/${ver}/extracted/java"
+  local prebaked_dir="/tmp/artefacts/java-kernel/toolcache/java-kernel/${ver}/extracted/java"
 
   if [[ -d "$prebaked_dir" ]]; then
     echo "java-kernel: found prebaked artifacts at $prebaked_dir"

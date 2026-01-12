@@ -34,8 +34,8 @@ echo "python-conda: installing Miniforge into ${CONDA_DIR} if missing"
 # Helper to resolve a tool version from per-feature artefacts, central Artefacts, or /tmp
 resolve_version() {
   local tool="$1" v=""
-  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/features/${tool}/versions.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then
@@ -84,8 +84,8 @@ if [ ! -x "${CONDA_DIR}/bin/conda" ]; then
   # attempt to find checksum for this OS/ARCH combination
   resolve_checksum() {
     local tool="$1" ver="$2" arch="$3" cs=""
-    if [ -f "${PWD}/Artefacts/features/${tool}/checksums.json" ]; then
-      cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/Artefacts/features/${tool}/checksums.json" 2>/dev/null || true)
+    if [ -f "${PWD}/artefacts/${tool}/checksums.json" ]; then
+      cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/artefacts/${tool}/checksums.json" 2>/dev/null || true)
       [ -n "$cs" ] && { echo "$cs"; return 0; }
     fi
     if [ -f "${PWD}/Artefacts/checksums.json" ]; then

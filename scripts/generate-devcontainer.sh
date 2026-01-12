@@ -14,7 +14,7 @@ EOF
 }
 
 PROFILE=""
-OUT="devcontainer.generated.json"
+OUT="generated/devcontainer.json"
 DRY=false
 
 while [[ $# -gt 0 ]]; do

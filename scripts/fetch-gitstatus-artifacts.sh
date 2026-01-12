@@ -14,7 +14,7 @@ if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
   exit 1
 fi
 
-OUTDIR="${REPO_ROOT}/Artefacts/features/prompt-helpers/toolcache/gitstatus/${VERSION}"
+OUTDIR="${REPO_ROOT}/artefacts/prompt-helpers/toolcache/gitstatus/${VERSION}"
 mkdir -p "$OUTDIR"
 
 # Default architectures to attempt. You can override by passing a space-separated list
@@ -95,7 +95,7 @@ for arch in "${ARCHS[@]}"; do
 done
 
 # Patch per-feature checksums.json
-CHECKSUM_FILE="$REPO_ROOT/Artefacts/features/prompt-helpers/checksums.json"
+CHECKSUM_FILE="$REPO_ROOT/artefacts/prompt-helpers/checksums.json"
 if [ ! -f "$CHECKSUM_FILE" ]; then
   echo "{ \"tools\": { \"gitstatus\": { \"checksums\": {} } } }" > "$CHECKSUM_FILE"
 fi

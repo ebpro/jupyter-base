@@ -16,11 +16,14 @@ Quick prerequisites
 
 Where things live
 -----------------
-- `profiles/` - profile definitions; each profile composes a set of `features`
+- `profiles/matrix/` - profile definitions (YAML matrices)
+- `generated/profiles/` - expanded profile feature lists
 - `features/` - reusable feature installers used to assemble images
 - `scripts/` - generators and helpers used by `build.sh`
-- `Artefacts/` - pre-baked artifacts (conda pkgs, TeXLive, etc.) referenced by images
-- `Archive/` - legacy Dockerfiles/installers kept for reference
+- `scripts/lib/` - shared helper libraries (helpers.sh, build.sh, features.sh)
+- `inputs/` - build inputs (apt packages, conda, python, static files)
+- `artefacts/` - feature-specific static data (java-kernel, quarto, etc.)
+- `generated/` - all generated content (Dockerfile, docker-bake.hcl, toolcache, etc.)
 - `.github/workflows/` - CI, release, and cleanup workflows
 
 Common tasks
@@ -36,22 +39,22 @@ Common tasks
 
 Prebake toolcache (optional)
 ------------------------------
-- You can pre-download common large tools into `Artefacts/toolcache` to speed local builds and avoid network downloads during image builds.
+- You can pre-download common large tools into `generated/toolcache` to speed local builds and avoid network downloads during image builds.
 - To run prebake as part of the build, use the new flags on `build.sh`:
-  - `./build.sh --prebake --profile quarto-lecture-full` will run `./scripts/prebake-toolcache.sh --output Artefacts/toolcache` before generating Dockerfiles.
-  - Use `--force-prebake` to re-run prebake even if `Artefacts/toolcache` already exists.
+  - `./build.sh --prebake --profile quarto-lecture-full` will run `./scripts/prebake-toolcache.sh --output generated/toolcache` before generating Dockerfiles.
+  - Use `--force-prebake` to re-run prebake even if `generated/toolcache` already exists.
   - Use `--ignore-prebake-errors` to continue the build even when prebake fails.
 
 Note: prebake is opt-in to avoid surprising CI runs; it is recommended for local development when you want repeatable, fast builds.
 
 Tagging and artifacts
 ---------------------
-- Built images produce `build-artifact.json` and `image-digest.txt` in the workspace. CI consumes `build-artifact.json` as the single source of truth for SBOMs, vulnerability scans, and promotion by digest.
+- Built images produce `generated/build-artifact.json` and `generated/image-digest.txt`. CI consumes `build-artifact.json` as the single source of truth for SBOMs, vulnerability scans, and promotion by digest.
 - Tag format: `<registry>/<repo>:<profile-slug>-<tag>` where `profile-slug` strips numeric prefixes (e.g., `20-00-data-science` -> `data-science`).
 
 Development workflow notes
 -------------------------
-- Prefer using the generated `Dockerfile.generated` for iterative feature debugging; features can rely on `shared/_lib/helpers.sh` which is copied early into the generated image header.
+- Prefer using the generated `generated/Dockerfile` for iterative feature debugging; features can rely on `scripts/lib/helpers.sh` which is copied early into the generated image header.
 - For macOS: install a modern Bash (`brew install bash`) or run scripts under `bash` (not `sh`/`zsh`) because some scripts require Bash 4+.
 
 CI and release
@@ -61,7 +64,7 @@ CI and release
 Where to go next
 ----------------
 - Read `profiles/README.md` for profile naming conventions and examples.
-- If you plan to reduce repository size, consider moving large files from `Artefacts/` into GitHub Releases or an object store and keep only checksums in-repo.
+- If you plan to reduce repository size, consider moving large files from `artefacts/` into GitHub Releases or an object store and keep only checksums in-repo.
 
 Contact
 -------

@@ -36,11 +36,11 @@ TINYTEX_VERSION="2025.05"
 # Default to ceremade.dauphine.fr for TLS/https access; can be overridden by setting CTAN_REPO env var.
 CTAN_REPO="${CTAN_REPO:-https://ctan.ceremade.dauphine.fr/systems/texlive/tlnet}"
 
-# Resolve version helper (prefer per-feature Artefacts/features/*, then central, then /tmp)
+# Resolve version helper (prefer per-feature artefacts/*, then central, then /tmp)
 resolve_version() {
   local tool="$1" v=""
-  if [ -f "${PWD}/Artefacts/features/${tool}/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // .tools["${tool}" ] // empty' "${PWD}/Artefacts/features/${tool}/versions.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // .tools["${tool}" ] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then
@@ -68,8 +68,8 @@ fi
 echo "texlive: installing TinyTeX (this may be large)"
 resolve_checksum() {
   local tool="$1" ver="$2" arch="$3" cs=""
-  if [ -f "${PWD}/Artefacts/features/${tool}/checksums.json" ]; then
-    cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/Artefacts/features/${tool}/checksums.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/${tool}/checksums.json" ]; then
+    cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/artefacts/${tool}/checksums.json" 2>/dev/null || true)
     [ -n "$cs" ] && { echo "$cs"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/checksums.json" ]; then
