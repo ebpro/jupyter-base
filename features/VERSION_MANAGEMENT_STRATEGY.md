@@ -397,7 +397,7 @@ COPY --from=toolcache-builder /opt/toolcache /opt/toolcache
 
 #### Task 1.2: Rewrite Node Feature
 ```bash
-# .devcontainer/features/node/install.sh
+# features/node/install.sh
 FEATURE_ID="node"
 FEATURE_VERSION="1.0.0"
 
@@ -421,7 +421,7 @@ feature_mark_installed
 
 #### Task 1.3: Rewrite TypeScript, React Tools
 ```bash
-# .devcontainer/features/typescript/install.sh
+# features/typescript/install.sh
 if ! command -v node >/dev/null 2>&1; then
   fh_log "Node.js not found, skipping TypeScript"
   exit 0
@@ -468,7 +468,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/mongo
 # scripts/generate-dockerfile.sh
 emit_run_features() {
   cat <<EOF
-RUN --mount=type=bind,source=.devcontainer/features,target=/tmp/features,readonly \\
+RUN --mount=type=bind,source=features,target=/tmp/features,readonly \\
     --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \\
     --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \\
     --mount=type=cache,target=/var/cache/apt,sharing=locked \\
@@ -513,7 +513,7 @@ done
 
 #### Task 4.1: Switch to Micromamba Base
 ```bash
-# .devcontainer/features/python-base/install.sh
+# features/python-base/install.sh
 PYTHON_VERSION=$(resolve_version "python" "3.12")
 
 # Install micromamba if not present

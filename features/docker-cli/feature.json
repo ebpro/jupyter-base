@@ -1,0 +1,24 @@
+{
+  "id": "docker-cli",
+  "version": "1.0.0",
+  "name": "Docker CLI",
+  "description": "Install Docker CLI (docker-ce-cli) from Docker's official repository for use with remote Docker daemon or DinD sidecar",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["docker"],
+  "dependsOn": ["base-apt"],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "latest",
+      "description": "Docker CLI version (e.g., '24.0.7', '25.0.0', or 'latest')"
+    }
+  },
+  "postInstallCheck": {
+    "command": "docker --version",
+    "description": "Verify Docker CLI is installed"
+  }
+}

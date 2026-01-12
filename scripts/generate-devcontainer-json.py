@@ -7,7 +7,7 @@ Usage:
 
 Reads:
   - profiles/<profile-name> (feature list and @services)
-  - .devcontainer/features/*/feature.json (vscode metadata)
+  - features/*/feature.json (vscode metadata)
   - devcontainer/service-templates/*.yml (service definitions)
 
 Writes:

@@ -1,0 +1,18 @@
+{
+  "id": "buildah",
+  "version": "1.0.0",
+  "name": "Buildah",
+  "description": "Tool for building OCI container images without Docker daemon - Podman's companion for image creation",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["buildah"],
+  "dependsOn": ["base-apt"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "buildah --version",
+    "description": "Verify buildah is installed"
+  }
+}

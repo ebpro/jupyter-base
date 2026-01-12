@@ -16,7 +16,7 @@ while [[ ${1:-} != "" ]]; do
 done
 
 echo "Scanning features for install.sh shebang placement (dry-run=$DRY_RUN)"
-for f in "$ROOT"/.devcontainer/features/*/install.sh; do
+for f in "$ROOT"/features/*/install.sh; do
   [ -f "$f" ] || continue
   first=$(sed -n '1p' "$f" || echo "")
   if [[ "$first" =~ ^#! ]]; then

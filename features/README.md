@@ -4,7 +4,7 @@ This document describes best practices for creating and maintaining devcontainer
 
 ## Feature Structure
 
-Each feature lives in `.devcontainer/features/<feature-name>/` with:
+Each feature lives in `features/<feature-name>/` with:
 - `feature.json` - metadata and options
 - `install.sh` - installation script
 - `files/` (optional) - additional files to copy

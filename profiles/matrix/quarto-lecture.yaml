@@ -18,8 +18,7 @@ matrix:
       - bundle-java-build
       - java-jdk
       - bundle-k8s
-      - podman
-      - docker-cli-helper
+      - bundle-container-dev
     options:
       JDK_VERSION: 25
   quarto-lecture-db:
@@ -36,8 +35,7 @@ matrix:
       - bundle-java-build
       - java-jdk
       - docker-dind
-      - podman
-      - docker-cli-helper
+      - bundle-container-dev
       - postgresql-client
       - bundle-python-db
       - startup

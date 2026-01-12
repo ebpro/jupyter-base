@@ -75,7 +75,7 @@ def main():
     # Find features directory
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent
-    features_dir = repo_root / ".devcontainer" / "features"
+    features_dir = repo_root / "features"
 
     # Expand dependencies
     expanded_features = expand_dependencies(features_dir, feature_list)

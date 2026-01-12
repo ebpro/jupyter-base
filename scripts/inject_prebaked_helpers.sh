@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FEATURES_DIR="$ROOT/.devcontainer/features"
+FEATURES_DIR="$ROOT/features"
 
 snippet=$(cat <<'SNIP'
 # Source shared feature helpers (prebaked into image) or fall back to repository helper

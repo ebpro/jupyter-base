@@ -1,0 +1,24 @@
+{
+  "id": "ctop",
+  "version": "1.0.0",
+  "name": "ctop",
+  "description": "Top-like interface for container metrics - excellent for monitoring and teaching container resource usage",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["ctop"],
+  "dependsOn": ["base-apt"],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "0.7.7",
+      "description": "ctop version to install"
+    }
+  },
+  "postInstallCheck": {
+    "command": "ctop -v",
+    "description": "Verify ctop is installed"
+  }
+}

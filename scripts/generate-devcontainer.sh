@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
-FEATURES_DIR="$ROOT/.devcontainer/features"
+FEATURES_DIR="$ROOT/features"
 
 usage(){
   cat <<EOF

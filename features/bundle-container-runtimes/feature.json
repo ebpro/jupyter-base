@@ -1,0 +1,19 @@
+{
+  "id": "bundle-container-runtimes",
+  "version": "3.0.0",
+  "name": "Container Runtimes Bundle",
+  "description": "Meta-feature bundling Docker CLI (for use with DinD sidecar) and Podman for teaching both container ecosystems.",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["docker", "docker-compose", "docker-buildx", "podman"],
+  "dependsOn": [
+    "docker-cli",
+    "docker-compose",
+    "docker-buildx",
+    "podman"
+  ],
+  "options": {}
+}

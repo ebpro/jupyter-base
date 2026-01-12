@@ -1,0 +1,22 @@
+{
+  "id": "bundle-container-dev",
+  "version": "1.0.0",
+  "name": "Container Development Tools Bundle",
+  "description": "Complete container development suite: Docker/Podman runtimes + analysis/security tools (dive, trivy, hadolint, buildah, skopeo, ctop) - ideal for teaching container workflows",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["docker", "docker-compose", "docker-buildx", "podman", "dive", "trivy", "hadolint", "buildah", "skopeo", "ctop"],
+  "dependsOn": [
+    "bundle-container-runtimes",
+    "dive",
+    "trivy",
+    "hadolint",
+    "buildah",
+    "skopeo",
+    "ctop"
+  ],
+  "options": {}
+}

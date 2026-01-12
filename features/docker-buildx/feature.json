@@ -1,0 +1,18 @@
+{
+  "id": "docker-buildx",
+  "version": "1.0.0",
+  "name": "Docker Buildx",
+  "description": "Install Docker Buildx plugin for advanced build capabilities and multi-platform builds",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["docker-buildx"],
+  "dependsOn": ["docker-cli"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "docker buildx version",
+    "description": "Verify Docker Buildx plugin is installed"
+  }
+}

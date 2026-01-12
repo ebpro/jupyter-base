@@ -5,7 +5,7 @@ Generate a Mermaid diagram showing profiles and their included features.
 Usage:
   python scripts/generate_mermaid.py --out docs/diagrams/features-profiles.mmd
 
-The script scans `profiles/` for profile folders and `.devcontainer/features/` for feature folders.
+The script scans `profiles/` for profile folders and `features/` for feature folders.
 It attempts to detect feature references inside profile files (searching for feature names), and
 looks for explicit parent declarations using `@parent` or `parent:` patterns inside profile files.
 
@@ -144,7 +144,7 @@ def main():
     if not profiles:
         lines.append('%% No profiles found under `profiles/`.')
         if not feature_names:
-            lines.append('%% No features found under `.devcontainer/features/`.')
+            lines.append('%% No features found under `features/`.')
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Wrote Mermaid diagram: {out_path}")

@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-FEATURES_DIR="${REPO_ROOT}/.devcontainer/features"
+FEATURES_DIR="${REPO_ROOT}/features"
 
 # Colors
 RED='\033[0;31m'

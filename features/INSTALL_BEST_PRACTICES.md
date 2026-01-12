@@ -307,7 +307,7 @@ conda install -y -n "$CONDA_ENV_NAME" -c conda-forge \
 ### Phase 4: Documentation & Testing
 
 #### Task 4.1: Create Feature Development Guide
-**File**: `.devcontainer/features/DEVELOPMENT.md`
+**File**: `features/DEVELOPMENT.md`
 **Content**:
 - Template for new features
 - Required sections (shebang, error handling, helpers, idempotency)

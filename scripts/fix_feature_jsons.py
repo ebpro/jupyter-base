@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize feature.json files under .devcontainer/features:
+"""Normalize feature.json files under features:
  remove leading repo prefix in `id` (e.g. `solen/foo` -> `foo`)
 """
 from pathlib import Path

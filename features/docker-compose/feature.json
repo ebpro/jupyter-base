@@ -1,0 +1,18 @@
+{
+  "id": "docker-compose",
+  "version": "1.0.0",
+  "name": "Docker Compose",
+  "description": "Install Docker Compose v2 plugin for multi-container application management",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["docker-compose"],
+  "dependsOn": ["docker-cli"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "docker compose version",
+    "description": "Verify Docker Compose plugin is installed"
+  }
+}

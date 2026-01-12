@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-FEATURES_DIR="$ROOT_DIR/.devcontainer/features"
+FEATURES_DIR="$ROOT_DIR/features"
 
 # Colors
 GREEN='\033[0;32m'
@@ -151,7 +151,7 @@ EOF
     for dep in $DEPENDS_ON; do
       if [ -f "$FEATURES_DIR/$dep/install.sh" ]; then
         cat >> "$TEST_DOCKERFILE" <<EOF
-COPY .devcontainer/features/$dep /tmp/features/$dep
+COPY features/$dep /tmp/features/$dep
 RUN chmod +x /tmp/features/$dep/install.sh && \\
     bash /tmp/features/$dep/install.sh || true
 EOF
@@ -163,7 +163,7 @@ EOF
   cat >> "$TEST_DOCKERFILE" <<EOF
 
 # Install feature under test
-COPY .devcontainer/features/$FEATURE_ID /tmp/features/$FEATURE_ID
+COPY features/$FEATURE_ID /tmp/features/$FEATURE_ID
 COPY Artefacts /tmp/Artefacts
 COPY scripts /tmp/scripts
 

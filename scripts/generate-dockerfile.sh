@@ -9,7 +9,7 @@ fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROFILES_DIR="$ROOT/profiles"
-FEATURES_DIR="$ROOT/.devcontainer/features"
+FEATURES_DIR="$ROOT/features"
 OUT="Dockerfile.generated"
 
 # --- Helpers ---
@@ -155,7 +155,7 @@ emit_run_features() {
 
   # Per-feature bind mounts (read-only)
   for feat in "${feats[@]}"; do
-    echo "  --mount=type=bind,source=.devcontainer/features/${feat},target=/tmp/features/${feat},readonly \\" >> "$OUT"
+    echo "  --mount=type=bind,source=features/${feat},target=/tmp/features/${feat},readonly \\" >> "$OUT"
   done
 
   # Shared bind mounts (read-only)

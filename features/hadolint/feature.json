@@ -1,0 +1,24 @@
+{
+  "id": "hadolint",
+  "version": "1.0.0",
+  "name": "Hadolint",
+  "description": "Dockerfile linter for enforcing best practices and catching common mistakes - essential for teaching Docker",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": ["linux"],
+  "provides": ["hadolint"],
+  "dependsOn": ["base-apt"],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "2.12.0",
+      "description": "Hadolint version to install"
+    }
+  },
+  "postInstallCheck": {
+    "command": "hadolint --version",
+    "description": "Verify hadolint is installed"
+  }
+}
