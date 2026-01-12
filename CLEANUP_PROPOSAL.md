@@ -285,29 +285,38 @@ The codebase has accumulated significant technical debt with **dual systems** (p
 
 ---
 
-### Phase 4: Script Organization 🎯
+### Phase 4: Script Organization ✅ COMPLETED
 
 **Goal:** Clarify script purposes and relationships
 
-**Action:**
-1. **Categorize** scripts into subdirectories:
+**Completed Actions:**
+1. ✅ **Deleted** 4 legacy one-time migration scripts:
+   - `apply_profile_renames.sh` - Profile renames (obsolete with YAML)
+   - `infer_parents_from_prefixes.py` - Hierarchical parent inference (obsolete)
+   - `fix_feature_jsons.py` - Feature JSON normalization (one-time)
+   - `fix-feature-shebangs.sh` - Shebang fixes (one-time)
+
+2. ✅ **Organized** scripts into subdirectories:
    ```
    scripts/
-     core/           # Main build workflow (generate-*, build.sh)
-     validation/     # Validators (validate-*, test-*)
-     utilities/      # Helpers (fetch-*, prebake-*, fix-*)
-     legacy/         # Keep but mark as deprecated
+     ├── validate/       # Validation scripts (5 scripts)
+     ├── test/           # Testing scripts (3 scripts)
+     ├── features/       # Feature management (2 scripts)
+     ├── utils/          # Utilities (9 scripts)
+     ├── analysis/       # Analysis tools (2 scripts)
+     ├── lib/            # Shared libraries (3 scripts)
+     └── (root)          # Core build scripts (8 scripts)
    ```
 
-2. **Create** `scripts/README.md` with:
-   - Main workflow diagram
-   - Purpose of each script
-   - Which scripts are used by CI vs local dev
+3. ✅ **Updated** all script references across codebase
+4. ✅ **Verified** profile generation and build workflow still work
 
-3. **Delete** obsolete scripts after review
-
-**Benefits:**
-- Easier to find the right script
+**Results:**
+- Removed 4 obsolete scripts
+- 29 scripts organized into logical categories
+- All path references updated (build.sh, workflows, docs)
+- Core build scripts remain easily accessible in scripts/
+- Better organization without breaking existing workflows
 - Clear separation of concerns
 - Better onboarding for new contributors
 
