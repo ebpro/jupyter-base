@@ -1,0 +1,19 @@
+# Purpose: Generate language-specific profile variants
+# Kotlin, web development, and other language stacks
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+options: {}
+matrix:
+  kotlin:
+    features:
+      - bundle-java-build
+      - kotlin
+    options:
+      INSTALL_KOTLIN: true
+      INSTALL_KOTLIN_KERNEL: true
+  web-dev:
+    features:
+      - bundle-web-dev
+    options: {}

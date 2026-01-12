@@ -1,0 +1,21 @@
+# Purpose: Generate database-centric profile variants
+# Profiles with database clients and services
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+options: {}
+matrix:
+  db-multi:
+    features:
+      - bundle-data-science
+      - postgresql-client
+      - mysql-client
+      - mongodb-client
+      - redis-client
+    options: {}
+    services:
+      - postgres:version=16
+      - mysql:version=8.0
+      - mongo:version=8.0
+      - redis:version=7
