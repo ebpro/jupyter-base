@@ -1,0 +1,13 @@
+{
+  "id": "system-essentials",
+  "name": "System Essentials",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "description": "Installs minimal OS utility packages from Artefacts/apt_packages/base",
+  "dependsOn": ["container-user"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "which jq fzf tmux nvim cmake",
+    "description": "Verify core utilities from base apt packages are available"
+  }
+}

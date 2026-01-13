@@ -1,0 +1,332 @@
+---
+title: "Containers"
+subtitle: "Containers Notebook Demo"
+description: "Démonstration complète d'exécution de commandes Docker dans un notebook : concepts clés, exécution de containers, et gestion des images."
+image: _quarto-utils/MyMedia/images/optimized/ian-taylor-jOqJbvo1P9g-unsplash_docker-400.webp
+jupyter: zsh
+
+programs:
+  - M1-InfoMath [DEV-EXP]
+  - CNAM-I [PO43]
+
+categories:
+  - Lecture
+  - Containers
+  - Docker
+  - DevOps
+
+provide_notes: true
+provide_slides: true
+---
+
+::: {.content-visible when-profile="notes"}
+## Introduction
+
+Ce document fournit des notes complètes pour l'introduction aux containers Docker. Il couvre les concepts clés, deux approches d'exécution depuis un notebook (Docker-in-Docker vs engine de l'hôte), et les commandes essentielles.
+
+### Contexte
+
+Le devcontainer utilisé pour ces démonstrations contient les clients `docker` et `podman`. Pour les démonstrations reproduites ici nous utilisons le client `docker`.
+
+Deux approches courantes pour exécuter Docker depuis un environnement isolé :
+
+- **Docker-in-Docker (dind)**: un service Docker s'exécute dans un container séparé. Le client Docker du notebook se connecte au démon via TCP (ex : `tcp://dind:2375`). Avantage : isolation complète du démon de l'hôte. Inconvénient : complexité réseau, performances légèrement réduites.
+- **Utiliser l'engine de l'hôte**: le client Docker dans le notebook utilise le socket Unix de l'hôte (ex : `/var/run/docker.sock`). Avantage : accès direct aux images/containers de l'hôte et meilleures performances. Inconvénient : moindre isolation (risques de sécurité si le notebook est compromis).
+
+Dans ces notes, les exemples sont réalisés en mode Docker-in-Docker pour éviter d'interagir avec le démon de l'hôte.
+:::
+
+::: {.content-visible when-profile="slides"}
+## Introduction
+
+- **Objectif**: Introduction pratique aux containers Docker
+- **Contenu**: concepts clés + commandes essentielles
+- **Environnement**: devcontainer avec clients `docker` et `podman`
+:::
+
+## Préparation de l'environnement
+
+::: {.content-visible when-profile="notes"}
+### Configuration Docker-in-Docker
+
+Avant d'exécuter les commandes Docker dans ce document, exportez la variable d'environnement `DOCKER_HOST` si vous utilisez dind :
+
+```{zsh}
+#| echo: false
+#| output: false
+export DOCKER_HOST=tcp://dind:2375
+```
+
+Cela redirige les commandes Docker locales vers le démon exécuté dans le service `dind`.
+:::
+
+::: {.content-visible when-profile="slides"}
+### Configuration
+
+- **Docker-in-Docker (dind)**: isolation complète
+  - Service Docker séparé
+  - Connexion via TCP (`tcp://dind:2375`)
+- **Engine de l'hôte**: performances optimales
+  - Socket Unix (`/var/run/docker.sock`)
+  - Isolation moindre
+:::
+
+## Premier container
+
+::: {.content-visible when-profile="notes"}
+### Exécution d'un container simple
+
+Vérifions que la communication fonctionne avec l'image `hello-world` :
+
+```{zsh}
+#| echo: true
+#| output: true
+docker run hello-world
+```
+
+Cette commande effectue plusieurs opérations :
+
+1. Recherche l'image `hello-world` localement
+2. Si absente, la télécharge depuis Docker Hub
+3. Crée un nouveau container à partir de cette image
+4. Exécute le container qui affiche un message de bienvenue
+5. Le container s'arrête automatiquement après avoir terminé
+
+L'image `hello-world` est particulièrement légère (environ 1.84 kB) et sert principalement à vérifier que Docker est correctement installé et configuré.
+:::
+
+::: {.content-visible when-profile="slides"}
+### Hello World
+
+```{zsh}
+#| echo: true
+#| output: true
+docker run hello-world
+```
+
+**Étapes** :
+
+1. 🔍 Recherche locale de l'image
+2. 📥 Téléchargement depuis Docker Hub (si absente)
+3. 🏗️ Création du container
+4. ▶️ Exécution + message de bienvenue
+5. ⏹️ Arrêt automatique
+
+💡 Image ultra-légère (~1.84 kB) pour tester l'installation
+:::
+
+## Images Docker
+
+::: {.content-visible when-profile="notes"}
+### Gestion des images
+
+Pour lister toutes les images disponibles localement :
+
+```{zsh}
+#| echo: true
+#| output: true
+docker images
+```
+
+Cette commande affiche :
+
+- **REPOSITORY**: le nom de l'image (ex: `ubuntu`, `nginx`)
+- **TAG**: la version ou variante de l'image (ex: `latest`, `22.04`)
+- **IMAGE ID**: identifiant unique de l'image
+- **CREATED**: date de création de l'image
+- **SIZE**: taille de l'image sur le disque
+
+Les images Docker sont construites en couches (layers), ce qui permet de réutiliser les couches communes entre différentes images, optimisant ainsi l'espace disque et le temps de téléchargement.
+:::
+
+::: {.content-visible when-profile="slides"}
+### Lister les images
+
+```{zsh}
+#| echo: true
+#| output: true
+docker images
+```
+
+**Colonnes** :
+
+- **REPOSITORY** : nom de l'image
+- **TAG** : version/variante
+- **IMAGE ID** : identifiant unique
+- **CREATED** : date de création
+- **SIZE** : taille disque
+
+💡 **Architecture en couches** → réutilisation + optimisation
+:::
+
+## Containers actifs
+
+::: {.content-visible when-profile="notes"}
+### Surveillance des containers
+
+Pour voir les containers en cours d'exécution :
+
+```{zsh}
+#| echo: true
+#| output: true
+docker ps
+```
+
+Pour voir tous les containers (en cours d'exécution et arrêtés) :
+
+```{zsh}
+#| echo: true
+#| output: true
+docker ps -a
+```
+
+Les informations affichées incluent :
+
+- **CONTAINER ID**: identifiant court du container
+- **IMAGE**: image source du container
+- **COMMAND**: commande exécutée au démarrage
+- **CREATED**: date de création du container
+- **STATUS**: état actuel (`Up` pour actif, `Exited` pour arrêté)
+- **PORTS**: mappages de ports entre l'hôte et le container
+- **NAMES**: nom attribué au container (généré automatiquement ou défini par l'utilisateur)
+:::
+
+::: {.content-visible when-profile="slides"}
+### Lister les containers
+
+```{zsh}
+#| echo: true
+#| output: true
+docker ps       # containers actifs
+docker ps -a    # tous les containers
+```
+
+**Informations** :
+
+- **CONTAINER ID** : identifiant court
+- **IMAGE** : image source
+- **STATUS** : `Up` (actif) / `Exited` (arrêté)
+- **PORTS** : mappages réseau
+- **NAMES** : nom du container
+:::
+
+## Container interactif
+
+::: {.content-visible when-profile="notes"}
+### Exécution interactive
+
+Lançons un container Ubuntu avec un shell interactif :
+
+```{zsh}
+#| echo: true
+#| output: true
+docker run ubuntu uname -a
+```
+
+Options utilisées :
+
+- `-i` (interactive) : garde l'entrée standard (STDIN) ouverte
+- `-t` (tty) : alloue un pseudo-terminal
+- `ubuntu` : nom de l'image à utiliser
+- `zsh` : commande à exécuter dans le container
+
+Cette combinaison permet d'obtenir un shell interactif dans le container, similaire à une connexion SSH. Le container s'exécute tant que le shell est actif et s'arrête dès que vous quittez (commande `exit` ou Ctrl+D).
+:::
+
+::: {.content-visible when-profile="slides"}
+### Shell interactif
+
+```{zsh}
+#| echo: true
+#| output: true
+docker run -it ubuntu zsh
+```
+
+**Options** :
+
+- `-i` : garde STDIN ouvert
+- `-t` : alloue un pseudo-terminal
+- Résultat : shell interactif dans le container
+
+💡 Container actif tant que le shell est ouvert
+:::
+
+## Nettoyage
+
+::: {.content-visible when-profile="notes"}
+### Suppression des containers
+
+Pour supprimer un container arrêté spécifique :
+
+```{zsh}
+#| echo: true
+#| output: false
+docker rm <container_id>
+```
+
+Pour supprimer tous les containers arrêtés en une seule commande :
+
+```{zsh}
+#| echo: true
+#| output: false
+docker container prune
+```
+
+Il est recommandé de nettoyer régulièrement les containers arrêtés pour éviter l'accumulation d'espace disque inutile. La commande `prune` demande une confirmation avant suppression pour éviter les suppressions accidentelles.
+
+Pour supprimer une image :
+
+```{zsh}
+#| echo: true
+#| output: false
+docker rmi <image_id>
+```
+
+Notez qu'une image ne peut être supprimée que si aucun container (même arrêté) ne l'utilise.
+:::
+
+::: {.content-visible when-profile="slides"}
+### Nettoyage
+
+```{zsh}
+#| echo: true
+#| output: true
+docker rm <container_id>      # supprimer un container
+docker container prune         # tous les containers arrêtés
+docker rmi <image_id>          # supprimer une image
+```
+
+⚠️ **Contrainte** : une image ne peut être supprimée si des containers l'utilisent
+
+💡 **Bonnes pratiques** : nettoyer régulièrement
+:::
+
+## Conclusion
+
+::: {.content-visible when-profile="notes"}
+Cette introduction couvre les commandes Docker essentielles pour démarrer avec la conteneurisation. Les concepts abordés incluent :
+
+- La différence entre images et containers
+- L'exécution de containers simples et interactifs
+- La gestion et la surveillance des ressources Docker
+- Les bonnes pratiques de nettoyage
+
+Pour aller plus loin, explorez les Dockerfiles pour créer vos propres images, Docker Compose pour orchestrer plusieurs containers, et les réseaux Docker pour la communication inter-containers.
+:::
+
+::: {.content-visible when-profile="slides"}
+### Récapitulatif
+
+✅ **Concepts clés**
+
+- Images vs Containers
+- Exécution simple et interactive
+- Surveillance et gestion
+- Nettoyage
+
+📚 **Pour aller plus loin**
+
+- Dockerfiles (images personnalisées)
+- Docker Compose (orchestration)
+- Réseaux Docker (communication)
+:::

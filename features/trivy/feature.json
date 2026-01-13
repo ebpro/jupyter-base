@@ -9,7 +9,7 @@
   },
   "platforms": ["linux"],
   "provides": ["trivy"],
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "options": {
     "version": {
       "type": "string",

@@ -9,7 +9,7 @@
   },
   "platforms": ["linux"],
   "provides": ["buildah"],
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "options": {},
   "postInstallCheck": {
     "command": "buildah --version",

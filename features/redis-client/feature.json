@@ -4,7 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "redis-client",
   "description": "Installs Redis command-line client tools",
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "provides": ["redis-cli"],
   "postInstallCheck": {
     "command": "redis-cli --version",

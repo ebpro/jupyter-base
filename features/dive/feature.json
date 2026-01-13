@@ -9,7 +9,7 @@
   },
   "platforms": ["linux"],
   "provides": ["dive"],
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "options": {
     "version": {
       "type": "string",

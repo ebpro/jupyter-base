@@ -38,7 +38,7 @@ matrix:
       - bundle-container-dev
       - postgresql-client
       - bundle-python-db
-      - startup
+      - container-init
     options:
       JDK_VERSION: 25
       ENABLEBUILDKIT: true

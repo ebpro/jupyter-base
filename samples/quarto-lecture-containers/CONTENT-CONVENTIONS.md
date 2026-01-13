@@ -270,39 +270,43 @@ provide_slides: true
 
 **Dernière mise à jour :** 10 janvier 2026
 
-## 6. Registre des formations (`programs`) — recommandation
+## 6. Programmes et codes de cours — format inline
 
-Pour gérer le fait que les mêmes `course_codes` ne s'appliquent pas à toutes les formations, nous recommandons de centraliser la correspondance formation → codes de cours dans un registre `programs`.
-
-Format recommandé (YAML). Placez ce bloc dans un fichier de données project-level (par ex. `_quarto-utils/programs.yml`) ou conservez une section d'exemple ici pour référence :
+Pour déclarer les formations et leurs codes de cours associés directement dans le frontmatter (sans fichier YAML externe), utilisez le format :
 
 ```yaml
 programs:
-  MSc-DS:
-    name: "MSc Data Science"
-    course_codes: [I111, PO43]
-  Bootcamp-Java:
-    name: "Bootcamp Java"
-    course_codes: [BJ-01]
-  Continuing-Ed:
-    name: "Continuing Education"
-    course_codes: [CE-2026]
+  - ProgramName [COURSE_CODE1]
+  - AnotherProgram [CODE1, CODE2]
 ```
 
-Recommandations d'usage :
-- Dans le frontmatter d'un document, **référencer les programmes par ID** :
-
+**Exemples :**
 ```yaml
 programs:
-  - MSc-DS
-  - Bootcamp-Java
+  - M1-InfoMath [I111]
+  - CNAM-I [PO43]
 ```
 
-- Ne dupliquez pas systématiquement `course_codes` dans le frontmatter. Si `course_codes` est absent, la template peut récupérer les codes depuis le(s) `programs` référencés. Si un document a besoin d'un code spécifique différent, **utilisez `course_codes` en override explicite**.
+Pour un programme avec plusieurs codes :
+```yaml
+programs:
+  - MSc-DS [I111, PO43, DEV-EXP]
+```
 
-- Conserver un registre central facilite le renommage des programmes, la recherche et le filtrage par formation.
+**Règles :**
+- Chaque entrée commence par le nom du programme, suivi des codes entre crochets `[...]`
+- Plusieurs codes peuvent être séparés par des virgules ou espaces
+- Les codes sont automatiquement extraits et affichés comme badges dans la galerie
+- Les noms de programme (avant les crochets) sont affichés comme badges de programme
 
-Template & implémentation :
-- La galerie lit `item.programs` (frontmatter) et, si un registre global est disponible (par ex. `site.programs` ou `_quarto-utils/programs.yml` importé comme données), elle peut rechercher les `course_codes` associés. Le frontmatter `course_codes` a priorité sur les codes dérivés du registre.
+**Comportement dans la galerie :**
+- La template `gallery.ejs` parse automatiquement ce format
+- Affiche les noms de programme comme badges `.program-badge`
+- Extrait et affiche les codes de cours comme badges `.code-badge`
+
+**Pourquoi ce format :**
+- Autonome : chaque document déclare explicitement ses formations et codes
+- Portable : pas de dépendance à un registre externe (`programs.yml`)
+- Clair : la correspondance programme → codes est visible directement dans le frontmatter
 
 ---

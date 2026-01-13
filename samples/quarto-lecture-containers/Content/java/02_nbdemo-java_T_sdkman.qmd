@@ -1,0 +1,58 @@
+---
+title: "Installer Java avec SDKMAN"
+subtitle: "Petit tutoriel pour installer SDKMAN et une JVM dans le devcontainer"
+description: "Instructions pas-à-pas pour installer SDKMAN et Java (sous Linux) depuis un notebook .qmd"
+jupyter: bash
+
+programs:
+  - M1-InfoMath [DEV-EXP]
+  - CNAM-I [PO43]
+
+categories:
+  - Tutorial
+  - Java
+  - SDKMAN
+
+provide_notes: true
+provide_slides: false
+---
+
+::: {.content-visible when-profile="notes"}
+
+## Objectif
+
+Installer `sdkman` puis une version de Java (ex: Temurin 17) dans le conteneur de développement afin que les étudiants puissent compiler et exécuter des projets Java.
+
+> Ces commandes sont destinées à un terminal Bash (ou zsh). Dans un notebook Quarto, utilisez des cellules `bash`.
+
+### 1) Installer SDKMAN
+
+```bash
+# Télécharge et installe SDKMAN (interactive: modifie ~/.sdkman)
+curl -s "https://get.sdkman.io" | bash
+
+# Recharger l'environnement (dans le même shell)
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Vérifier que sdk est disponible
+sdk version
+```
+
+### 2) Lister les JVM disponibles et installer une version
+
+```bash
+# Lister les candidates Java
+sdk list java
+
+# Exemple: installer Temurin 17 (choisissez la version qui vous convient)
+sdk install java 17.0.8-tem
+
+# Vérifier la version installée
+java -version
+```
+
+Notes:
+- Dans un conteneur CI/non interactif, assurez-vous que `~/.sdkman` est persistant ou exécutez l'installation dans la phase de construction de l'image.
+- Après installation, ouvrez un nouveau shell ou source `~/.sdkman/bin/sdkman-init.sh` pour rendre `sdk` disponible.
+
+:::

@@ -1,0 +1,17 @@
+{
+  "id": "xeus-sql",
+  "name": "Xeus-SQL Jupyter Kernel",
+  "version": "1.0.0",
+  "description": "Native SQL kernel for Jupyter with database connectivity (SQLAlchemy, PostgreSQL, MySQL)",
+  "options": {},
+  "customizations": {
+    "solen": {
+      "category": "database",
+      "tags": ["jupyter", "sql", "kernel", "postgresql", "mysql"],
+      "complexity": "simple",
+      "installTimeMinutes": 2,
+      "requiresRestart": false
+    }
+  },
+  "dependsOn": ["python-base"]
+}

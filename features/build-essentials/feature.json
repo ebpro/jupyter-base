@@ -1,0 +1,20 @@
+{
+  "id": "build-essentials",
+  "name": "Build Essentials",
+  "version": "0.1.0",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+
+  "description": "Installs compilers and monitoring utilities (build-essential, cmake, htop, strace)",
+  "dependsOn": ["system-essentials"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "gcc --version && cmake --version && which htop jq fd rg",
+    "description": "Verify core dev tools are available"
+  },
+  "vscode": {
+    "extensions": [
+      "redhat.vscode-yaml",
+      "editorconfig.editorconfig"
+    ]
+  }
+}

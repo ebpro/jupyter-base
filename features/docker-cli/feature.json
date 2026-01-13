@@ -9,7 +9,7 @@
   },
   "platforms": ["linux"],
   "provides": ["docker"],
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "options": {
     "version": {
       "type": "string",

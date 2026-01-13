@@ -1,0 +1,127 @@
+---
+title: "Practice Exercises"
+subtitle: "Hands-on Java exercises"
+description: "Two practice exercises for Java lecture with TODO starters and hidden solutions."
+format:
+  html: default
+  ipynb: default
+jupyter: java
+image: _quarto-utils/MyMedia/images/optimized/taiki-ishikawa-PUXFKuVf_84-unsplash_java-400.webp
+
+programs:
+  - M1-InfoMath [DEV-EXP]
+  - CNAM-I [PO43]
+
+categories:
+  - Practice
+  - Java
+
+provide_notes: true
+provide_slides: false
+---
+
+# Java Practice Exercises
+
+**Related lecture:** [02_demo_L_java.qmd](02_demo_L_java.qmd)
+
+This notebook contains interactive exercises. Edit the code cells and run them to check your solutions.
+
+---
+
+## Exercise 1 — Control Flow
+
+**Task:** Complete the function `checkAge(int age)` that returns `"Majeur"` if age >= 18, otherwise `"Mineur"`.
+
+Then test it with ages 15, 18, and 25.
+
+```{java}
+//| echo: true
+//| output: true
+// Write your checkAge function here
+String checkAge(int age) {
+    // TODO: implement this
+    return "";
+}
+
+// Test cases
+System.out.println("Age 15: " + checkAge(15));
+System.out.println("Age 18: " + checkAge(18));
+System.out.println("Age 25: " + checkAge(25));
+```
+
+**Expected output:**
+```
+Age 15: Mineur
+Age 18: Majeur
+Age 25: Majeur
+```
+
+---
+
+## Exercise 2 — Arrays & Methods
+
+**Task:** Write a method `sumArray(int[] arr)` that returns the sum of all elements in the array.
+
+Test it with the array `{10, 20, 30, 40, 50}`.
+
+```{java}
+//| echo: true
+//| output: true
+// Write your sumArray function here
+int sumArray(int[] arr) {
+    // TODO: implement this
+    return 0;
+}
+
+// Test case
+int[] numbers = {10, 20, 30, 40, 50};
+System.out.println("Sum: " + sumArray(numbers));
+```
+
+**Expected output:**
+```
+Sum: 150
+```
+
+---
+
+## Solutions
+
+Run the cells below to see the solutions (after attempting the exercises yourself!).
+
+### Solution 1 — Control Flow
+
+```{java}
+//| echo: true
+//| output: true
+String checkAge(int age) {
+    if (age >= 18) {
+        return "Majeur";
+    } else {
+        return "Mineur";
+    }
+}
+
+// Test cases
+System.out.println("Age 15: " + checkAge(15));
+System.out.println("Age 18: " + checkAge(18));
+System.out.println("Age 25: " + checkAge(25));
+```
+
+### Solution 2 — Arrays & Methods
+
+```{java}
+//| echo: true
+//| output: true
+int sumArray(int[] arr) {
+    int sum = 0;
+    for (int value : arr) {
+        sum += value;
+    }
+    return sum;
+}
+
+// Test case
+int[] numbers = {10, 20, 30, 40, 50};
+System.out.println("Sum: " + sumArray(numbers));
+```

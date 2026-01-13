@@ -6,7 +6,7 @@
   "documentationURL": "https://nodejs.org/",
   "licenseURL": "https://github.com/nodejs/node/blob/main/LICENSE",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "dependsOn": ["user", "_lib/download-release"],
+  "dependsOn": ["container-user", "_lib/download-release"],
   "options": {
     "version": {
       "type": "string",

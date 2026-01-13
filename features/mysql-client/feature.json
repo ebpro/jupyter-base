@@ -1,12 +1,12 @@
 {
   "id": "mysql-client",
   "name": "MySQL Client Tools",
-  "version": "1.1.0",
-  "description": "MySQL/MariaDB client tools including mysql, mysqldump, and development libraries",
+  "version": "1.2.0",
+  "description": "MySQL/MariaDB client tools including mysql, mysqldump, development libraries, and mycli enhanced CLI",
   "documentationURL": "https://dev.mysql.com/doc/refman/8.0/en/mysql.html",
   "licenseURL": "https://www.gnu.org/licenses/gpl-2.0.html",
   "dependsOn": [
-    "base-apt"
+    "system-essentials"
   ],
   "options": {
     "clientType": {
@@ -19,6 +19,11 @@
       "type": "boolean",
       "default": true,
       "description": "Install libmysqlclient-dev (MySQL C library headers for building extensions)"
+    },
+    "installMycli": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install mycli - enhanced MySQL/MariaDB CLI with autocomplete and syntax highlighting"
     }
   },
   "provides": [
@@ -29,7 +34,7 @@
     "mycli"
   ],
   "installsAfter": [
-    "base-apt",
+    "system-essentials",
     "python-base"
   ],
   "vscode": {

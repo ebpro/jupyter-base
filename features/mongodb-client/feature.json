@@ -6,7 +6,7 @@
   "documentationURL": "https://www.mongodb.com/docs/mongodb-shell/",
   "licenseURL": "https://www.mongodb.com/community/licensing",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "dependsOn": ["base-apt"],
+  "dependsOn": ["system-essentials"],
   "options": {
     "version": {
       "type": "string",

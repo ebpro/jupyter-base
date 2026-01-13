@@ -2,16 +2,18 @@
 set -euo pipefail
 
 # PostgreSQL Client Tools Installation
-# Installs psql, pg_dump, pg_restore, and libpq libraries
+# Installs psql, pg_dump, pg_restore, libpq libraries, and pgcli enhanced CLI
 
 VERSION="${VERSION:-16}"
 INSTALL_LIBPQ="${INSTALLLIBPQ:-true}"
+INSTALL_PGCLI="${INSTALLPGCLI:-true}"
 
 echo "===================================================================="
 echo "Feature: PostgreSQL Client Tools"
 echo "===================================================================="
 echo "PostgreSQL Version: ${VERSION}"
 echo "Install libpq-dev: ${INSTALL_LIBPQ}"
+echo "Install pgcli: ${INSTALL_PGCLI}"
 echo "===================================================================="
 
 # Determine actual PostgreSQL version
@@ -70,6 +72,45 @@ cat > /etc/postgresql-common/psqlrc << 'EOF'
 \unset QUIET
 EOF
 
+# Install pgcli if requested
+if [ "${INSTALL_PGCLI}" = "true" ]; then
+    echo ""
+    echo "📦 Installing pgcli (enhanced PostgreSQL CLI)..."
+    
+    # Ensure notebook user variables
+    NB_USER=${NB_USER:-jovyan}
+    NB_UID=${NB_UID:-1001}
+    NB_GID=${NB_GID:-1001}
+    HOME_DIR="/home/${NB_USER}"
+    
+    # Ensure pip cache owned by notebook user
+    mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
+    chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
+    
+    # Prefer conda pip when available
+    if [ -n "${CONDA_DIR:-}" ] && [ -f "${CONDA_DIR}/bin/pip" ]; then
+        "${CONDA_DIR}/bin/pip" install pgcli || echo "⚠️  pgcli installation failed, continuing..."
+    elif command -v pip3 >/dev/null 2>&1; then
+        # Run as NB_USER to use user's pip cache
+        TMP_SCRIPT="/tmp/install-pgcli-${NB_USER}.sh"
+        cat > "${TMP_SCRIPT}" <<'EOFSCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -m pip install --break-system-packages pgcli || exit 0
+EOFSCRIPT
+        chmod +x "${TMP_SCRIPT}"
+        su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || echo "⚠️  pgcli installation failed, continuing..."
+        rm -f "${TMP_SCRIPT}"
+    else
+        echo "⚠️  pip not found, skipping pgcli installation"
+    fi
+    
+    if command -v pgcli >/dev/null 2>&1; then
+        echo "✅ pgcli installed successfully!"
+        pgcli --version || true
+    fi
+fi
+
 # Verify installation
 echo ""
 echo "✅ Verifying PostgreSQL client installation..."
@@ -82,12 +123,17 @@ echo "✅ PostgreSQL client tools installed successfully!"
 echo ""
 echo "Available commands:"
 echo "  - psql: Interactive PostgreSQL terminal"
+if [ "${INSTALL_PGCLI}" = "true" ] && command -v pgcli >/dev/null 2>&1; then
+    echo "  - pgcli: Enhanced PostgreSQL CLI with autocomplete and syntax highlighting"
+fi
 echo "  - pg_dump: Database backup utility"
 echo "  - pg_restore: Database restore utility"
 echo "  - pg_isready: Check PostgreSQL server availability"
 echo ""
 echo "Example usage:"
 echo "  psql -h localhost -U postgres -d mydb"
+if [ "${INSTALL_PGCLI}" = "true" ] && command -v pgcli >/dev/null 2>&1; then
+    echo "  pgcli -h localhost -U postgres -d mydb"
+fi
 echo "  pg_dump -h localhost -U postgres mydb > backup.sql"
 echo ""
-echo "For enhanced CLI with autocomplete, install postgresql-client-cli feature"

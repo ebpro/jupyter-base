@@ -4,7 +4,7 @@
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
   "id": "jetbrains-gateway",
   "description": "Optional SSH server to support JetBrains Gateway / Connect to DevContainer",
-  "dependsOn": ["user"],
+  "dependsOn": ["container-user"],
   "options": {
     "start_sshd": {
       "type": "boolean",
