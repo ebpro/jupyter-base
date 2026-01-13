@@ -137,35 +137,17 @@ download_github_release() {
     fi
 
     # Build filename from pattern (first-pass substitution)
-    local filename
-    if [ -n "$filename_pattern_arg" ]; then
-        # Caller provided an explicit filename - use it verbatim
-        filename="$filename_pattern"
-    else
-        filename="$filename_pattern"
-        filename="${filename//{tool}/$tool}"
-        filename="${filename//{version}/$version}"
-        filename="${filename//{arch}/$arch}"
-    fi
+    local filename="$filename_pattern"
+    # Always perform placeholder substitution, even for explicit patterns
+    # Use sed for reliable literal string replacement (bash parameter expansion treats {...} as globs)
+    safe_tool="${tool//\//\\/}"
+    safe_version="${version//\//\\/}"
+    safe_arch="${arch//\//\\/}"
+    filename=$(printf '%s' "$filename" | sed -e "s/{tool}/$safe_tool/g" -e "s/{version}/$safe_version/g" -e "s/{arch}/$safe_arch/g")
 
-    # Debug/logging: show the raw pattern and first-pass result (helps diagnose
-    # empty-placeholder cases during image builds where mounts can change PWD)
+    # Debug/logging: show the raw pattern and result
     echo "   Pattern: $filename_pattern"
-    echo "   Filename (after first-pass): $filename"
-
-    # If placeholders remain (or substitution produced empty components),
-    # perform a second-pass replacement using sed to catch any lingering
-    # placeholder variants and ensure values are injected.
-    if [ -z "$filename_pattern_arg" ] && (printf '%s' "$filename" | grep -q '{\|}' 2>/dev/null || [[ "$filename" == *"__"* || "$filename" == *_linux_ ]]); then
-        safe_tool=${tool//\/\\}
-        safe_version=${version//\/\\}
-        safe_arch=${arch//\/\\}
-        # Use the already-populated first-pass filename as the sed input so
-        # we don't accidentally concatenate the original pattern with the
-        # default template when callers pass an explicit filename arg.
-        filename=$(printf '%s' "$filename" | sed -e "s/{tool}/$safe_tool/g" -e "s/{version}/$safe_version/g" -e "s/{arch}/$safe_arch/g")
-        echo "   Filename (after second-pass): $filename"
-    fi
+    echo "   Filename: $filename"
 
     # If any key components are empty, try to infer missing values and
     # fall back to the conventional GitHub asset name format to avoid
@@ -224,11 +206,23 @@ download_github_release() {
         # Helper lock functions (simple mkdir-based lock)
         _cache_lock_acquire() {
             local lockdir="$1/.lock"
-            local max_attempts=50
+            local max_attempts=150  # 30 seconds (was 10s)
             local n=0
             until mkdir "$lockdir" 2>/dev/null; do
                 n=$((n+1))
                 if [ "$n" -ge "$max_attempts" ]; then
+                    # Check if lock is stale (older than 60s) and clean it up
+                    if [ -d "$lockdir" ]; then
+                        local lock_age=$(($(date +%s) - $(stat -f %m "$lockdir" 2>/dev/null || stat -c %Y "$lockdir" 2>/dev/null || echo 0)))
+                        if [ "$lock_age" -gt 60 ]; then
+                            echo "   Removing stale lock (${lock_age}s old)"
+                            rmdir "$lockdir" 2>/dev/null || true
+                            # Try one more time after cleanup
+                            if mkdir "$lockdir" 2>/dev/null; then
+                                return 0
+                            fi
+                        fi
+                    fi
                     echo "   ⚠️  Could not acquire cache lock after $((n*200/1000))s, proceeding without cache write"
                     return 1
                 fi
@@ -316,12 +310,17 @@ download_github_release() {
                 fi
                 _cache_lock_release "$cache_dir"
             else
-                # Lock acquisition failed - best-effort: try to write without lock
-                mkdir -p "$cache_dir" 2>/dev/null || true
-                if cp -a "$tmpfile" "$cache_archive" 2>/dev/null; then
-                    echo "   Stored archive to cache (no lock): $cache_archive"
+                # Lock acquisition failed - check if another process already cached it
+                if [ -f "$cache_archive" ]; then
+                    echo "   Archive already cached by another process: $cache_archive"
                 else
-                    echo "   ⚠️  Could not store archive to cache: $cache_archive"
+                    # Best-effort: try to write without lock (risky but better than nothing)
+                    mkdir -p "$cache_dir" 2>/dev/null || true
+                    if cp -a "$tmpfile" "$cache_archive" 2>/dev/null; then
+                        echo "   Stored archive to cache (no lock): $cache_archive"
+                    else
+                        echo "   ⚠️  Could not store archive to cache: $cache_archive"
+                    fi
                 fi
             fi
         fi

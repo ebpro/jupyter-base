@@ -1,0 +1,194 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.quarto-lecture-full.generated
+#1 transferring dockerfile: 7.20kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 656B done
+#3 DONE 0.0s
+
+#4 [internal] setting cache mount permissions
+#4 CACHED
+
+#5 [base 1/8] FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae
+#5 resolve mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 1.09MB 0.3s done
+#6 DONE 0.3s
+
+#7 [base 2/8] WORKDIR /home/jovyan
+#7 CACHED
+
+#8 [base 3/8] COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
+#8 CACHED
+
+#9 [base 4/8] COPY inputs /opt/solen/inputs
+#9 CACHED
+
+#10 [base 5/8] COPY artefacts /opt/solen/artefacts
+#10 CACHED
+
+#11 [base 6/8] RUN mkdir -p /opt/.features /scripts/lib &&     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
+#11 DONE 0.1s
+
+#12 [base 7/8] COPY generated/toolcache /opt/toolcache
+#12 DONE 0.9s
+
+#13 [base 8/8] RUN chmod -R a+rX /opt/toolcache || true
+#13 DONE 3.7s
+
+#14 [profile 1/1] RUN   --mount=type=bind,source=features/container-user,target=/tmp/features/container-user,readonly   --mount=type=bind,source=features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly   --mount=type=bind,source=features/git-lfs,target=/tmp/features/git-lfs,readonly   --mount=type=bind,source=features/python-base,target=/tmp/features/python-base,readonly   --mount=type=bind,source=features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly   --mount=type=bind,source=features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly   --mount=type=bind,source=features/system-essentials,target=/tmp/features/system-essentials,readonly   --mount=type=bind,source=features/zsh-config,target=/tmp/features/zsh-config,readonly   --mount=type=bind,source=features/container-init,target=/tmp/features/container-init,readonly   --mount=type=bind,source=features/python-conda,target=/tmp/features/python-conda,readonly   --mount=type=bind,source=features/quarto-common,target=/tmp/features/quarto-common,readonly   --mount=type=bind,source=features/java-sdkman,target=/tmp/features/java-sdkman,readonly   --mount=type=bind,source=features/podman,target=/tmp/features/podman,readonly   --mount=type=bind,source=features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly   --mount=type=bind,source=features/github-cli,target=/tmp/features/github-cli,readonly   --mount=type=bind,source=features/node,target=/tmp/features/node,readonly   --mount=type=bind,source=features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly   --mount=type=bind,source=features/tilt,target=/tmp/features/tilt,readonly   --mount=type=bind,source=features/pip-requirements,target=/tmp/features/pip-requirements,readonly   --mount=type=bind,source=features/build-essentials,target=/tmp/features/build-essentials,readonly   --mount=type=bind,source=features/texlive,target=/tmp/features/texlive,readonly   --mount=type=bind,source=features/docker-cli,target=/tmp/features/docker-cli,readonly   --mount=type=bind,source=features/dive,target=/tmp/features/dive,readonly   --mount=type=bind,source=features/trivy,target=/tmp/features/trivy,readonly   --mount=type=bind,source=features/hadolint,target=/tmp/features/hadolint,readonly   --mount=type=bind,source=features/buildah,target=/tmp/features/buildah,readonly   --mount=type=bind,source=features/skopeo,target=/tmp/features/skopeo,readonly   --mount=type=bind,source=features/ctop,target=/tmp/features/ctop,readonly   --mount=type=bind,source=features/jupyter-base,target=/tmp/features/jupyter-base,readonly   --mount=type=bind,source=features/quarto-cli,target=/tmp/features/quarto-cli,readonly   --mount=type=bind,source=features/java-maven,target=/tmp/features/java-maven,readonly   --mount=type=bind,source=features/java-gradle,target=/tmp/features/java-gradle,readonly   --mount=type=bind,source=features/java-jdk,target=/tmp/features/java-jdk,readonly   --mount=type=bind,source=features/python-lsp,target=/tmp/features/python-lsp,readonly   --mount=type=bind,source=features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly   --mount=type=bind,source=features/docker-compose,target=/tmp/features/docker-compose,readonly   --mount=type=bind,source=features/docker-buildx,target=/tmp/features/docker-buildx,readonly   --mount=type=bind,source=features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly   --mount=type=bind,source=features/quarto-python,target=/tmp/features/quarto-python,readonly   --mount=type=bind,source=inputs,target=/tmp/inputs,readonly   --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly   --mount=type=bind,source=scripts,target=/tmp/scripts,readonly   --mount=type=cache,target=/var/cache/apt,sharing=locked   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked   --mount=type=cache,target=/opt/toolcache,sharing=locked   --mount=type=cache,target=/root/.cache,sharing=locked   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001   bash -eux -o pipefail -c 'feats=("container-user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "system-essentials" "zsh-config" "container-init" "python-conda" "quarto-common" "java-sdkman" "podman" "prompt-helpers" "github-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "build-essentials" "texlive" "docker-cli" "dive" "trivy" "hadolint" "buildah" "skopeo" "ctop" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "kubernetes-dev" "docker-compose" "docker-buildx" "jupyter-kernels" "quarto-python"); for f in "${feats[@]}"; do     if [ -d "/tmp/features/$f" ]; then       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true;       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; };     fi;   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+#14 0.152 + feats=("container-user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "system-essentials" "zsh-config" "container-init" "python-conda" "quarto-common" "java-sdkman" "podman" "prompt-helpers" "github-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "build-essentials" "texlive" "docker-cli" "dive" "trivy" "hadolint" "buildah" "skopeo" "ctop" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "kubernetes-dev" "docker-compose" "docker-buildx" "jupyter-kernels" "quarto-python")
+#14 0.152 + for f in "${feats[@]}"
+#14 0.152 + '[' -d /tmp/features/container-user ']'
+#14 0.152 + chmod +x /tmp/features/container-user/install.sh
+#14 0.153 + true
+#14 0.153 + '[' -f /tmp/features/container-user/install.sh ']'
+#14 0.153 + set +u
+#14 0.153 + bash /tmp/features/container-user/install.sh
+#14 0.155 user feature: ensuring user jovyan (uid=1001) gid=1001 exists
+#14 0.171 useradd: warning: the home directory /home/jovyan already exists.
+#14 0.171 useradd: Not copying any file from skel directory into it.
+#14 0.172 user feature: done
+#14 0.173 + set -u
+#14 0.173 + for f in "${feats[@]}"
+#14 0.173 + '[' -d /tmp/features/_lib/download-release ']'
+#14 0.173 + chmod +x /tmp/features/_lib/download-release/install.sh
+#14 0.173 + true
+#14 0.173 + '[' -f /tmp/features/_lib/download-release/install.sh ']'
+#14 0.173 + set +u
+#14 0.173 + bash /tmp/features/_lib/download-release/install.sh
+#14 0.174 ====================================================================
+#14 0.174 Feature: Binary Release Downloader Helper (_lib/download-release)
+#14 0.174 ====================================================================
+#14 0.176 ✅ Binary release downloader helper installed to /usr/local/lib/download-release-helpers.sh
+#14 0.176 
+#14 0.176 Usage in feature install.sh:
+#14 0.176   source /usr/local/lib/download-release-helpers.sh
+#14 0.176   download_github_release "cli/cli" "gh" "2.40.0"
+#14 0.176   download_direct "https://example.com/tool.tar.gz" "tool"
+#14 0.176 ====================================================================
+#14 0.179 ✅ CLI wrappers installed: /usr/local/bin/download_github_release, /usr/local/bin/download_direct
+#14 0.179 + set -u
+#14 0.179 + for f in "${feats[@]}"
+#14 0.179 + '[' -d /tmp/features/git-lfs ']'
+#14 0.179 + chmod +x /tmp/features/git-lfs/install.sh
+#14 0.179 + true
+#14 0.179 + '[' -f /tmp/features/git-lfs/install.sh ']'
+#14 0.179 + set +u
+#14 0.179 + bash /tmp/features/git-lfs/install.sh
+#14 0.181 git-lfs: installing git-lfs
+#14 0.182 git-lfs: installing 3.4.1 via download_github_release helper
+#14 0.183    Raw args: repo='git-lfs/git-lfs' tool='git-lfs' version='3.4.1' install_dir='/usr/local/bin' filename_pattern_arg='git-lfs-linux-{arch}-v{version}.tar.gz' extract='true'
+#14 0.185 📦 Downloading git-lfs from GitHub (git-lfs/git-lfs)...
+#14 0.186    Architecture: arm64
+#14 0.186    Pattern: git-lfs-linux-{arch}-v{version}.tar.gz
+#14 0.186    Filename (after first-pass): git-lfs-linux-{arch}-v{version}.tar.gz
+#14 0.188    URL: https://github.com/git-lfs/git-lfs/releases/download/v3.4.1/git-lfs-linux-arch-vversion.tar.gz
+#14 0.189    Download attempt 1/3...
+#14 0.451 curl: (22) The requested URL returned error: 404
+#14 0.452    ⚠️  Download failed, retrying...
+#14 2.464    Download attempt 2/3...
+#14 2.574 curl: (22) The requested URL returned error: 404
+#14 2.576    ⚠️  Download failed, retrying...
+#14 4.588    Download attempt 3/3...
+#14 4.684 curl: (22) The requested URL returned error: 404
+#14 4.685    ⚠️  Download failed, retrying...
+#14 6.696 ❌ Failed to download git-lfs after 3 attempts
+#14 6.729 git: 'lfs' is not a git command. See 'git --help'.
+#14 6.729 
+#14 6.729 The most similar command is
+#14 6.729 	refs
+#14 6.732 git-lfs: done
+#14 6.733 + set -u
+#14 6.733 + for f in "${feats[@]}"
+#14 6.733 + '[' -d /tmp/features/python-base ']'
+#14 6.733 + chmod +x /tmp/features/python-base/install.sh
+#14 6.734 + true
+#14 6.734 + '[' -f /tmp/features/python-base/install.sh ']'
+#14 6.734 + set +u
+#14 6.734 + bash /tmp/features/python-base/install.sh
+#14 6.739 /tmp/features/python-base/install.sh: line 23: feature_is_installed: command not found
+#14 6.739 /tmp/features/python-base/install.sh: line 28: fh_log: command not found
+#14 ERROR: process "/bin/sh -c bash -eux -o pipefail -c 'feats=(\"container-user\" \"_lib/download-release\" \"git-lfs\" \"python-base\" \"_lib/checksum-verify\" \"_lib/toolcache\" \"system-essentials\" \"zsh-config\" \"container-init\" \"python-conda\" \"quarto-common\" \"java-sdkman\" \"podman\" \"prompt-helpers\" \"github-cli\" \"node\" \"kubernetes-client\" \"tilt\" \"pip-requirements\" \"build-essentials\" \"texlive\" \"docker-cli\" \"dive\" \"trivy\" \"hadolint\" \"buildah\" \"skopeo\" \"ctop\" \"jupyter-base\" \"quarto-cli\" \"java-maven\" \"java-gradle\" \"java-jdk\" \"python-lsp\" \"kubernetes-dev\" \"docker-compose\" \"docker-buildx\" \"jupyter-kernels\" \"quarto-python\"); for f in \"${feats[@]}\"; do     if [ -d \"/tmp/features/$f\" ]; then       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true;       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; };     fi;   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'" did not complete successfully: exit code: 127
+------
+ > [profile 1/1] RUN   --mount=type=bind,source=features/container-user,target=/tmp/features/container-user,readonly   --mount=type=bind,source=features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly   --mount=type=bind,source=features/git-lfs,target=/tmp/features/git-lfs,readonly   --mount=type=bind,source=features/python-base,target=/tmp/features/python-base,readonly   --mount=type=bind,source=features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly   --mount=type=bind,source=features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly   --mount=type=bind,source=features/system-essentials,target=/tmp/features/system-essentials,readonly   --mount=type=bind,source=features/zsh-config,target=/tmp/features/zsh-config,readonly   --mount=type=bind,source=features/container-init,target=/tmp/features/container-init,readonly   --mount=type=bind,source=features/python-conda,target=/tmp/features/python-conda,readonly   --mount=type=bind,source=features/quarto-common,target=/tmp/features/quarto-common,readonly   --mount=type=bind,source=features/java-sdkman,target=/tmp/features/java-sdkman,readonly   --mount=type=bind,source=features/podman,target=/tmp/features/podman,readonly   --mount=type=bind,source=features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly   --mount=type=bind,source=features/github-cli,target=/tmp/features/github-cli,readonly   --mount=type=bind,source=features/node,target=/tmp/features/node,readonly   --mount=type=bind,source=features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly   --mount=type=bind,source=features/tilt,target=/tmp/features/tilt,readonly   --mount=type=bind,source=features/pip-requirements,target=/tmp/features/pip-requirements,readonly   --mount=type=bind,source=features/build-essentials,target=/tmp/features/build-essentials,readonly   --mount=type=bind,source=features/texlive,target=/tmp/features/texlive,readonly   --mount=type=bind,source=features/docker-cli,target=/tmp/features/docker-cli,readonly   --mount=type=bind,source=features/dive,target=/tmp/features/dive,readonly   --mount=type=bind,source=features/trivy,target=/tmp/features/trivy,readonly   --mount=type=bind,source=features/hadolint,target=/tmp/features/hadolint,readonly   --mount=type=bind,source=features/buildah,target=/tmp/features/buildah,readonly   --mount=type=bind,source=features/skopeo,target=/tmp/features/skopeo,readonly   --mount=type=bind,source=features/ctop,target=/tmp/features/ctop,readonly   --mount=type=bind,source=features/jupyter-base,target=/tmp/features/jupyter-base,readonly   --mount=type=bind,source=features/quarto-cli,target=/tmp/features/quarto-cli,readonly   --mount=type=bind,source=features/java-maven,target=/tmp/features/java-maven,readonly   --mount=type=bind,source=features/java-gradle,target=/tmp/features/java-gradle,readonly   --mount=type=bind,source=features/java-jdk,target=/tmp/features/java-jdk,readonly   --mount=type=bind,source=features/python-lsp,target=/tmp/features/python-lsp,readonly   --mount=type=bind,source=features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly   --mount=type=bind,source=features/docker-compose,target=/tmp/features/docker-compose,readonly   --mount=type=bind,source=features/docker-buildx,target=/tmp/features/docker-buildx,readonly   --mount=type=bind,source=features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly   --mount=type=bind,source=features/quarto-python,target=/tmp/features/quarto-python,readonly   --mount=type=bind,source=inputs,target=/tmp/inputs,readonly   --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly   --mount=type=bind,source=scripts,target=/tmp/scripts,readonly   --mount=type=cache,target=/var/cache/apt,sharing=locked   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked   --mount=type=cache,target=/opt/toolcache,sharing=locked   --mount=type=cache,target=/root/.cache,sharing=locked   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001   bash -eux -o pipefail -c 'feats=("container-user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "system-essentials" "zsh-config" "container-init" "python-conda" "quarto-common" "java-sdkman" "podman" "prompt-helpers" "github-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "build-essentials" "texlive" "docker-cli" "dive" "trivy" "hadolint" "buildah" "skopeo" "ctop" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "kubernetes-dev" "docker-compose" "docker-buildx" "jupyter-kernels" "quarto-python"); for f in "${feats[@]}"; do     if [ -d "/tmp/features/$f" ]; then       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true;       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; };     fi;   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial':
+6.733 + set -u
+6.733 + for f in "${feats[@]}"
+6.733 + '[' -d /tmp/features/python-base ']'
+6.733 + chmod +x /tmp/features/python-base/install.sh
+6.734 + true
+6.734 + '[' -f /tmp/features/python-base/install.sh ']'
+6.734 + set +u
+6.734 + bash /tmp/features/python-base/install.sh
+6.739 /tmp/features/python-base/install.sh: line 23: feature_is_installed: command not found
+6.739 /tmp/features/python-base/install.sh: line 28: fh_log: command not found
+------
+Dockerfile.quarto-lecture-full.generated:43
+--------------------
+  42 |     
+  43 | >>> RUN \
+  44 | >>>   --mount=type=bind,source=features/container-user,target=/tmp/features/container-user,readonly \
+  45 | >>>   --mount=type=bind,source=features/_lib/download-release,target=/tmp/features/_lib/download-release,readonly \
+  46 | >>>   --mount=type=bind,source=features/git-lfs,target=/tmp/features/git-lfs,readonly \
+  47 | >>>   --mount=type=bind,source=features/python-base,target=/tmp/features/python-base,readonly \
+  48 | >>>   --mount=type=bind,source=features/_lib/checksum-verify,target=/tmp/features/_lib/checksum-verify,readonly \
+  49 | >>>   --mount=type=bind,source=features/_lib/toolcache,target=/tmp/features/_lib/toolcache,readonly \
+  50 | >>>   --mount=type=bind,source=features/system-essentials,target=/tmp/features/system-essentials,readonly \
+  51 | >>>   --mount=type=bind,source=features/zsh-config,target=/tmp/features/zsh-config,readonly \
+  52 | >>>   --mount=type=bind,source=features/container-init,target=/tmp/features/container-init,readonly \
+  53 | >>>   --mount=type=bind,source=features/python-conda,target=/tmp/features/python-conda,readonly \
+  54 | >>>   --mount=type=bind,source=features/quarto-common,target=/tmp/features/quarto-common,readonly \
+  55 | >>>   --mount=type=bind,source=features/java-sdkman,target=/tmp/features/java-sdkman,readonly \
+  56 | >>>   --mount=type=bind,source=features/podman,target=/tmp/features/podman,readonly \
+  57 | >>>   --mount=type=bind,source=features/prompt-helpers,target=/tmp/features/prompt-helpers,readonly \
+  58 | >>>   --mount=type=bind,source=features/github-cli,target=/tmp/features/github-cli,readonly \
+  59 | >>>   --mount=type=bind,source=features/node,target=/tmp/features/node,readonly \
+  60 | >>>   --mount=type=bind,source=features/kubernetes-client,target=/tmp/features/kubernetes-client,readonly \
+  61 | >>>   --mount=type=bind,source=features/tilt,target=/tmp/features/tilt,readonly \
+  62 | >>>   --mount=type=bind,source=features/pip-requirements,target=/tmp/features/pip-requirements,readonly \
+  63 | >>>   --mount=type=bind,source=features/build-essentials,target=/tmp/features/build-essentials,readonly \
+  64 | >>>   --mount=type=bind,source=features/texlive,target=/tmp/features/texlive,readonly \
+  65 | >>>   --mount=type=bind,source=features/docker-cli,target=/tmp/features/docker-cli,readonly \
+  66 | >>>   --mount=type=bind,source=features/dive,target=/tmp/features/dive,readonly \
+  67 | >>>   --mount=type=bind,source=features/trivy,target=/tmp/features/trivy,readonly \
+  68 | >>>   --mount=type=bind,source=features/hadolint,target=/tmp/features/hadolint,readonly \
+  69 | >>>   --mount=type=bind,source=features/buildah,target=/tmp/features/buildah,readonly \
+  70 | >>>   --mount=type=bind,source=features/skopeo,target=/tmp/features/skopeo,readonly \
+  71 | >>>   --mount=type=bind,source=features/ctop,target=/tmp/features/ctop,readonly \
+  72 | >>>   --mount=type=bind,source=features/jupyter-base,target=/tmp/features/jupyter-base,readonly \
+  73 | >>>   --mount=type=bind,source=features/quarto-cli,target=/tmp/features/quarto-cli,readonly \
+  74 | >>>   --mount=type=bind,source=features/java-maven,target=/tmp/features/java-maven,readonly \
+  75 | >>>   --mount=type=bind,source=features/java-gradle,target=/tmp/features/java-gradle,readonly \
+  76 | >>>   --mount=type=bind,source=features/java-jdk,target=/tmp/features/java-jdk,readonly \
+  77 | >>>   --mount=type=bind,source=features/python-lsp,target=/tmp/features/python-lsp,readonly \
+  78 | >>>   --mount=type=bind,source=features/kubernetes-dev,target=/tmp/features/kubernetes-dev,readonly \
+  79 | >>>   --mount=type=bind,source=features/docker-compose,target=/tmp/features/docker-compose,readonly \
+  80 | >>>   --mount=type=bind,source=features/docker-buildx,target=/tmp/features/docker-buildx,readonly \
+  81 | >>>   --mount=type=bind,source=features/jupyter-kernels,target=/tmp/features/jupyter-kernels,readonly \
+  82 | >>>   --mount=type=bind,source=features/quarto-python,target=/tmp/features/quarto-python,readonly \
+  83 | >>>   --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \
+  84 | >>>   --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \
+  85 | >>>   --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  86 | >>>   --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  87 | >>>   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  88 | >>>   --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  89 | >>>   --mount=type=cache,target=/root/.cache,sharing=locked \
+  90 | >>>   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  91 | >>>   bash -eux -o pipefail -c 'feats=("container-user" "_lib/download-release" "git-lfs" "python-base" "_lib/checksum-verify" "_lib/toolcache" "system-essentials" "zsh-config" "container-init" "python-conda" "quarto-common" "java-sdkman" "podman" "prompt-helpers" "github-cli" "node" "kubernetes-client" "tilt" "pip-requirements" "build-essentials" "texlive" "docker-cli" "dive" "trivy" "hadolint" "buildah" "skopeo" "ctop" "jupyter-base" "quarto-cli" "java-maven" "java-gradle" "java-jdk" "python-lsp" "kubernetes-dev" "docker-compose" "docker-buildx" "jupyter-kernels" "quarto-python"); for f in "${feats[@]}"; do \
+  92 | >>>     if [ -d "/tmp/features/$f" ]; then \
+  93 | >>>       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true; \
+  94 | >>>       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; }; \
+  95 | >>>     fi; \
+  96 | >>>   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'
+  97 |     
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c bash -eux -o pipefail -c 'feats=(\"container-user\" \"_lib/download-release\" \"git-lfs\" \"python-base\" \"_lib/checksum-verify\" \"_lib/toolcache\" \"system-essentials\" \"zsh-config\" \"container-init\" \"python-conda\" \"quarto-common\" \"java-sdkman\" \"podman\" \"prompt-helpers\" \"github-cli\" \"node\" \"kubernetes-client\" \"tilt\" \"pip-requirements\" \"build-essentials\" \"texlive\" \"docker-cli\" \"dive\" \"trivy\" \"hadolint\" \"buildah\" \"skopeo\" \"ctop\" \"jupyter-base\" \"quarto-cli\" \"java-maven\" \"java-gradle\" \"java-jdk\" \"python-lsp\" \"kubernetes-dev\" \"docker-compose\" \"docker-buildx\" \"jupyter-kernels\" \"quarto-python\"); for f in \"${feats[@]}\"; do     if [ -d \"/tmp/features/$f\" ]; then       chmod +x /tmp/features/$f/install.sh 2>/dev/null || true;       [ -f /tmp/features/$f/install.sh ] && { set +u; bash /tmp/features/$f/install.sh; set -u; };     fi;   done; apt-get clean; rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial'" did not complete successfully: exit code: 127
+
+View build details: docker-desktop://dashboard/build/default/default/fv5l7ywd6r523qu71rnt02etp

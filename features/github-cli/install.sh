@@ -100,11 +100,11 @@ else
   ARCH=$(case "$(uname -m)" in x86_64|X86_64) echo "amd64" ;; aarch64|arm64) echo "arm64" ;; *) echo "amd64" ;; esac)
 fi
 
-# Build explicit filename to avoid placeholder substitution issues during build
-FILENAME="gh_${GH_VERSION}_linux_${ARCH}.tar.gz"
+# Use pattern with placeholders - the download helper will substitute {version} and {arch}
+PATTERN="gh_{version}_linux_{arch}.tar.gz"
 
-# Use shared download helper with explicit filename
-download_github_release "cli/cli" "gh" "${GH_VERSION}" "${LOCAL_BIN}" "${FILENAME}"
+# Use shared download helper with pattern
+download_github_release "cli/cli" "gh" "${GH_VERSION}" "${LOCAL_BIN}" "${PATTERN}"
 
 # Set ownership
 chown -R "${NB_UID}":"${NB_GID}" "${LOCAL_BIN}" 2>/dev/null || true

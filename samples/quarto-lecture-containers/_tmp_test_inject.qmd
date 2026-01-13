@@ -1,7 +1,0 @@
----
-title: Test Injection
-jupyter: bash
-format: html
----
-
-Contenu de test.
