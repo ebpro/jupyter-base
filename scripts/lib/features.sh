@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# Compatibility shim so feature install scripts can source a consistent path
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "${SCRIPT_DIR}/helpers.sh" ]; then
+  # shellcheck disable=SC1091
+  source "${SCRIPT_DIR}/helpers.sh"
+elif [ -f "/opt/solen/_lib/helpers.sh" ]; then
+  # Fallback to helper copied into image at build time
+  # shellcheck disable=SC1091
+  source "/opt/solen/_lib/helpers.sh"
+fi
+#!/usr/bin/env bash
 # Helper functions for feature install scripts
 set -euo pipefail
 

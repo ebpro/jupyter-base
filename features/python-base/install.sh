@@ -15,9 +15,9 @@ FEATURE_ID="python-base"
 FEATURE_VERSION="1.0.0"
 
 # Source helpers (relative path from .devcontainer/features/<name>/install.sh)
-if [ -f "../../../scripts/feature_helpers.sh" ]; then
+if [ -f "../../../scripts/lib/features.sh" ]; then
   # shellcheck disable=SC1091
-  source "../../../scripts/feature_helpers.sh"
+  source "../../../scripts/lib/features.sh"
 fi
 
 if feature_is_installed; then

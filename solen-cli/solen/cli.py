@@ -6,13 +6,14 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import os
 
 from solen import __version__
 
 
 @click.group()
 @click.version_option(version=__version__)
-@click.option('--repo-root', type=click.Path(exists=True, path_type=Path), 
+@click.option('--repo-root', type=click.Path(exists=True, path_type=Path),
               default=Path.cwd(), help='Repository root directory')
 @click.pass_context
 def cli(ctx: click.Context, repo_root: Path) -> None:
@@ -32,20 +33,20 @@ def generate() -> None:
 
 
 @generate.command()
-@click.option('--matrix', type=click.Path(exists=True, path_type=Path), 
+@click.option('--matrix', type=click.Path(exists=True, path_type=Path),
               required=True, help='Path to matrix YAML file')
-@click.option('--out', type=click.Path(path_type=Path), 
+@click.option('--out', type=click.Path(path_type=Path),
               default=Path('generated/profiles'), help='Output directory')
 @click.option('--prefix', default='', help='Filename prefix for generated profiles')
 @click.pass_context
 def profiles(ctx: click.Context, matrix: Path, out: Path, prefix: str) -> None:
     """Generate profile files from YAML matrix definitions."""
     from solen.generators.profiles import generate_profiles
-    
+
     repo_root = ctx.obj['repo_root']
     matrix_path = repo_root / matrix if not matrix.is_absolute() else matrix
     out_dir = repo_root / out if not out.is_absolute() else out
-    
+
     count = generate_profiles(matrix_path, out_dir, prefix)
     click.echo(f"✅ Generated {count} profile(s) in {out_dir}")
 
@@ -53,7 +54,7 @@ def profiles(ctx: click.Context, matrix: Path, out: Path, prefix: str) -> None:
 @generate.command()
 @click.option('--profile', help='Profile name to generate Dockerfile for')
 @click.option('--all', 'all_profiles', is_flag=True, help='Generate Dockerfile with all profiles')
-@click.option('--output', type=click.Path(path_type=Path), 
+@click.option('--output', type=click.Path(path_type=Path),
               default=Path('generated/Dockerfile'), help='Output Dockerfile path')
 @click.pass_context
 def dockerfile(ctx: click.Context, profile: Optional[str], all_profiles: bool, output: Path) -> None:
@@ -62,18 +63,18 @@ def dockerfile(ctx: click.Context, profile: Optional[str], all_profiles: bool, o
         generate_single_profile_dockerfile,
         generate_multi_profile_dockerfile,
     )
-    
+
     if not profile and not all_profiles:
         click.echo("❌ Error: Must specify either --profile or --all", err=True)
         sys.exit(1)
-    
+
     if profile and all_profiles:
         click.echo("❌ Error: Cannot use both --profile and --all", err=True)
         sys.exit(1)
-    
+
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
-    
+
     try:
         if all_profiles:
             profiles = generate_multi_profile_dockerfile(repo_root, output_path)
@@ -94,10 +95,10 @@ def dockerfile(ctx: click.Context, profile: Optional[str], all_profiles: bool, o
 def devcontainer(ctx: click.Context, profile: str, output: Path) -> None:
     """Generate devcontainer.json for a profile."""
     from solen.generators.devcontainer import generate_devcontainer
-    
+
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
-    
+
     generate_devcontainer(repo_root, profile, output_path)
     click.echo(f"✅ Generated devcontainer.json: {output_path}")
 
@@ -109,10 +110,10 @@ def devcontainer(ctx: click.Context, profile: str, output: Path) -> None:
 def bake(ctx: click.Context, output: Path) -> None:
     """Generate docker-bake.hcl for all profiles."""
     from solen.generators.bake import generate_bake
-    
+
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
-    
+
     count = generate_bake(repo_root, output_path)
     click.echo(f"✅ Generated docker-bake.hcl with {count} profile(s): {output_path}")
 
@@ -125,10 +126,10 @@ def bake(ctx: click.Context, output: Path) -> None:
 def readmes(ctx: click.Context, force: bool, matrix: Optional[Path]) -> None:
     """Generate README.md files for all features."""
     from solen.generators.readme import generate_readmes
-    
+
     repo_root = ctx.obj['repo_root']
     matrix_path = repo_root / matrix if matrix and not matrix.is_absolute() else matrix
-    
+
     count = generate_readmes(repo_root, force=force, matrix_path=matrix_path)
     click.echo(f"✅ Generated {count} README(s)")
     if matrix_path:
@@ -151,12 +152,12 @@ def validate() -> None:
 def features(ctx: click.Context, fix: bool) -> None:
     """Validate all features against schema."""
     from solen.validators.features import validate_features
-    
+
     repo_root = ctx.obj['repo_root']
     features_dir = repo_root / 'features'
-    
+
     passed, total, errors, warnings = validate_features(features_dir, auto_fix=fix)
-    
+
     if passed == total:
         click.echo(f"✅ All {total} features passed validation")
         if warnings:
@@ -185,10 +186,10 @@ def analyze() -> None:
 def features(ctx: click.Context, output: Path) -> None:
     """Analyze features and generate dependency matrix."""
     from solen.generators.readme import analyze_features
-    
+
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
-    
+
     count = analyze_features(repo_root, output_path)
     click.echo(f"✅ Analyzed {count} features")
     click.echo(f"✅ Generated matrix: {output_path}")
@@ -199,5 +200,38 @@ def main() -> None:
     cli(obj={})
 
 
-if __name__ == '__main__':
-    main()
+# ---------------------
+# Versions commands
+# ---------------------
+
+
+@cli.group()
+def versions() -> None:
+    """Version management commands."""
+    pass
+
+
+@versions.command()
+@click.option('--versions', type=click.Path(exists=True, path_type=Path), default=Path('versions/versions.yaml'))
+@click.option('--out', type=click.Path(path_type=Path), default=Path('generated/version-checks'))
+@click.option('--github-token', default=None, help='GitHub token for API requests')
+@click.pass_context
+def check(ctx: click.Context, versions: Path, out: Path, github_token: Optional[str]) -> None:
+    """Check upstream versions for tools defined in the versions manifest."""
+    from solen.core.versions import run_check
+
+    repo_root = ctx.obj['repo_root']
+    versions_path = repo_root / versions if not versions.is_absolute() else versions
+    out_dir = repo_root / out if not out.is_absolute() else out
+
+    # prefer explicit flag, then env var; warn if no token (unauthenticated requests may be rate-limited)
+    token = github_token or os.environ.get("GITHUB_TOKEN")
+    if not token:
+        click.echo("⚠️  No GitHub token provided — unauthenticated API requests may be rate-limited", err=True)
+
+    res = run_check(repo_root, versions_path, out_dir, token)
+    click.echo(f"✅ Report written: {res['report_path']}")
+
+
+    if __name__ == '__main__':
+        main()

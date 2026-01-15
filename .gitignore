@@ -4,3 +4,4 @@ local
 # Generated content (all generated files now in /generated/)
 /generated/
 !generated/profiles/.gitkeep
+.envrc.local

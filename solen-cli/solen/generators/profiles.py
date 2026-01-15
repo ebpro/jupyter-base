@@ -15,17 +15,17 @@ def render_options(opts: dict[str, Any]) -> str:
 
 
 def generate_profile_file(
-    profile_spec: dict[str, Any], 
-    out_dir: Path, 
+    profile_spec: dict[str, Any],
+    out_dir: Path,
     prefix: str = ""
 ) -> list[str]:
     """Generate profile files from a profile specification.
-    
+
     Args:
         profile_spec: Profile specification with base, parent, labels, features
         out_dir: Output directory for generated profiles
         prefix: Optional prefix for profile filenames
-        
+
     Returns:
         List of created profile file paths
     """
@@ -58,7 +58,7 @@ def generate_profile_file(
                 f.write(f"# {comment}\n\n")
             if parent:
                 f.write(f"@parent:{parent}\n\n")
-            
+
             # Emit feature lines
             for feat in all_features:
                 f.write(f"{feat}\n")
@@ -87,12 +87,12 @@ def generate_profile_file(
 
 def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int:
     """Generate profiles from a YAML matrix file.
-    
+
     Args:
         matrix_path: Path to YAML matrix file
         out_dir: Output directory for generated profiles
         prefix: Optional prefix for profile filenames
-        
+
     Returns:
         Number of profiles generated
     """
@@ -113,7 +113,7 @@ def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int
         for spec in data.get("profiles", []):
             created = generate_profile_file(spec, out_dir, prefix=prefix)
             created_files.extend(created)
-    
+
     # Legacy/simple style: top-level 'parent' + 'matrix' mapping
     elif "matrix" in data:
         parent = data.get("parent", "")
@@ -128,7 +128,7 @@ def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int
         features = data.get("features", [])
         top_opts = data.get("options", {}) if isinstance(data.get("options", {}), dict) else {}
         labels = data.get("matrix", {})
-        
+
         for label, spec in labels.items():
             # Support both simple dict format and nested structure
             if isinstance(spec, dict):

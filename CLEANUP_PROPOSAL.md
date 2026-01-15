@@ -13,12 +13,12 @@ The codebase has accumulated significant technical debt with **dual systems** (p
   - `profiles/` - Hand-written text files (legacy?)
   - `profiles/matrix/*.yaml` - YAML-based matrix profiles (newer?)
   - **CONFUSION:** Which one is source of truth? Both are used!
-  
+
 - **Impact:**
   - Developer must know which profiles use which system
   - Changes must be made in the right place
   - `quarto-lecture-full` exists in BOTH locations with DIFFERENT content
-  
+
 - **Evidence:**
   ```
   profiles/quarto-lecture-full          # Text file (has old features)
@@ -30,7 +30,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
 - **Problem:** Two generators for matrix profiles:
   - `scripts/generate-profiles-matrix.sh` (bash, partial implementation) - DELETED
   - `scripts/generate-profiles-matrix.py` (python, full implementation) - KEPT
-  
+
 - **Resolution:**
   - Removed bash generator script
   - Python generator is the single source of truth
@@ -60,7 +60,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
   - Confusing name suggests this repo uses devcontainers
   - IDE/tools may try to open THIS as a devcontainer
   - Non-standard location for build components
-  
+
 - **Solution:** Move to `features/` at top level
 
 ### 7. **Artefacts Directory Chaos** 🟡 MEDIUM
@@ -76,7 +76,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
     conda/                     # Conda config files
     TeXLive                    # Static data
   ```
-  
+
 - **Impact:**
   - Hard to distinguish inputs from outputs
   - `toolcache/` is GENERATED but lives alongside source files
@@ -90,7 +90,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
   scripts/lib-build.sh                # Build library
   .devcontainer/features/_lib/        # Feature library
   ```
-  
+
 - **Impact:**
   - Duplication and confusion about which to use
   - `shared/` should be analyzed alongside `scripts/`
@@ -106,7 +106,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
   build-artifact.json                    # Generated (root)
   image-digest.txt                       # Generated (root)
   ```
-  
+
 - **Impact:**
   - Hard to .gitignore generated files properly
   - Unclear what's source vs output
@@ -129,7 +129,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
    ```
    - This is a BUILD TOOL repo, not a devcontainer
    - Makes features/ a peer of profiles/, scripts/
-   
+
 2. **Separate Artefacts by purpose:**
    ```
    # NEW STRUCTURE:
@@ -145,7 +145,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
      static/
        TeXLive
        codeserver_extensions
-     
+
    artefacts/                   # Feature-specific static artefacts (committed)
      java-kernel/
        checksums.json
@@ -154,7 +154,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
      quarto/
        checksums.json
        versions.json
-   
+
    generated/                   # ALL generated content (.gitignore)
      toolcache/                 # Prebaked downloads
      profiles/                  # Expanded profiles
@@ -173,7 +173,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
      core/                      # Main generators
      validation/                # Validators
      utilities/                 # Support tools
-   
+
    features/
      _lib/                      # Keep - used at image build time
    ```
@@ -186,7 +186,7 @@ The codebase has accumulated significant technical debt with **dual systems** (p
    mv devcontainer.generated.json generated/devcontainer.json
    mv build-artifact.json generated/build-artifact.json
    mv image-digest.txt generated/image-digest.txt
-   
+
    # Update scripts to write to generated/
    # Update .gitignore to ignore generated/
    ```
@@ -267,12 +267,12 @@ The codebase has accumulated significant technical debt with **dual systems** (p
    - Only created docker group without installing CLI
    - Replaced by proper `docker-cli` feature (installs docker-ce-cli)
    - Removed from `bundle-base-full` and `bundle-cicd-teaching`
-   
+
 2. ✅ **Updated** bundle dependencies:
    - `bundle-base-full`: Removed docker-cli-helper
    - `bundle-cicd-teaching`: Removed docker-cli-helper
    - Container tools now properly provided by docker-cli, docker-compose, docker-buildx
-   
+
 3. ✅ **Updated** analysis script bundle map to reference modern container tools
 
 **Results:**
@@ -431,7 +431,7 @@ If expansion DOESN'T work → bundle dependency resolution is broken
 
 ## Recommendation
 
-**START WITH:** 
+**START WITH:**
 1. Fix immediate issue (verify bundle expansion)
 2. Test build with new container dev tools
 3. If that works, propose Phase 1 cleanup as next task
@@ -482,21 +482,21 @@ docker run --rm ghcr.io/ebpro/solen:quarto-lecture-full-develop bash -c "docker 
 1. **Phase 0 directory restructure:** Do this FIRST before any other work?
    - ✅ Yes → Breaking changes but clean foundation
    - ❌ No → Work around current structure
-   
+
 2. **Breaking changes acceptable?**
    - Can we move `.devcontainer/features` → `features/`?
    - Can we reorganize `Artefacts/` into `inputs/` + `artefacts/` + `generated/toolcache/`?
    - Are CI/external tools tightly coupled to current paths?
-   
+
 3. **Artefacts separation priority:**
    - Critical to separate inputs/outputs now?
    - Or acceptable to keep mixed structure?
-   
+
 4. **Timeline decision:**
    - Option A: **Do Phase 0 now** (1 day, then continue with features)
    - Option B: **Defer cleanup** (finish container tools, cleanup later)
    - Option C: **Incremental** (Phase 0 this week, rest over time)
-   
+
 5. **Scope confirmation:**
    - Full cleanup (all phases)?
    - Just critical items (Phase 0, 1, 2)?

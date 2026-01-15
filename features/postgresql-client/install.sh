@@ -76,17 +76,17 @@ EOF
 if [ "${INSTALL_PGCLI}" = "true" ]; then
     echo ""
     echo "📦 Installing pgcli (enhanced PostgreSQL CLI)..."
-    
+
     # Ensure notebook user variables
     NB_USER=${NB_USER:-jovyan}
     NB_UID=${NB_UID:-1001}
     NB_GID=${NB_GID:-1001}
     HOME_DIR="/home/${NB_USER}"
-    
+
     # Ensure pip cache owned by notebook user
     mkdir -p "${HOME_DIR}/.cache/pip" 2>/dev/null || true
     chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.cache" 2>/dev/null || true
-    
+
     # Prefer conda pip when available
     if [ -n "${CONDA_DIR:-}" ] && [ -f "${CONDA_DIR}/bin/pip" ]; then
         "${CONDA_DIR}/bin/pip" install pgcli || echo "⚠️  pgcli installation failed, continuing..."
@@ -104,7 +104,7 @@ EOFSCRIPT
     else
         echo "⚠️  pip not found, skipping pgcli installation"
     fi
-    
+
     if command -v pgcli >/dev/null 2>&1; then
         echo "✅ pgcli installed successfully!"
         pgcli --version || true

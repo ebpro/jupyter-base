@@ -1,0 +1,14 @@
+## Example .envrc for local development
+# This file documents how to provide `GITHUB_TOKEN` to the project when you
+# do not use `gopass`/`gh` or want to override the automatic loading.
+
+# Option 1: export from environment (temporary):
+# export GITHUB_TOKEN="ghp_xxx"
+
+# Option 2: use direnv to load from a local file (not committed):
+# echo 'export GITHUB_TOKEN="ghp_xxx"' > .envrc.local
+# (then add .envrc.local to .gitignore)
+
+# Option 3: use gopass with a path you control and make sure the path matches
+# the one used by the project's .envrc (default: github/token):
+# gopass insert github/token
