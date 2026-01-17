@@ -62,7 +62,7 @@ solen/
 │   ├── feature.py      # Feature models and validation
 │   └── dependency.py   # Dependency resolution
 ├── generators/     # File generators
-│   ├── dockerfile.py
+│   ├── dockerfile_gen.py
 │   ├── devcontainer.py
 │   ├── bake.py
 │   ├── profiles.py
