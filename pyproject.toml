@@ -19,3 +19,7 @@ dev = [
   "mypy",
   "pre-commit",
 ]
+
+[tool.setuptools.packages.find]
+where = "solen-cli"
+include = ["solen*"]
