@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solen"
+version = "0.0.0"
+description = "Solen container/profile tooling"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [ { name = "ebpro" } ]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "black",
+  "mypy",
+  "pre-commit",
+]
