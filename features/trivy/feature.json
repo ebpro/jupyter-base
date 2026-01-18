@@ -7,9 +7,15 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["trivy"],
-  "dependsOn": ["system-essentials"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "trivy"
+  ],
+  "dependsOn": [
+    "system-essentials"
+  ],
   "options": {
     "version": {
       "type": "string",
@@ -20,5 +26,6 @@
   "postInstallCheck": {
     "command": "trivy --version",
     "description": "Verify trivy is installed"
-  }
+  },
+  "documentationURL": "./features/trivy/README.md"
 }

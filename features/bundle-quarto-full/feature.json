@@ -7,11 +7,22 @@
     "name": "Bruno Parmentier",
     "email": "bruno.parmentier@univ-tlse3.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["quarto", "quarto-templates", "texlive"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "quarto",
+    "quarto-templates",
+    "texlive"
+  ],
   "dependsOn": [
     "bundle-quarto-base",
     "texlive"
   ],
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v quarto >/dev/null 2>&1 && quarto --version || echo \"quarto not found\"'",
+    "description": "Verify Quarto CLI is available for the full Quarto bundle"
+  },
+  "documentationURL": "./features/bundle-quarto-full/README.md"
 }

@@ -5,3 +5,4 @@ local
 /generated/
 !generated/profiles/.gitkeep
 .envrc.local
+build-logs

@@ -12,3 +12,9 @@ Create shared Quarto directories and provide a shared Quarto template under /hom
 ## Dependencies
 
 - `container-user`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

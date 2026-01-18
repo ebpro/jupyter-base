@@ -12,3 +12,9 @@ MySQL/MariaDB client tools including mysql, mysqldump, development libraries, an
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

@@ -191,48 +191,144 @@ download_github_release() {
     fi
 
     # Build download URL and sanitize it as well
-    local url="https://github.com/$repo/releases/download/v${version}/$filename"
-    url="$(printf '%s' "$url" | tr -d '{}')"
-    echo "   URL: $url"
+    # Prepare candidate filenames to tolerate alternate architecture tokens
+    local candidates=()
+    candidates+=("$filename")
+    if [ "$arch" = "arm64" ]; then
+        alt_filename="$(printf '%s' "$filename" | sed 's/arm64/aarch64/g')"
+        if [ "$alt_filename" != "$filename" ]; then
+            candidates+=("$alt_filename")
+        fi
+    elif [ "$arch" = "aarch64" ]; then
+        alt_filename="$(printf '%s' "$filename" | sed 's/aarch64/arm64/g')"
+        if [ "$alt_filename" != "$filename" ]; then
+            candidates+=("$alt_filename")
+        fi
+    elif [ "$arch" = "amd64" ]; then
+        alt_filename="$(printf '%s' "$filename" | sed 's/amd64/x86_64/g')"
+        if [ "$alt_filename" != "$filename" ]; then
+            candidates+=("$alt_filename")
+        fi
+    elif [ "$arch" = "x86_64" ]; then
+        alt_filename="$(printf '%s' "$filename" | sed 's/x86_64/amd64/g')"
+        if [ "$alt_filename" != "$filename" ]; then
+            candidates+=("$alt_filename")
+        fi
+    fi
 
-        # Toolcache support: reuse cached archives under /opt/toolcache when available
-        local TOOLCACHE_DIR="${TOOLCACHE_DIR:-/opt/toolcache}"
-        local filename_base
-        filename_base=$(basename "$filename")
-        local cache_archive="$TOOLCACHE_DIR/$tool/$version/$arch/$filename_base"
-        local cache_dir
-        cache_dir=$(dirname "$cache_archive")
+    # Ensure candidates are unique (simple loop)
+    local uniq_candidates=()
+    for c in "${candidates[@]}"; do
+        skip=false
+        for u in "${uniq_candidates[@]}"; do
+            if [ "$u" = "$c" ]; then skip=true; break; fi
+        done
+        if [ "$skip" = false ]; then uniq_candidates+=("$c"); fi
+    done
 
-        # Helper lock functions (simple mkdir-based lock)
-        _cache_lock_acquire() {
-            local lockdir="$1/.lock"
-            local max_attempts=150  # 30 seconds (was 10s)
-            local n=0
-            until mkdir "$lockdir" 2>/dev/null; do
-                n=$((n+1))
-                if [ "$n" -ge "$max_attempts" ]; then
-                    # Check if lock is stale (older than 60s) and clean it up
-                    if [ -d "$lockdir" ]; then
-                        local lock_age=$(($(date +%s) - $(stat -f %m "$lockdir" 2>/dev/null || stat -c %Y "$lockdir" 2>/dev/null || echo 0)))
-                        if [ "$lock_age" -gt 60 ]; then
-                            echo "   Removing stale lock (${lock_age}s old)"
-                            rmdir "$lockdir" 2>/dev/null || true
-                            # Try one more time after cleanup
-                            if mkdir "$lockdir" 2>/dev/null; then
-                                return 0
-                            fi
-                        fi
-                    fi
-                    echo "   ⚠️  Could not acquire cache lock after $((n*200/1000))s, proceeding without cache write"
+    echo "   Pattern: $filename_pattern"
+    echo "   Candidate filenames: ${uniq_candidates[*]}"
+
+    # Toolcache support: reuse cached archives under /opt/toolcache when available
+    local TOOLCACHE_DIR="${TOOLCACHE_DIR:-/opt/toolcache}"
+    local filename_base
+    local cache_archive
+    local cache_dir
+    local candidate_base
+    # Prefer any existing cached candidate filename (handles arm64 vs aarch64)
+    for c in "${uniq_candidates[@]}"; do
+        candidate_base=$(basename "$c")
+        candidate_path="$TOOLCACHE_DIR/$tool/$version/$arch/$candidate_base"
+        if [ -f "$candidate_path" ]; then
+            filename_base="$candidate_base"
+            cache_archive="$candidate_path"
+            break
+        fi
+    done
+    # If no existing cache found, default to first candidate for naming
+    if [ -z "${cache_archive:-}" ]; then
+        filename_base=$(basename "${uniq_candidates[0]}")
+        cache_archive="$TOOLCACHE_DIR/$tool/$version/$arch/$filename_base"
+    fi
+    cache_dir=$(dirname "$cache_archive")
+
+        # Use flock-based locking when available to coordinate cache writes.
+        # Falls back to a mkdir-based lock if `flock` is missing.
+        _cache_with_flock() {
+            local cache_dir="$1"; shift
+            local cmd="$*"
+            mkdir -p "$cache_dir" 2>/dev/null || true
+            local lockfile="$cache_dir/.lockfile"
+
+            if command -v flock >/dev/null 2>&1; then
+                # Use flock with a bounded wait (30s)
+                # `flock -w` will return non-zero if it cannot acquire the lock
+                if flock -w 30 "$lockfile" bash -c "$cmd"; then
+                    return 0
+                else
                     return 1
                 fi
-                sleep 0.2
-            done
-            return 0
+            else
+                # Fallback: simple mkdir lock (best-effort)
+                local lockdir="$cache_dir/.lock"
+                local max_attempts=150
+                local n=0
+                until mkdir "$lockdir" 2>/dev/null; do
+                    n=$((n+1))
+                    if [ "$n" -ge "$max_attempts" ]; then
+                        return 1
+                    fi
+                    sleep 0.2
+                done
+                # run critical section
+                bash -c "$cmd"
+                rmdir "$lockdir" 2>/dev/null || true
+                return 0
+            fi
         }
+
+        # Lightweight lock helpers that other parts of the script expect.
+        # These provide an acquire/release API backed by flock when
+        # available, and a mkdir-based lock directory fallback.
+        _cache_lock_acquire() {
+            local cache_dir="$1"
+            mkdir -p "$cache_dir" 2>/dev/null || true
+            local lockfile="$cache_dir/.lockfile"
+
+            if command -v flock >/dev/null 2>&1; then
+                # open a file descriptor for flock; return non-zero on timeout
+                exec 9>"$lockfile" 2>/dev/null || return 1
+                if flock -w 30 9; then
+                    return 0
+                else
+                    return 1
+                fi
+            else
+                local lockdir="$cache_dir/.lock"
+                local max_attempts=150
+                local n=0
+                until mkdir "$lockdir" 2>/dev/null; do
+                    n=$((n+1))
+                    if [ "$n" -ge "$max_attempts" ]; then
+                        return 1
+                    fi
+                    sleep 0.2
+                done
+                return 0
+            fi
+        }
+
         _cache_lock_release() {
-            local lockdir="$1/.lock"
-            rmdir "$lockdir" 2>/dev/null || true
+            local cache_dir="$1"
+            local lockfile="$cache_dir/.lockfile"
+            if command -v flock >/dev/null 2>&1; then
+                exec 9>&- 2>/dev/null || true
+                return 0
+            else
+                local lockdir="$cache_dir/.lock"
+                rmdir "$lockdir" 2>/dev/null || true
+                return 0
+            fi
         }
 
         # If cached archive exists, use it (copy to tmpfile to avoid removing cache)
@@ -244,7 +340,7 @@ download_github_release() {
             from_cache=true
         fi
 
-    # Download with retries
+    # Download with retries across candidate filenames
     local tmpfile="/tmp/${tool}-${version}.download"
     local max_attempts=3
     local attempt=1
@@ -252,13 +348,29 @@ download_github_release() {
     # Use robust curl flags: fail on HTTP errors, retry transient failures,
     # set connect and overall timeouts to avoid hanging during builds.
     local curl_flags=(--fail --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 300 -fsSL)
+
+    local chosen_candidate=""
     while [ $attempt -le $max_attempts ]; do
         echo "   Download attempt $attempt/$max_attempts..."
-        if [ "$from_cache" = true ] || curl "${curl_flags[@]}" -o "$tmpfile" "$url"; then
-            echo "   ✅ Download successful"
+        # Try each candidate filename until one succeeds
+        local success=false
+        for cand in "${uniq_candidates[@]}"; do
+            local url="https://github.com/$repo/releases/download/v${version}/$cand"
+            url="$(printf '%s' "$url" | tr -d '{}')"
+            echo "   Trying URL: $url"
+            if [ "$from_cache" = true ] || curl "${curl_flags[@]}" -o "$tmpfile" "$url"; then
+                echo "   ✅ Download successful (file: $cand)"
+                chosen_candidate="$cand"
+                success=true
+                break
+            else
+                echo "   ⚠️  URL failed: $url"
+            fi
+        done
+        if [ "$success" = true ]; then
             break
         fi
-        echo "   ⚠️  Download failed, retrying..."
+        echo "   ⚠️  Download failed for all candidates, retrying..."
         attempt=$((attempt + 1))
         sleep 2
     done
@@ -300,22 +412,22 @@ download_github_release() {
     # If we downloaded successfully and it didn't come from cache, store in toolcache
     if [ "$from_cache" != true ]; then
         if [ -n "$cache_dir" ]; then
-            if _cache_lock_acquire "$cache_dir"; then
-                mkdir -p "$cache_dir" 2>/dev/null || true
-                # Copy into cache (safer across mounts/filesystems)
-                if cp -a "$tmpfile" "$cache_archive" 2>/dev/null; then
-                    echo "   Cached archive: $cache_archive"
-                else
-                    echo "   ⚠️  Failed to write to cache: $cache_archive"
-                fi
-                _cache_lock_release "$cache_dir"
+            mkdir -p "$cache_dir" 2>/dev/null || true
+            # If we selected a different candidate than the default, update cache path
+            if [ -n "$chosen_candidate" ]; then
+                filename_base=$(basename "$chosen_candidate")
+                cache_archive="$TOOLCACHE_DIR/$tool/$version/$arch/$filename_base"
+                cache_dir=$(dirname "$cache_archive")
+            fi
+            # Attempt to write under flock-protected critical section
+            cache_cmd="cp -a \"$tmpfile\" \"$cache_archive\""
+            if _cache_with_flock "$cache_dir" "$cache_cmd"; then
+                echo "   Cached archive: $cache_archive"
             else
-                # Lock acquisition failed - check if another process already cached it
+                # If another process already wrote it, that's fine; otherwise fall back
                 if [ -f "$cache_archive" ]; then
                     echo "   Archive already cached by another process: $cache_archive"
                 else
-                    # Best-effort: try to write without lock (risky but better than nothing)
-                    mkdir -p "$cache_dir" 2>/dev/null || true
                     if cp -a "$tmpfile" "$cache_archive" 2>/dev/null; then
                         echo "   Stored archive to cache (no lock): $cache_archive"
                     else
@@ -354,43 +466,62 @@ download_github_release() {
                     fi
                 fi
                 # Ensure the binary inside the moved tree is executable.
-                # Find the binary regardless of its current executable bit
-                # and make it executable so feature post-install checks pass.
-                binary_path=$(find "$install_dir" -type f -name "$tool" -print -quit || true)
-                if [ -n "$binary_path" ] && [ -f "$binary_path" ]; then
-                    chmod +x "$binary_path" || true
-                fi
+                # Try several candidate binary names (tool, toold) to handle
+                # cases where the upstream binary is suffixed with 'd' (eg gitstatusd).
+                BIN_CANDIDATES=("$tool" "${tool}d")
+                binary_path=""
+                for bname in "${BIN_CANDIDATES[@]}"; do
+                    binary_path=$(find "$install_dir" -type f -name "$bname" -print -quit || true)
+                    if [ -n "$binary_path" ]; then
+                        chmod +x "$binary_path" || true
+                        break
+                    fi
+                done
                 # If the moved tree contains bin/<tool> and the target
                 # install_dir looks like a 'bin' folder, also copy the
                 # inner binary to the install_dir root so callers that
                 # expect the binary directly in $install_dir find it.
-                if [ -x "$moved_dir/bin/$tool" ]; then
-                    # Always ensure a straightforward executable path exists
-                    # at $install_dir/$tool so the verification step succeeds.
+                # Search bin/ for candidate binary names and install the first match
+                BIN_CANDIDATES=("$tool" "${tool}d")
+                found_bin=""
+                for bname in "${BIN_CANDIDATES[@]}"; do
+                    if [ -x "$moved_dir/bin/$bname" ]; then
+                        found_bin="$moved_dir/bin/$bname"
+                        break
+                    fi
+                done
+                if [ -n "$found_bin" ]; then
                     if [ ! -f "$install_dir/$tool" ]; then
-                        # Try symlink first (cheap), fallback to copy if that fails
-                        if ln -s "$moved_dir/bin/$tool" "$install_dir/$tool" 2>/dev/null; then
+                        if ln -s "$found_bin" "$install_dir/$tool" 2>/dev/null; then
                             echo "   ✅ Symlinked inner binary to $install_dir/$tool"
                         else
-                            cp -a "$moved_dir/bin/$tool" "$install_dir/$tool" 2>/dev/null || true
+                            cp -a "$found_bin" "$install_dir/$tool" 2>/dev/null || true
                             echo "   ✅ Copied inner binary to $install_dir/$tool"
                         fi
                         chmod +x "$install_dir/$tool" 2>/dev/null || true
                     fi
-                fi
-                # If the moved tree does NOT contain a bin/<tool> but does
-                # contain a loose binary somewhere, copy that binary into the
-                # install_dir root. This preserves behavior for features like
-                # `gh` which expect the binary at /home/jovyan/bin/gh.
-                if [ ! -x "$moved_dir/bin/$tool" ]; then
-                    fallback_bin=$(find "$moved_dir" -type f -name "$tool" -print -quit || true)
-                    if [ -n "$fallback_bin" ] && [ -f "$fallback_bin" ]; then
-                        # Only copy into install_dir root if install_dir is not the same
-                        # as the moved directory (avoid copying over directories).
-                        if [ "$(realpath "$install_dir" 2>/dev/null)" != "$(realpath "$moved_dir" 2>/dev/null)" ]; then
-                            cp -a "$fallback_bin" "$install_dir/$tool" 2>/dev/null || true
-                            chmod +x "$install_dir/$tool" 2>/dev/null || true
-                            echo "   ✅ Copied binary to $install_dir/$tool"
+                else
+                    # If no bin/<candidate> found, search the moved tree for possible binaries
+                    for bname in "${BIN_CANDIDATES[@]}"; do
+                        fallback_bin=$(find "$moved_dir" -type f -name "$bname" -print -quit || true)
+                        if [ -n "$fallback_bin" ] && [ -f "$fallback_bin" ]; then
+                            if [ "$(realpath "$install_dir" 2>/dev/null)" != "$(realpath "$moved_dir" 2>/dev/null)" ]; then
+                                cp -a "$fallback_bin" "$install_dir/$tool" 2>/dev/null || true
+                                chmod +x "$install_dir/$tool" 2>/dev/null || true
+                                echo "   ✅ Copied binary to $install_dir/$tool"
+                            fi
+                            break
+                        fi
+                    done
+                    # If still not found, try any file whose name contains the tool string
+                    if [ ! -f "$install_dir/$tool" ]; then
+                        fallback_bin=$(find "$moved_dir" -type f -iname "*${tool}*" -print -quit || true)
+                        if [ -n "$fallback_bin" ] && [ -f "$fallback_bin" ]; then
+                            if [ "$(realpath "$install_dir" 2>/dev/null)" != "$(realpath "$moved_dir" 2>/dev/null)" ]; then
+                                cp -a "$fallback_bin" "$install_dir/$tool" 2>/dev/null || true
+                                chmod +x "$install_dir/$tool" 2>/dev/null || true
+                                echo "   ✅ Copied fuzzy-matched binary to $install_dir/$tool"
+                            fi
                         fi
                     fi
                 fi
@@ -398,14 +529,24 @@ download_github_release() {
                 # No top-level dir: fall back to finding the binary and
                 # copying it into the install_dir (legacy behaviour).
                 local binary_path
-                binary_path=$(find "$extract_dir" -type f -name "$tool" -executable | head -1)
-
-                if [ -z "$binary_path" ]; then
-                    if [ -f "$extract_dir/$tool" ]; then
-                        binary_path="$extract_dir/$tool"
-                    elif [ -f "$extract_dir/bin/$tool" ]; then
-                        binary_path="$extract_dir/bin/$tool"
+                BIN_CANDIDATES=("$tool" "${tool}d")
+                binary_path=""
+                for bname in "${BIN_CANDIDATES[@]}"; do
+                    binary_path=$(find "$extract_dir" -type f -name "$bname" -executable -print -quit || true)
+                    if [ -n "$binary_path" ]; then
+                        break
                     fi
+                    if [ -f "$extract_dir/$bname" ]; then
+                        binary_path="$extract_dir/$bname"
+                        break
+                    elif [ -f "$extract_dir/bin/$bname" ]; then
+                        binary_path="$extract_dir/bin/$bname"
+                        break
+                    fi
+                done
+                # Fuzzy match: if exact names not found, try any file containing tool name
+                if [ -z "$binary_path" ]; then
+                    binary_path=$(find "$extract_dir" -type f -iname "*${tool}*" -print -quit || true)
                 fi
 
                 if [ -n "$binary_path" ] && [ -f "$binary_path" ]; then
@@ -484,23 +625,37 @@ download_direct() {
     local cache_dir
     cache_dir=$(dirname "$cache_archive")
 
-    _cache_lock_acquire() {
-        local lockdir="$1/.lock"
-        local max_attempts=50
-        local n=0
-        until mkdir "$lockdir" 2>/dev/null; do
-            n=$((n+1))
-            if [ "$n" -ge "$max_attempts" ]; then
-                echo "   ⚠️  Could not acquire cache lock after $((n*200/1000))s, proceeding without cache write"
+    # flock-backed cache writer (uses flock when available, fallback to mkdir lock)
+    _cache_with_flock() {
+        local cache_dir="$1"; shift
+        local cmd="$*"
+        mkdir -p "$cache_dir" 2>/dev/null || true
+        local lockfile="$cache_dir/.lockfile"
+
+        if command -v flock >/dev/null 2>&1; then
+            if flock -w 30 "$lockfile" bash -c "$cmd"; then
+                return 0
+            else
+                echo "   ⚠️  Could not acquire flock after 30s"
                 return 1
             fi
-            sleep 0.2
-        done
-        return 0
-    }
-    _cache_lock_release() {
-        local lockdir="$1/.lock"
-        rmdir "$lockdir" 2>/dev/null || true
+        else
+            local lockdir="$cache_dir/.lock"
+            local max_attempts=50
+            local n=0
+            until mkdir "$lockdir" 2>/dev/null; do
+                n=$((n+1))
+                if [ "$n" -ge "$max_attempts" ]; then
+                    echo "   ⚠️  Could not acquire cache lock after $((n*200/1000))s, proceeding without cache write"
+                    return 1
+                fi
+                sleep 0.2
+            done
+            # run critical section
+            bash -c "$cmd"
+            rmdir "$lockdir" 2>/dev/null || true
+            return 0
+        fi
     }
 
     local from_cache=false

@@ -2,16 +2,29 @@
   "id": "podman",
   "name": "podman",
   "description": "Installs Podman client (user-space container runtime) via apt when available.",
-  "dependsOn": ["container-user"],
+  "dependsOn": [
+    "container-user"
+  ],
   "options": {},
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "provides": ["podman"],
-  "postInstallCheck": {"command": "podman --version"},
-  "platforms": ["linux/amd64","linux/arm64"],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "provides": [
+    "podman"
+  ],
+  "postInstallCheck": {
+    "command": "podman --version"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "vscode": {
     "extensions": [
       "ms-azuretools.vscode-docker"
     ]
-  }
+  },
+  "documentationURL": "./features/podman/README.md"
 }

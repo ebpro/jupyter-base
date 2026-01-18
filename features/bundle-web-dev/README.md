@@ -14,3 +14,9 @@ Web development stack (Node, TypeScript, React/Vite/Next.js)
 - `typescript`
 
 - `react-tools`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

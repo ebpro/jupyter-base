@@ -7,12 +7,19 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["docker-buildx"],
-  "dependsOn": ["docker-cli"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "docker-buildx"
+  ],
+  "dependsOn": [
+    "docker-cli"
+  ],
   "options": {},
   "postInstallCheck": {
     "command": "docker buildx version",
     "description": "Verify Docker Buildx plugin is installed"
-  }
+  },
+  "documentationURL": "./features/docker-buildx/README.md"
 }

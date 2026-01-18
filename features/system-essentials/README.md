@@ -10,3 +10,9 @@ Installs minimal OS utility packages from Artefacts/apt_packages/base
 ## Dependencies
 
 - `container-user`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

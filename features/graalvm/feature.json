@@ -2,20 +2,44 @@
   "id": "graalvm",
   "name": "graalvm",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "description": "Installs GraalVM distribution for polyglot and native-image support. Provides Java runtime, conflicts with java-jdk.",
-  "dependsOn": ["java-sdkman"],
-  "options": {
-    "graalvm_version": {"type": "string", "default": "22.3.1", "description": "GraalVM release to install"},
-    "install_native_image": {"type": "boolean", "default": true}
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "provides":["graalvm", "java", "javac"],
-  "conflicts": ["java-jdk"],
-  "postInstallCheck": {"command": "java -version"},
-  "platforms": ["linux/amd64","linux/arm64"],
+  "description": "Installs GraalVM distribution for polyglot and native-image support. Provides Java runtime, conflicts with java-jdk.",
+  "dependsOn": [
+    "java-sdkman"
+  ],
+  "options": {
+    "graalvm_version": {
+      "type": "string",
+      "default": "22.3.1",
+      "description": "GraalVM release to install"
+    },
+    "install_native_image": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "provides": [
+    "graalvm",
+    "java",
+    "javac"
+  ],
+  "conflicts": [
+    "java-jdk"
+  ],
+  "postInstallCheck": {
+    "command": "java -version"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "vscode": {
     "extensions": [
       "oracle.oracle-java"
     ]
-  }
+  },
+  "documentationURL": "./features/graalvm/README.md"
 }

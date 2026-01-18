@@ -14,3 +14,9 @@ Meta-feature bundling core developer CLI tools: Node.js, Python language server,
 - `python-lsp`
 
 - `pip-requirements`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

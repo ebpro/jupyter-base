@@ -3,9 +3,52 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
+
+
+def _collect_feature_names_from_matrix(data: dict[str, Any]) -> set[str]:
+    """Collect all feature-like names referenced in a matrix YAML structure."""
+    names: set[str] = set()
+    # top-level features
+    for f in data.get("features", []) or []:
+        names.add(f)
+
+    # matrix entries
+    for entry in (data.get("matrix", {}) or {}).values():
+        if not entry:
+            continue
+        if isinstance(entry, dict):
+            for f in entry.get("features", []) or []:
+                names.add(f)
+            # Do NOT treat `services` entries as feature references; they are
+            # service tokens (e.g., 'postgres:version=16') and not feature dirs.
+    return names
+
+
+def validate_matrix_features(matrix_path: Path, repo_root: Path) -> list[str]:
+    """Validate that feature names referenced in the matrix exist under `features/`.
+
+    Returns a list of missing feature names (empty if all present).
+    """
+    if not matrix_path.exists():
+        raise FileNotFoundError(f"Matrix file not found: {matrix_path}")
+
+    with open(matrix_path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    refs = _collect_feature_names_from_matrix(data)
+    missing: list[str] = []
+    features_dir = repo_root / "features"
+    for name in sorted(refs):
+        if not name:
+            continue
+        # ignore common service names that are not feature dirs (e.g., dind, k3s)
+        # but still check for corresponding feature presence
+        if not (features_dir / name).exists():
+            missing.append(name)
+    return missing
 
 
 def render_options(opts: dict[str, Any]) -> str:
@@ -17,7 +60,8 @@ def render_options(opts: dict[str, Any]) -> str:
 def generate_profile_file(
     profile_spec: dict[str, Any],
     out_dir: Path,
-    prefix: str = ""
+    prefix: str = "",
+    source: Optional[str] = None,
 ) -> list[str]:
     """Generate profile files from a profile specification.
 
@@ -54,6 +98,12 @@ def generate_profile_file(
             all_features.extend(opts["features"])
 
         with open(out_path, "w", encoding="utf-8") as f:
+            # Add traceability: include originating matrix/source and any
+            # top-level comment from the profile spec.
+            if source:
+                f.write(f"# Source matrix: {source}\n")
+                # Traceability: source matrix and label
+                f.write(f"# Matrix label: {label}\n")
             if comment:
                 f.write(f"# {comment}\n\n")
             if parent:
@@ -69,7 +119,10 @@ def generate_profile_file(
             if isinstance(opts, dict) and "options" in opts:
                 options = opts["options"]
                 if options:
+                    # Emit options both as comments for traceability and as
+                    # @options entries consumed by other tooling.
                     opts_line = render_options(options)
+                    f.write(f"# Matrix options: {opts_line}\n")
                     f.write(f"@options:{opts_line}\n")
                     f.write("\n")
 
@@ -104,14 +157,17 @@ def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int
         data = yaml.safe_load(f)
 
     if not data:
-        raise ValueError(f"Empty matrix file: {matrix_path}")
+        # Empty or comment-only matrix files are allowed (e.g., placeholders
+        # for merged matrices). Do not treat as an error; simply generate
+        # zero profiles from this file.
+        return 0
 
     created_files = []
 
     # New-style: top-level 'profiles' list
     if "profiles" in data:
         for spec in data.get("profiles", []):
-            created = generate_profile_file(spec, out_dir, prefix=prefix)
+            created = generate_profile_file(spec, out_dir, prefix=prefix, source=str(matrix_path))
             created_files.extend(created)
 
     # Legacy/simple style: top-level 'parent' + 'matrix' mapping
@@ -160,7 +216,7 @@ def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int
                 "labels": {label: variant_spec},
                 "features": features
             }
-            created = generate_profile_file(profile_spec, out_dir, prefix=prefix)
+            created = generate_profile_file(profile_spec, out_dir, prefix=prefix, source=str(matrix_path))
             created_files.extend(created)
     else:
         raise ValueError("No profiles or matrix entries found in matrix file")

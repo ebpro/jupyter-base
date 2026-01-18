@@ -42,4 +42,5 @@
     ],
     "forwardPorts": [5432]
   }
-}
+    ,"postInstallCheck": {"command": "psql --version", "description": "Verify PostgreSQL client (psql) is available"}
+  }

@@ -14,3 +14,9 @@ Python database libraries and client tools for database development and data sci
 - `python-base`
 
 - `postgresql-client`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

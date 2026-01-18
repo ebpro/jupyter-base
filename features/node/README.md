@@ -14,3 +14,9 @@ Installs Node.js and npm using direct binary download with centralized version c
 - `container-user`
 
 - `_lib/download-release`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

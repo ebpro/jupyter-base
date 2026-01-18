@@ -3,12 +3,17 @@
   "name": "Java JDK",
   "version": "1.0.0",
   "description": "Installs Java JDK via SDKMAN (Temurin, OpenJDK, Oracle, etc.)",
-  "dependsOn": ["java-sdkman"],
+  "dependsOn": [
+    "java-sdkman"
+  ],
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux/amd64", "linux/arm64"],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "options": {
     "JDK_VERSION": {
       "type": "string",
@@ -21,7 +26,10 @@
       "description": "SDKMAN Java distribution identifier (temurin, openjdk, oracle, etc.)"
     }
   },
-  "provides": ["java", "javac"],
+  "provides": [
+    "java",
+    "javac"
+  ],
   "postInstallCheck": {
     "command": "java -version && javac -version",
     "description": "Verify Java and compiler are available"
@@ -40,5 +48,6 @@
         }
       ]
     }
-  }
+  },
+  "documentationURL": "./features/java-jdk/README.md"
 }

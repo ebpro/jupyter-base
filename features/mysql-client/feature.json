@@ -43,4 +43,5 @@
     ],
     "forwardPorts": [3306]
   }
+  ,"postInstallCheck": {"command": "mysql --version", "description": "Verify MySQL client is available"}
 }

@@ -10,3 +10,6 @@ Top-like interface for container metrics - excellent for monitoring and teaching
 ## Dependencies
 
 - `system-essentials`
+
+## Options
+List feature-specific options and defaults.

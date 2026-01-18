@@ -3,12 +3,17 @@
   "name": "Gradle Build Tool",
   "version": "1.0.0",
   "description": "Installs Gradle build tool via SDKMAN",
-  "dependsOn": ["java-sdkman"],
+  "dependsOn": [
+    "java-sdkman"
+  ],
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux/amd64", "linux/arm64"],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "options": {
     "GRADLE_VERSION": {
       "type": "string",
@@ -16,7 +21,9 @@
       "description": "Specific Gradle version to install, or empty for latest"
     }
   },
-  "provides": ["gradle"],
+  "provides": [
+    "gradle"
+  ],
   "postInstallCheck": {
     "command": "gradle --version",
     "description": "Verify Gradle is available"
@@ -25,5 +32,6 @@
     "extensions": [
       "vscjava.vscode-gradle"
     ]
-  }
+  },
+  "documentationURL": "./features/java-gradle/README.md"
 }

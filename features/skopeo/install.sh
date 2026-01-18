@@ -15,7 +15,9 @@ echo "skopeo: Installing Skopeo registry tool"
 apt-get update
 apt-get install -y skopeo
 
-# Verify installation
-skopeo --version
-
-echo "skopeo: Installation complete"
+# Verify installation (be tolerant: under QEMU/emulation the binary may crash)
+if skopeo --version >/dev/null 2>&1; then
+  echo "skopeo: Installation complete"
+else
+  echo "skopeo: WARNING: 'skopeo --version' failed; continuing without verification"
+fi

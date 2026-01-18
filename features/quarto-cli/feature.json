@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "id": "quarto-cli",
   "description": "Installs Quarto CLI binary and creates wrappers",
-  "dependsOn": ["python-conda", "_lib/download-release"],
+  "dependsOn": [
+    "python-conda",
+    "_lib/download-release"
+  ],
   "options": {
     "QUARTO_VERSION": {
       "type": "string",
@@ -11,13 +14,19 @@
       "description": "Specific Quarto version to install"
     }
   },
-  "provides": ["quarto-cli"],
+  "provides": [
+    "quarto-cli"
+  ],
   "postInstallCheck": {
     "command": "quarto --version"
   },
-  "platforms": ["linux/amd64", "linux/arm64"],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
-  }
+  },
+  "documentationURL": "./features/quarto-cli/README.md"
 }

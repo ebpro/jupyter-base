@@ -12,3 +12,9 @@ PostgreSQL client tools including psql, pg_dump, pg_restore, libpq development l
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

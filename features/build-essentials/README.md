@@ -10,3 +10,9 @@ Installs compilers and monitoring utilities (build-essential, cmake, htop, strac
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

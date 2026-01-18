@@ -16,3 +16,9 @@ Meta-feature: Installs Quarto CLI with Python and Chromium support (use quarto-c
 - `quarto-python`
 
 - `quarto-chromium`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

@@ -12,3 +12,9 @@ Installs a Java Jupyter kernel (IJava) from release or submodule and registers k
 - `java-jdk`
 
 - `jupyter-kernels`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

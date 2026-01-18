@@ -16,3 +16,9 @@ Complete environment for teaching CI/CD pipelines with Kubernetes, GitHub CLI, a
 - `git-lfs`
 
 - `tilt`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

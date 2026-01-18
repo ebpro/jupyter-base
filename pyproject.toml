@@ -20,6 +20,9 @@ dev = [
   "pre-commit",
 ]
 
+[tool.setuptools]
+package-dir = {"" = "solen-cli"}
+
 [tool.setuptools.packages.find]
-where = "solen-cli"
+where = ["solen-cli"]
 include = ["solen*"]

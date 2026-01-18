@@ -1,5 +1,12 @@
 {
-  "name": "scout",
-  "description": "scout-cli feature (stub)",
-  "version": "0.0.0"
+  "id": "scout",
+  "name": "scout (legacy stub)",
+  "description": "Deprecated placeholder for Scout CLI; functionality moved or removed.",
+  "version": "0.0.0",
+  "deprecated": true,
+  "postInstallCheck": {
+    "command": "sh -c 'command -v scout >/dev/null 2>&1 && scout --version || echo \"scout not found\"'",
+    "description": "Check for scout CLI if present (deprecated feature)"
+  },
+  "documentationURL": "./features/scout/README.md"
 }

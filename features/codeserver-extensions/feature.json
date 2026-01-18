@@ -1,9 +1,19 @@
 {
   "name": "codeserver-extensions",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "codeserver-extensions",
   "description": "Installs code-server extensions listed in Artefacts/codeserver_extensions",
-  "dependsOn": ["code-server"],
-  "options": {}
+  "dependsOn": [
+    "code-server"
+  ],
+  "options": {},
+    "postInstallCheck": {
+      "command": "sh -c 'test -d /home/jovyan/.local/share/code-server/extensions >/dev/null 2>&1 && echo ok || echo \"extensions not present\"'",
+      "description": "Verify code-server extensions directory exists"
+    },
+  "documentationURL": "./features/codeserver-extensions/README.md"
 }

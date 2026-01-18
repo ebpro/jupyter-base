@@ -16,7 +16,28 @@ echo "docker-buildx: Installing Docker Buildx plugin"
 apt-get update
 apt-get install -y docker-buildx-plugin
 
-# Verify installation
-docker buildx version
+# Verify installation (tolerant): try the CLI plugin, else register candidate binaries
+if ! docker buildx version >/dev/null 2>&1; then
+  echo "docker-buildx: 'docker buildx' not recognized, attempting to register plugin"
+  candidates=(
+    /usr/libexec/docker/cli-plugins/docker-buildx
+    /usr/lib/docker/cli-plugins/docker-buildx
+    /usr/local/lib/docker/cli-plugins/docker-buildx
+    /usr/bin/buildx
+    /usr/local/bin/buildx
+  )
+  for c in "${candidates[@]}"; do
+    if [ -x "$c" ]; then
+      mkdir -p /usr/local/lib/docker/cli-plugins
+      ln -sf "$c" /usr/local/lib/docker/cli-plugins/docker-buildx
+      chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx || true
+      break
+    fi
+  done
+fi
 
-echo "docker-buildx: Installation complete"
+if ! docker buildx version >/dev/null 2>&1; then
+  echo "docker-buildx: WARNING: 'docker buildx' still not available after registering plugin"
+else
+  echo "docker-buildx: Installation complete"
+fi

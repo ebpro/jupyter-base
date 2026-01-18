@@ -63,7 +63,7 @@ resolve_version() {
   echo ""
 }
 
-QUARTO_VERSION=$(resolve_version "quarto")
+QUARTO_VERSION="${QUARTO_VERSION:-$(resolve_version "quarto")}"
 if [ -z "${QUARTO_VERSION}" ]; then
   echo "quarto-cli: version not found, skipping" >&2
   exit 0
@@ -82,11 +82,13 @@ fi
 # Download and extract Quarto using shared helper
 mkdir -p /opt/quarto
 # Build explicit filename to avoid placeholder/template issues during build
-FNAME="quarto-${QUARTO_VERSION}-linux-${ARCH}.tar.gz"
+# Strip leading 'v' from version when constructing filenames (helper will add the 'v' tag)
+QUARTO_VER_NOV=${QUARTO_VERSION#v}
+FNAME="quarto-${QUARTO_VER_NOV}-linux-${ARCH}.tar.gz"
 download_github_release \
   "quarto-dev/quarto-cli" \
   "quarto" \
-  "${QUARTO_VERSION}" \
+  "${QUARTO_VER_NOV}" \
   "/opt/quarto" \
   "${FNAME}" \
   "true"

@@ -25,12 +25,20 @@
       "default": "21"
     }
   },
-  "dependsOn": ["java-jdk", "jupyter-kernels"],
+  "dependsOn": [
+    "java-jdk",
+    "jupyter-kernels"
+  ],
   "postInstallCheck": {
     "command": "bash -lc 'if [ -d /usr/local/share/jupyter/kernels/java ]; then exit 0; else jupyter kernelspec list --json | python -c \"import sys,json; ks=json.load(sys.stdin).get(\\\"kernelspecs\\\",{}); sys.exit(0) if \\\"java\\\" in ks else sys.exit(1)\"; fi'"
   },
-  "platforms": ["linux/amd64","linux/arm64"],
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"}
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "documentationURL": "./features/java-kernel/README.md"
 }
-
-

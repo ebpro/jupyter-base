@@ -27,6 +27,15 @@ LOCAL_BIN="${HOME_DIR}/bin"
 
 mkdir -p "${LOCAL_BIN}"
 
+# Compute canonical ARCH once for use by multiple tools (kubectl, helm, kustomize)
+arch_raw=$(uname -m)
+case "$arch_raw" in
+  x86_64|X86_64|amd64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  armv7*|armhf) ARCH=arm ;;
+  *) ARCH="$arch_raw" ;;
+esac
+
 # Resolve versions from Artefacts
 if [ -f "${PWD}/artefacts/kubernetes-client/versions.json" ] || [ -f "${PWD}/Artefacts/versions.json" ] || [ -f /tmp/versions.json ]; then
   resolve_version() {
@@ -57,20 +66,36 @@ fi
 # Install kubectl (direct download from dl.k8s.io)
 if [ -n "${KUBECTL_VERSION}" ]; then
   echo "kubernetes-client: installing kubectl ${KUBECTL_VERSION}"
-  KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/\${ARCH}/kubectl"
-  download_direct "kubectl" "${KUBECTL_VERSION}" "${KUBECTL_URL}" "${LOCAL_BIN}/kubectl"
+  KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl"
+  # download_direct URL TOOL [INSTALL_DIR] [EXTRACT]
+  download_direct "${KUBECTL_URL}" "kubectl" "${LOCAL_BIN}" "false"
 fi
 
 # Install helm (GitHub release tarball)
 if [ -n "${HELM_VERSION}" ]; then
   echo "kubernetes-client: installing helm ${HELM_VERSION}"
-  download_github_release "helm/helm" "${HELM_VERSION}" "helm-v\${VERSION}-linux-\${ARCH}.tar.gz" "${LOCAL_BIN}/helm" "linux-\${ARCH}/helm"
+  # Download helm from get.helm.sh (assets hosted on their CDN)
+  echo "kubernetes-client: installing helm ${HELM_VERSION}"
+  # Ensure the tag used in the filename includes a leading 'v' (get.helm.sh filenames are 'helm-vX.Y.Z...')
+  if [[ "${HELM_VERSION}" == v* ]]; then
+    HELM_TAG="${HELM_VERSION}"
+  else
+    HELM_TAG="v${HELM_VERSION}"
+  fi
+  HELM_URL="https://get.helm.sh/helm-${HELM_TAG}-linux-${ARCH}.tar.gz"
+  # use download_direct which will extract and pick the `helm` binary from the archive
+  download_direct "${HELM_URL}" "helm" "${LOCAL_BIN}" "true"
 fi
 
 # Install kustomize (GitHub release tarball)
 if [ -n "${KUSTOMIZE_VERSION}" ]; then
   echo "kubernetes-client: installing kustomize ${KUSTOMIZE_VERSION}"
-  download_github_release "kubernetes-sigs/kustomize" "${KUSTOMIZE_VERSION}" "kustomize_v\${VERSION}_linux_\${ARCH}.tar.gz" "${LOCAL_BIN}/kustomize" "kustomize" "kustomize/"
+  # For kustomize, upstream release tag includes a repo prefix 'kustomize/v{version}'
+  # GitHub release download path uses percent-encoding for '/', e.g. 'kustomize%2Fv5.8.0'
+  KUSTOMIZE_VER_NOV=${KUSTOMIZE_VERSION#v}
+  KUSTOMIZE_TAG_ESC="kustomize%2Fv${KUSTOMIZE_VER_NOV}"
+  KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/${KUSTOMIZE_TAG_ESC}/kustomize_v${KUSTOMIZE_VER_NOV}_linux_${ARCH}.tar.gz"
+  download_direct "${KUSTOMIZE_URL}" "kustomize" "${LOCAL_BIN}" "true"
 fi
 
 chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}" || true

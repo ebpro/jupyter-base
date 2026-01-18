@@ -12,3 +12,9 @@ Installs Redis command-line client tools
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

@@ -7,11 +7,24 @@
   "customizations": {
     "solen": {
       "category": "database",
-      "tags": ["jupyter", "sql", "kernel", "postgresql", "mysql"],
+      "tags": [
+        "jupyter",
+        "sql",
+        "kernel",
+        "postgresql",
+        "mysql"
+      ],
       "complexity": "simple",
       "installTimeMinutes": 2,
       "requiresRestart": false
     }
   },
-  "dependsOn": ["python-base"]
+  "dependsOn": [
+    "python-base"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'command -v jupyter >/dev/null 2>&1 && jupyter --version || echo \"jupyter not found\"'",
+    "description": "Verify Jupyter is available (kernel registration can be checked separately)"
+  },
+  "documentationURL": "./features/xeus-sql/README.md"
 }

@@ -1,10 +1,20 @@
 {
   "name": "git-lfs",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "provides": ["git-lfs"],
-  "postInstallCheck": {"command": "git-lfs version"},
-  "platforms": ["linux/amd64","linux/arm64"],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "provides": [
+    "git-lfs"
+  ],
+  "postInstallCheck": {
+    "command": "git-lfs version"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "id": "git-lfs",
   "description": "Installs Git LFS and configures it for the dev user",
   "options": {},
@@ -12,5 +22,6 @@
     "extensions": [
       "eamodio.gitlens"
     ]
-  }
+  },
+  "documentationURL": "./features/git-lfs/README.md"
 }

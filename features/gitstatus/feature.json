@@ -1,5 +1,12 @@
 {
-  "name": "gitstatus",
-  "description": "gitstatus feature (stub)",
-  "version": "0.0.0"
+  "id": "gitstatus",
+  "name": "gitstatus (legacy stub)",
+  "description": "Installs gitstatusd prompt helper (romkatv/gitstatus) to provide fast, Git-aware shell prompts.",
+  "version": "0.0.0",
+  "deprecated": true,
+  "postInstallCheck": {
+    "command": "sh -c 'command -v gitstatusd >/dev/null 2>&1 || test -x /home/jovyan/.cache/gitstatus/gitstatusd'",
+    "description": "Verify gitstatusd binary is available"
+  },
+  "documentationURL": "./features/gitstatus/README.md"
 }

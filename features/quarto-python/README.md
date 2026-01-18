@@ -14,3 +14,9 @@ Configures Python kernel integration for Quarto (ipykernel, Jupyter)
 - `quarto-cli`
 
 - `python-conda`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

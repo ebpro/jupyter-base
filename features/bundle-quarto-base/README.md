@@ -14,3 +14,9 @@ Meta-feature bundling Quarto CLI and common templates for document authoring and
 - `quarto-python`
 
 - `quarto-common`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

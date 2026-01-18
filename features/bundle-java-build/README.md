@@ -14,3 +14,9 @@ Meta-feature bundling SDKMAN SDK manager with Maven and Gradle build tools for J
 - `java-maven`
 
 - `java-gradle`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

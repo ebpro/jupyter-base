@@ -1,9 +1,23 @@
 {
   "name": "bundle-ml-teaching",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "bundle-ml-teaching",
   "description": "Machine Learning teaching stack (Jupyter, scikit-learn, matplotlib, seaborn, pandas)",
-  "dependsOn": ["bundle-data-science", "ml-python-packages"],
-  "platforms": ["linux/amd64","linux/arm64"]
+  "dependsOn": [
+    "bundle-data-science",
+    "ml-python-packages"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'command -v conda >/dev/null 2>&1 && conda --version || echo \"conda not found\"'",
+    "description": "Verify Conda is available for ML teaching bundle"
+  },
+  "documentationURL": "./features/bundle-ml-teaching/README.md"
 }

@@ -10,3 +10,9 @@ Installs GraalVM distribution for polyglot and native-image support. Provides Ja
 ## Dependencies
 
 - `java-sdkman`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

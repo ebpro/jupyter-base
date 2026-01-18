@@ -12,3 +12,9 @@ Machine Learning teaching stack (Jupyter, scikit-learn, matplotlib, seaborn, pan
 - `bundle-data-science`
 
 - `ml-python-packages`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

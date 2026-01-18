@@ -12,3 +12,9 @@ Meta-feature bundling Quarto with TeXLive for full document authoring including 
 - `bundle-quarto-base`
 
 - `texlive`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

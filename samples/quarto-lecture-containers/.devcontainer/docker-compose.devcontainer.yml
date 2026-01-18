@@ -1,6 +1,6 @@
 services:
   workspace:
-    image: ghcr.io/ebpro/solen:quarto-lecture-full-develop
+    image: ghcr.io/ebpro/solen:quarto-full-chore-add-pyproject
     volumes:
       - ../..:/home/jovyan/work:cached
     command: sleep infinity

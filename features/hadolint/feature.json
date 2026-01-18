@@ -7,9 +7,15 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["hadolint"],
-  "dependsOn": ["system-essentials"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "hadolint"
+  ],
+  "dependsOn": [
+    "system-essentials"
+  ],
   "options": {
     "version": {
       "type": "string",
@@ -20,5 +26,6 @@
   "postInstallCheck": {
     "command": "hadolint --version",
     "description": "Verify hadolint is installed"
-  }
+  },
+  "documentationURL": "./features/hadolint/README.md"
 }

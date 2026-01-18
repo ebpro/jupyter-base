@@ -6,14 +6,69 @@ features:
   - bundle-dev-base
 options: {}
 matrix:
-  kotlin:
+  lang-kotlin:
     features:
       - bundle-java-build
       - kotlin
     options:
       INSTALL_KOTLIN: true
       INSTALL_KOTLIN_KERNEL: true
-  web-dev:
+  lang-web-dev:
     features:
       - bundle-web-dev
     options: {}
+  # Java language variants (merged from java-dev.yaml, java-sdk.yaml, java.yaml)
+  lang-java-latest:
+    features:
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: latest
+
+  lang-java-ea:
+    features:
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: ea
+
+  lang-java-8:
+    features:
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: 8
+
+  lang-java-21:
+    features:
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: 21
+
+  lang-java-25:
+    features:
+      - bundle-java-build
+      - java-jdk
+    options:
+      JDK_VERSION: 25
+
+  lang-java-sdk:
+    features:
+      - bundle-java-build
+    options: {}
+
+  lang-java-db-jdk25:
+    features:
+      - bundle-java-db
+      - java-jdk
+    options:
+      JDK_VERSION: 25
+    services:
+      - postgres:version=16
+
+  lang-java-graal:
+    features:
+      - graalvm
+    options:
+      GRAALVM_VERSION: 22.3.1

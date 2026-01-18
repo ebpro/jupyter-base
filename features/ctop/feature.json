@@ -7,9 +7,15 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["ctop"],
-  "dependsOn": ["system-essentials"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "ctop"
+  ],
+  "dependsOn": [
+    "system-essentials"
+  ],
   "options": {
     "version": {
       "type": "string",
@@ -20,5 +26,6 @@
   "postInstallCheck": {
     "command": "ctop -v",
     "description": "Verify ctop is installed"
-  }
+  },
+  "documentationURL": "./features/ctop/README.md"
 }

@@ -14,3 +14,9 @@ Installs React development tools (Vite, Next.js CLI, Create React App)
 - `node`
 
 - `typescript`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

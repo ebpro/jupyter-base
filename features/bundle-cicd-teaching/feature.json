@@ -7,13 +7,23 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["cicd-stack", "kubectl"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "cicd-stack",
+    "kubectl"
+  ],
   "dependsOn": [
     "kubernetes-dev",
     "github-cli",
     "git-lfs",
     "tilt"
   ],
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v kubectl >/dev/null 2>&1 && kubectl version --client --short || echo \"kubectl not found\"'",
+    "description": "Verify representative Kubernetes client (kubectl) is available"
+  },
+  "documentationURL": "./features/bundle-cicd-teaching/README.md"
 }

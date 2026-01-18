@@ -1,4 +1,4 @@
-# Purpose: Generate quarto-lecture profile variants
+# Purpose: Generate quarto profile variants
 # Quarto lecture environments with different focuses
 
 features:
@@ -8,33 +8,46 @@ features:
 options:
   INSTALL_NOTEBOOK_EXTENSIONS: true
 matrix:
-  quarto-lecture:
+  quarto:
     features:
       - bundle-quarto-base
     options: {}
-  quarto-lecture-full:
+  quarto-full:
     features:
       - bundle-quarto-full
       - bundle-java-build
       - java-jdk
-      - bundle-k8s
+      - java-maven
+      - java-gradle
+      - java-kernel
       - bundle-container-dev
+      - postgresql-client
+      - bundle-k8s
+      - bundle-container-runtimes
+      - dive
+      - trivy
+      - hadolint
+      - skopeo
+      - ctop
     options:
       JDK_VERSION: 25
-  quarto-lecture-db:
+    services:
+      - dind
+      - postgres:version=16
+  quarto-db-pg:
     features:
       - bundle-quarto-base
       - postgresql-client
       - bundle-python-db
     services:
       - postgres:version=16
-  quarto-lecture-containers:
+  quarto-containers:
     features:
       - bundle-quarto-full
       - quarto-chromium
       - bundle-java-build
       - java-jdk
-      - docker-dind
+      - bundle-container-runtimes
       - bundle-container-dev
       - postgresql-client
       - bundle-python-db
@@ -46,3 +59,28 @@ matrix:
     services:
       - dind
       - postgres:version=16
+
+  # Java-focused variants (moved from quarto-dev-java.yaml)
+  quarto-java-ea:
+    features:
+      - bundle-quarto-base
+      - java-jdk
+      - java-maven
+      - java-gradle
+      - java-kernel
+    options:
+      KERNEL_VERSION: v1.4.5
+      ARTIFACTS_BASE_URL: https://github.com/ebpro/IJava/releases
+      JDK_VERSION: ea
+
+  quarto-java-25:
+    features:
+      - bundle-quarto-base
+      - java-jdk
+      - java-maven
+      - java-gradle
+      - java-kernel
+    options:
+      KERNEL_VERSION: v1.4.5
+      ARTIFACTS_BASE_URL: https://github.com/ebpro/IJava/releases
+      JDK_VERSION: 25

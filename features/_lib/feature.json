@@ -2,8 +2,19 @@
   "id": "_lib",
   "name": "_lib",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "description": "Helper library container features (shared installers). Not intended as standalone feature.",
   "provides": [],
-  "supported_archs": ["amd64","arm64"]
+  "supported_archs": [
+    "amd64",
+    "arm64"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'test -f /usr/local/lib/download-release-helpers.sh >/dev/null 2>&1 && echo ok || echo \"helper script missing\"'",
+    "description": "Check presence of shared download-release helper script in the image"
+  },
+  "documentationURL": "./features/_lib/README.md"
 }

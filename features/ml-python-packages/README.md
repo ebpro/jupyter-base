@@ -12,3 +12,9 @@ Installs essential ML/Data Science Python packages (scikit-learn, matplotlib, se
 - `python-conda`
 
 - `jupyter-base`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

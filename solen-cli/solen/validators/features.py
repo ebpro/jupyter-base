@@ -124,6 +124,9 @@ class FeatureValidator:
         if 'dependsOn' in feature_data:
             results.extend(self._validate_dependencies(feature_data['dependsOn']))
 
+        # Validate post-install check (recommended)
+        results.extend(self._validate_post_install_check(feature_data))
+
         # Check install.sh
         results.extend(self._validate_install_script(feature_path))
 
@@ -270,6 +273,57 @@ class FeatureValidator:
                 ))
         return results
 
+    def _validate_post_install_check(self, data: dict[str, Any]) -> list[ValidationResult]:
+        """Validate presence and basic structure of `postInstallCheck`.
+
+        This is recommended: it allows automated smoke checks after installation.
+        If missing, emit a warning. If present, ensure it contains a `command` string.
+        """
+        results: list[ValidationResult] = []
+
+        if 'postInstallCheck' not in data:
+            results.append(ValidationResult(
+                passed=False,
+                level='warning',
+                message="Recommended field 'postInstallCheck' is missing (add a command to verify installation)"
+            ))
+            return results
+
+        pic = data.get('postInstallCheck')
+        if not isinstance(pic, dict):
+            results.append(ValidationResult(
+                passed=False,
+                level='warning',
+                message="'postInstallCheck' should be an object with at least a 'command' field"
+            ))
+            return results
+
+        # command must be a non-empty string
+        cmd = pic.get('command')
+        if not cmd or not isinstance(cmd, str):
+            results.append(ValidationResult(
+                passed=False,
+                level='warning',
+                message="'postInstallCheck.command' is missing or not a string"
+            ))
+        else:
+            results.append(ValidationResult(
+                passed=True,
+                level='info',
+                message="postInstallCheck.command present"
+            ))
+
+        # optional description
+        desc = pic.get('description')
+        if desc is not None and not isinstance(desc, str):
+            results.append(ValidationResult(
+                passed=False,
+                level='warning',
+                message="'postInstallCheck.description' should be a string if present"
+            ))
+
+        return results
+
     def _validate_install_script(self, feature_path: Path) -> list[ValidationResult]:
         """Validate install.sh exists and is executable."""
         results = []
@@ -386,6 +440,91 @@ def auto_fix_feature(feature_path: Path, validation: FeatureValidation) -> int:
             fixed += 1
         except Exception:
             pass
+
+    # Auto-add missing recommended fields in feature.json (description, documentationURL)
+    feature_json = feature_path / 'feature.json'
+    if feature_json.exists():
+        try:
+            with open(feature_json, encoding='utf-8') as f:
+                data = json.load(f)
+
+            changed = False
+            # Add a minimal description if missing or empty
+            if 'description' not in data or not data.get('description'):
+                name = data.get('name') or feature_path.name
+                data['description'] = f"{name} feature"
+                changed = True
+
+            # Add a sensible documentationURL pointing to the feature README if missing
+            if 'documentationURL' not in data or not data.get('documentationURL'):
+                # prefer an in-repo README path
+                data['documentationURL'] = f"./features/{feature_path.name}/README.md"
+                changed = True
+
+            if changed:
+                try:
+                    with open(feature_json, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+                    fixed += 1
+                except Exception:
+                    pass
+        except Exception:
+            # ignore JSON read/write errors during auto-fix
+            pass
+
+    # Ensure README.md exists and contains recommended sections (description, usage, options)
+    readme = feature_path / 'README.md'
+    try:
+        if not readme.exists():
+            # create a minimal README with recommended sections
+            desc = None
+            try:
+                with open(feature_json, encoding='utf-8') as f:
+                    j = json.load(f)
+                    desc = j.get('description')
+            except Exception:
+                desc = None
+
+            content_lines = []
+            content_lines.append(f"# {data.get('name') or feature_path.name}\n")
+            content_lines.append("## Description\n")
+            content_lines.append((desc or f"{feature_path.name} feature") + "\n\n")
+            content_lines.append("## Usage\n")
+            content_lines.append("Describe how to enable or configure this feature.\n\n")
+            content_lines.append("## Options\n")
+            content_lines.append("List feature-specific options and defaults.\n")
+
+            try:
+                with open(readme, 'w', encoding='utf-8') as rf:
+                    rf.writelines([l + '\n' if not l.endswith('\n') else l for l in content_lines])
+                fixed += 1
+            except Exception:
+                pass
+        else:
+            # Append missing sections if absent
+            try:
+                with open(readme, encoding='utf-8') as rf:
+                    content = rf.read()
+                lower = content.lower()
+                to_append = []
+                if 'description' not in lower:
+                    to_append.append('\n## Description\nAdd a short description of the feature.\n')
+                if 'usage' not in lower:
+                    to_append.append('\n## Usage\nDescribe how to enable or configure this feature.\n')
+                if 'options' not in lower:
+                    to_append.append('\n## Options\nList feature-specific options and defaults.\n')
+
+                if to_append:
+                    try:
+                        with open(readme, 'a', encoding='utf-8') as rf:
+                            rf.writelines(to_append)
+                        fixed += 1
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     return fixed
 

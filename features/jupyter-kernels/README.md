@@ -14,3 +14,9 @@ Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel
 - `python-conda`
 
 - `jupyter-base`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

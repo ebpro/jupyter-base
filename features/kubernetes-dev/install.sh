@@ -55,7 +55,24 @@ fi
 # Install k9s (GitHub release tarball)
 if [ -n "${K9S_VERSION}" ]; then
   echo "kubernetes-dev: installing k9s ${K9S_VERSION}"
-  download_github_release "derailed/k9s" "${K9S_VERSION}" "k9s_Linux_\${ARCH}.tar.gz" "${LOCAL_BIN}/k9s" "k9s"
+  # Compute ARCH mapping used by k9s filenames (amd64/arm64)
+  arch_raw=$(uname -m)
+  case "$arch_raw" in
+    x86_64|X86_64|amd64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    armv7*|armhf) ARCH=arm ;;
+    *) ARCH="$arch_raw" ;;
+  esac
+
+  # Ensure tag includes leading 'v' for the release path (e.g. v0.50.18)
+  if [[ "${K9S_VERSION}" == v* ]]; then
+    K9S_TAG="${K9S_VERSION}"
+  else
+    K9S_TAG="v${K9S_VERSION}"
+  fi
+
+  K9S_URL="https://github.com/derailed/k9s/releases/download/${K9S_TAG}/k9s_Linux_${ARCH}.tar.gz"
+  download_direct "${K9S_URL}" "k9s" "${LOCAL_BIN}" "true"
 fi
 
 chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}" || true

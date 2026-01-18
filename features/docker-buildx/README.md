@@ -12,3 +12,9 @@ Install Docker Buildx plugin for advanced build capabilities and multi-platform 
 ## Dependencies
 
 - `docker-cli`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

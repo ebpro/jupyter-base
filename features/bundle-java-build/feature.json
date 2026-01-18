@@ -7,12 +7,23 @@
     "name": "Bruno Parmentier",
     "email": "bruno.parmentier@univ-tlse3.fr"
   },
-  "platforms": ["linux"],
-  "provides": ["java-sdkman", "maven", "gradle"],
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "java-sdkman",
+    "maven",
+    "gradle"
+  ],
   "dependsOn": [
     "java-sdkman",
     "java-maven",
     "java-gradle"
   ],
-  "options": {}
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'if [ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]; then . \"$HOME/.sdkman/bin/sdkman-init.sh\"; fi; (mvn --version >/dev/null 2>&1 || gradle --version >/dev/null 2>&1) || echo \"java build tools not found\"'",
+    "description": "Initialize SDKMAN (if present) and verify Maven or Gradle is available"
+  },
+  "documentationURL": "./features/bundle-java-build/README.md"
 }

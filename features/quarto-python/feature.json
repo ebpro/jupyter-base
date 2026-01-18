@@ -3,12 +3,25 @@
   "version": "0.1.0",
   "id": "quarto-python",
   "description": "Configures Python kernel integration for Quarto (ipykernel, Jupyter)",
-  "dependsOn": ["quarto-cli", "python-conda"],
+  "dependsOn": [
+    "quarto-cli",
+    "python-conda"
+  ],
   "options": {},
-  "provides": ["quarto-python"],
-  "platforms": ["linux/amd64", "linux/arm64"],
+  "provides": [
+    "quarto-python"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
-  }
+  },
+  "postInstallCheck": {
+    "command": "python -m pip --version",
+    "description": "Verify Python/pip available for Quarto Python integration"
+  },
+  "documentationURL": "./features/quarto-python/README.md"
 }

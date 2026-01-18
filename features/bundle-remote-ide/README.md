@@ -14,3 +14,9 @@ Meta-feature bundling Code Server, VS Code extensions, and JetBrains Gateway for
 - `codeserver-extensions`
 
 - `jetbrains-gateway`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

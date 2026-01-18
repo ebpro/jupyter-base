@@ -30,3 +30,9 @@ Complete base system (shell, VCS, tools, Python, utilities) for most profiles
 - `_lib/checksum-verify`
 
 - `_lib/toolcache`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

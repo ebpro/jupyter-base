@@ -12,3 +12,9 @@ Tool for working with remote container images and registries without requiring a
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

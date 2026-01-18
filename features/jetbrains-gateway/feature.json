@@ -1,15 +1,25 @@
 {
   "name": "jetbrains-gateway",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "jetbrains-gateway",
   "description": "Optional SSH server to support JetBrains Gateway / Connect to DevContainer",
-  "dependsOn": ["container-user"],
+  "dependsOn": [
+    "container-user"
+  ],
   "options": {
     "start_sshd": {
       "type": "boolean",
       "default": false,
       "description": "If true, configure and enable sshd in the container (expose port in compose)"
     }
-  }
+  },
+    "postInstallCheck": {
+      "command": "sh -c 'command -v sshd >/dev/null 2>&1 || command -v ssh >/dev/null 2>&1 || echo \"sshd/ssh not found\"'",
+      "description": "Verify SSH server/client presence required for JetBrains Gateway usage"
+    },
+  "documentationURL": "./features/jetbrains-gateway/README.md"
 }

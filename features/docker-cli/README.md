@@ -12,3 +12,9 @@ Install Docker CLI (docker-ce-cli) from Docker's official repository for use wit
 ## Dependencies
 
 - `system-essentials`
+
+## Usage
+Describe how to enable or configure this feature.
+
+## Options
+List feature-specific options and defaults.

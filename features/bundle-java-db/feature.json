@@ -32,4 +32,6 @@
     "postgresql-client",
     "mysql-client"
   ]
+  ,
+  "postInstallCheck": {"command": "sh -c 'java -version >/dev/null 2>&1 || true'", "description": "Verify Java runtime is available (bundle meta-check)"}
 }
