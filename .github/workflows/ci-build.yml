@@ -105,13 +105,13 @@ jobs:
           done
 
       - name: Upload built profiles list
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: profiles-built
           path: profiles-built.txt
 
       - name: Upload SBOMs and scans
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-and-scans
           path: |
