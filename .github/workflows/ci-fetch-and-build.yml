@@ -22,7 +22,7 @@ jobs:
 
       - name: Login to GHCR (optional)
         if: ${{ secrets.CR_PAT != '' }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

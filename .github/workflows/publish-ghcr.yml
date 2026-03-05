@@ -29,7 +29,7 @@ jobs:
           BAKE_PLATFORMS=linux/amd64,linux/arm64 BAKE_ARCHS=amd64,arm64 ./scripts/generate-bake.sh
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
