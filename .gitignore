@@ -6,3 +6,6 @@ local
 !generated/profiles/.gitkeep
 .envrc.local
 build-logs
+
+# ignore all python cache files subdirectories
+**/__pycache__/

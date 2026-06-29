@@ -88,6 +88,21 @@
         }
       }
     },
+    "gitstatusd": {
+      "pinned_version": "1.5.4",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/romkatv/gitstatus/releases/download/v{version}/gitstatusd-linux-{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/romkatv/gitstatus/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Alias for gitstatus: provides the gitstatusd binary asset names.",
+      "checksums": {
+        "1.5.4": {
+          "amd64": "9633816e7832109e530c9e2532b11a1edae08136d63aa7e40246c0339b7db304",
+          "arm64": "32b57eb28bf6d80b280e4020a0045184f8ca897b20b570c12948aa6838673225",
+          "x86_64": "9633816e7832109e530c9e2532b11a1edae08136d63aa7e40246c0339b7db304",
+          "aarch64": "32b57eb28bf6d80b280e4020a0045184f8ca897b20b570c12948aa6838673225"
+        }
+      }
+    },
     "gh": {
       "pinned_version": "",
       "archive_format": "deb/tar.gz/zip",
@@ -98,6 +113,10 @@
         "2.83.1": {
           "amd64": "1c5252d4ce3db07b51c01ff0b909583da6364ff3fdc06d0c2e75e62dc0380a34",
           "arm64": "36af472f8e96fd67253f813f71d9610624cc4e3c7a5b148459e42ffa1a933f64"
+        },
+        "2.83.2": {
+          "amd64": "ca6e7641214fbd0e21429cec4b64a7ba626fd946d8f9d6d191467545b092015e",
+          "arm64": "b1a0c0a0fcf18524e36996caddc92a062355ed014defc836203fe20fba75a38e"
         }
       }
     },
@@ -136,6 +155,38 @@
       "checksums": {
         "1.4.5": {
           "amd64": "8336fbcf26cc570fbf33ee52a2e6051d865214355654e32218467db49658f2b5"
+        }
+      }
+    }
+    ,
+    "git-lfs": {
+      "pinned_version": "3.4.1",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/git-lfs/git-lfs/releases/download/v{version}/git-lfs-linux-{arch}-v{version}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/git-lfs/git-lfs/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Git LFS release assets include checksums in the release notes; arch values: amd64, arm64, x86_64, aarch64, arm.",
+      "checksums": {
+        "3.4.1": {
+          "amd64": "1772dc260961db27958088740b7e9ecebf945abad8c2d504d412448f53faf147",
+          "arm64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce",
+          "x86_64": "1772dc260961db27958088740b7e9ecebf945abad8c2d504d412448f53faf147",
+          "aarch64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce"
+        }
+      }
+    }
+    ,
+    "miniforge": {
+      "pinned_version": "25.11.0-1",
+      "archive_format": "sh",
+      "archive_url_template": "https://github.com/conda-forge/miniforge/releases/download/{version}/Miniforge3-{version}-Linux-{arch}.sh",
+      "latest_version_cmd": "curl -fsSL https://api.github.com/repos/conda-forge/miniforge/releases/latest | jq -r '.tag_name'",
+      "notes": "Miniforge installer sh; arch values: x86_64, aarch64, amd64, arm64. Checksums are released per-asset.",
+      "checksums": {
+        "25.11.0-1": {
+          "x86_64": "be1bad9d4e67a8753eb76fb4940e9a08036786675c7adf060627e55791bf110d",
+          "aarch64": "43a3783f9e121088f1c92b131b4305b9ebf159424ad2543dfcfc0f1952b5e127",
+          "amd64": "be1bad9d4e67a8753eb76fb4940e9a08036786675c7adf060627e55791bf110d",
+          "arm64": "43a3783f9e121088f1c92b131b4305b9ebf159424ad2543dfcfc0f1952b5e127"
         }
       }
     }

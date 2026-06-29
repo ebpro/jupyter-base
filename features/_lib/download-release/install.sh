@@ -29,6 +29,78 @@ _map_architecture() {
     esac
 }
 
+# Global cache locking helpers (used by both download_github_release and download_direct)
+# These provide an acquire/release API backed by flock when available,
+# and a mkdir-based lock directory fallback.
+_cache_with_flock() {
+    local cache_dir="$1"; shift
+    local cmd="$*"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    local lockfile="$cache_dir/.lockfile"
+
+    if command -v flock >/dev/null 2>&1; then
+        if flock -w 30 "$lockfile" bash -c "$cmd"; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        local lockdir="$cache_dir/.lock"
+        local max_attempts=150
+        local n=0
+        until mkdir "$lockdir" 2>/dev/null; do
+            n=$((n+1))
+            if [ "$n" -ge "$max_attempts" ]; then
+                return 1
+            fi
+            sleep 0.2
+        done
+        bash -c "$cmd"
+        rmdir "$lockdir" 2>/dev/null || true
+        return 0
+    fi
+}
+
+_cache_lock_acquire() {
+    local cache_dir="$1"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    local lockfile="$cache_dir/.lockfile"
+
+    if command -v flock >/dev/null 2>&1; then
+        exec 9>"$lockfile" 2>/dev/null || return 1
+        if flock -w 30 9; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        local lockdir="$cache_dir/.lock"
+        local max_attempts=150
+        local n=0
+        until mkdir "$lockdir" 2>/dev/null; do
+            n=$((n+1))
+            if [ "$n" -ge "$max_attempts" ]; then
+                return 1
+            fi
+            sleep 0.2
+        done
+        return 0
+    fi
+}
+
+_cache_lock_release() {
+    local cache_dir="$1"
+    local lockfile="$cache_dir/.lockfile"
+    if command -v flock >/dev/null 2>&1; then
+        exec 9>&- 2>/dev/null || true
+        return 0
+    else
+        local lockdir="$cache_dir/.lock"
+        rmdir "$lockdir" 2>/dev/null || true
+        return 0
+    fi
+}
+
 # Download and install a binary from GitHub releases
 # Usage: download_github_release REPO TOOL VERSION [INSTALL_DIR] [FILENAME_PATTERN] [EXTRACT]
 #
@@ -384,29 +456,40 @@ download_github_release() {
     local checksums_file=""
     if [ -f /tmp/checksums.json ]; then
         checksums_file=/tmp/checksums.json
-    elif [ -f "${PWD}/Artefacts/checksums.json" ]; then
-        checksums_file="${PWD}/Artefacts/checksums.json"
+    elif [ -f "${PWD}/checksums.json" ]; then
+        checksums_file="${PWD}/checksums.json"
     fi
-    if [ -n "$checksums_file" ] && command -v jq >/dev/null 2>&1; then
-        local expected_sha
-        expected_sha=$(jq -r --arg t "$tool" --arg ver "$version" --arg arch "$arch" '.tools[$t].checksums[$ver][$arch] // empty' "$checksums_file" 2>/dev/null || true)
-        if [ -n "$expected_sha" ]; then
-            echo "   Verifying checksum against $checksums_file..."
-            actual_sha=$(sha256sum "$tmpfile" | awk '{print $1}')
-            if [ "$actual_sha" != "$expected_sha" ]; then
-                echo "❌ Checksum mismatch for $tool@$version ($arch): expected $expected_sha, got $actual_sha"
-                rm -f "$tmpfile"
-                # If cache exists but checksum mismatch, remove cached copy under lock
-                if [ -f "$cache_archive" ]; then
-                    _cache_lock_acquire "$cache_dir"
-                    rm -f "$cache_archive" || true
-                    _cache_lock_release "$cache_dir"
-                    echo "   Removed bad cache: $cache_archive"
-                fi
-                return 1
-            fi
-            echo "   ✅ Checksum verified"
+    # Use centralized checksum resolver as the single source of truth
+    if ! command -v fh_resolve_checksum >/dev/null 2>&1; then
+        echo "download-release: fh_resolve_checksum not available; checksum resolution required" >&2
+        rm -f "$tmpfile"
+        return 1
+    fi
+    expected_sha=$(fh_resolve_checksum "$tool" "$version" || true)
+    if [ -z "$expected_sha" ]; then
+        if [ "${FH_ALLOW_MISSING_CHECKSUMS:-false}" = "true" ]; then
+            echo "   ⚠️  No checksum available for $tool@$version ($arch); skipping verification due to FH_ALLOW_MISSING_CHECKSUMS=true"
+        else
+            echo "❌ Checksum not found for $tool@$version ($arch) via fh_resolve_checksum" >&2
+            rm -f "$tmpfile"
+            return 1
         fi
+    else
+        echo "   Verifying checksum..."
+        actual_sha=$(sha256sum "$tmpfile" | awk '{print $1}')
+        if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "❌ Checksum mismatch for $tool@$version ($arch): expected $expected_sha, got $actual_sha"
+            rm -f "$tmpfile"
+            # If cache exists but checksum mismatch, remove cached copy under lock
+            if [ -f "$cache_archive" ]; then
+                _cache_lock_acquire "$cache_dir"
+                rm -f "$cache_archive" || true
+                _cache_lock_release "$cache_dir"
+                echo "   Removed bad cache: $cache_archive"
+            fi
+            return 1
+        fi
+        echo "   ✅ Checksum verified"
     fi
 
     # If we downloaded successfully and it didn't come from cache, store in toolcache
@@ -707,8 +790,8 @@ download_direct() {
     local checksums_file=""
     if [ -f /tmp/checksums.json ]; then
         checksums_file=/tmp/checksums.json
-    elif [ -f "${PWD}/Artefacts/checksums.json" ]; then
-        checksums_file="${PWD}/Artefacts/checksums.json"
+    elif [ -f "${PWD}/checksums.json" ]; then
+        checksums_file="${PWD}/checksums.json"
     fi
     if [ -n "$checksums_file" ] && command -v jq >/dev/null 2>&1; then
         # Attempt to infer tool and version from URL if possible (best-effort)

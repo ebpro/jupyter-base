@@ -12,13 +12,18 @@ ARG TARGETPLATFORM
 
 ENV HOME=/home/${NB_USER}
 
-COPY --chown=root:root Artefacts/checksums.json /tmp/checksums.json
-COPY --chown=root:root Artefacts/versions.json /tmp/versions.json
+COPY --chown=root:root checksums.json /tmp/checksums.json
+COPY --chown=root:root versions.json /tmp/versions.json
+# Ensure runtime fh_helpers are available in the image so features can call fh_resolve_* helpers
+COPY --chown=root:root features/_lib/fh_helpers.sh /opt/solen/_lib/fh_helpers.sh
 
 USER root
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar && rm -rf /var/lib/apt/lists/*
+
+# If helpers.sh exists in the image, source fh_helpers so fh_resolve_checksum is available
+RUN if [ -f /opt/solen/_lib/helpers.sh ]; then echo "\n# Source feature helpers (fh_*) if present" >> /opt/solen/_lib/helpers.sh && echo "source /opt/solen/_lib/fh_helpers.sh || true" >> /opt/solen/_lib/helpers.sh; fi
 
 
 # Install code-server from GitHub release using pinned version from Artefacts/versions.json
@@ -32,7 +37,7 @@ RUN set -eux; \
     echo "Installing code-server v${CODE_SERVER_VERSION} for arch ${ARCH}"; \
     CODE_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-${ARCH}.tar.gz"; \
     curl -fsSLo /tmp/code-server.tar.gz "${CODE_URL}"; \
-    # If a checksum is present in the centralized checksums file, verify it
+    # Verify checksum using centralized repo root checksums.json (copied above)
     if [ -f /tmp/checksums.json ]; then \
         CSUM=$(jq -r --arg t "code-server" --arg ver "${CODE_SERVER_VERSION}" --arg arch "${ARCH}" '.tools[$t].checksums[$ver][$arch] // empty' /tmp/checksums.json || true); \
         if [ -n "${CSUM}" ]; then echo "${CSUM}  /tmp/code-server.tar.gz" > /tmp/code-server.sha256 && sha256sum -c /tmp/code-server.sha256; fi; \

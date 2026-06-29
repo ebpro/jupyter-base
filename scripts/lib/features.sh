@@ -97,10 +97,10 @@ fh_verify_from_checksums() {
   local checksums
   if [ -f /tmp/checksums.json ]; then
     checksums=/tmp/checksums.json
-  elif [ -f "${PWD}/Artefacts/checksums.json" ]; then
-    checksums="${PWD}/Artefacts/checksums.json"
+  elif [ -f "${PWD}/checksums.json" ]; then
+    checksums="${PWD}/checksums.json"
   else
-    fh_log "No checksums.json found (/tmp/checksums.json or Artefacts/checksums.json)"
+    fh_log "No checksums.json found (/tmp/checksums.json or checksums.json)"
     return 3
   fi
 

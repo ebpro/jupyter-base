@@ -5,6 +5,16 @@ set -euo pipefail
 # Installs psql, pg_dump, pg_restore, libpq libraries, and pgcli enhanced CLI
 
 VERSION="${VERSION:-16}"
+if command -v fh_resolve_version >/dev/null 2>&1; then
+    # central versions.json uses key 'postgresql'
+    RESOLVED=$(fh_resolve_version "postgresql" || true)
+    if [ -n "${RESOLVED}" ]; then
+        VERSION="${RESOLVED}"
+    fi
+    if command -v fh_write_history >/dev/null 2>&1; then
+        fh_write_history "{\"feature\":\"postgresql-client\",\"resolved_version\":\"${VERSION}\"}"
+    fi
+fi
 INSTALL_LIBPQ="${INSTALLLIBPQ:-true}"
 INSTALL_PGCLI="${INSTALLPGCLI:-true}"
 

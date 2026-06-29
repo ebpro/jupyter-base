@@ -46,6 +46,13 @@ if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ] || [ -f "${PWD}/Artefa
     echo ""
   }
 
+  # prefer centralized resolver
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    if [ -n "$v" ]; then
+      echo "$v"; return 0
+    fi
+  fi
   K9S_VERSION=$(resolve_version "k9s")
 else
   echo "kubernetes-dev: no versions.json found, skipping" >&2

@@ -351,7 +351,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ```dockerfile
 # Stage 1: Build toolcache
 FROM ubuntu:24.04 AS toolcache-builder
-COPY Artefacts/versions.json Artefacts/checksums.json /tmp/
+COPY versions.json checksums.json /tmp/
 RUN ./scripts/prebuild-toolcache.sh \
     --tools node,kubectl,helm,gh,quarto \
     --output /opt/toolcache

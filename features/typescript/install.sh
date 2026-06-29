@@ -30,17 +30,22 @@ echo "npm: $(npm --version)"
 resolve_version() {
   local tool="$1"
   local default="$2"
-  
-  # Try feature-specific versions.json first
-  if [ -f "/tmp/artefacts/typescript/versions.json" ]; then
-    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/artefacts/typescript/versions.json" 2>/dev/null || true)
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    local v
+    v=$(fh_resolve_version "$tool" || true)
+    if [ -n "$v" ]; then
+      printf '%s' "$v"
+      return 0
+    fi
+  fi
+  # fallback to previous behavior
+  if [ -f "/tmp/artefacts/${tool}/versions.json" ]; then
+    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/artefacts/${tool}/versions.json" 2>/dev/null || true)
     if [ -n "$ver" ] && [ "$ver" != "null" ]; then
       echo "$ver"
       return
     fi
   fi
-  
-  # Try central versions.json
   if [ -f "/tmp/Artefacts/versions.json" ]; then
     local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/Artefacts/versions.json" 2>/dev/null || true)
     if [ -n "$ver" ] && [ "$ver" != "null" ]; then
@@ -48,8 +53,6 @@ resolve_version() {
       return
     fi
   fi
-  
-  # Fallback to default
   echo "$default"
 }
 
@@ -66,6 +69,11 @@ if [ "${VERSION}" = "latest" ]; then
 else
   TS_VERSION=$(resolve_version "typescript" "${VERSION}")
   npm install -g typescript@${TS_VERSION} @types/node
+fi
+
+# write history
+if command -v fh_write_history >/dev/null 2>&1; then
+  fh_write_history "{\"feature\":\"typescript\",\"resolved_version\":\"${TS_VERSION}\"}"
 fi
 
 # Verify installation

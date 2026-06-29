@@ -26,6 +26,16 @@ HOME_DIR="/home/${NB_USER}"
 
 resolve_version() {
   local tool="$1" v=""
+  # Prefer centralized helper when available
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    local hv
+    hv=$(fh_resolve_version "$tool" || true)
+    if [ -n "$hv" ]; then
+      echo "$hv"
+      return 0
+    fi
+  fi
+
   if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
     v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }

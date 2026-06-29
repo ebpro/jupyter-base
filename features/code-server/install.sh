@@ -15,9 +15,12 @@ if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
   fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
 else
   HOME_DIR=${HOME_DIR:-/home/${NB_USER:-jovyan}}
-  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" "${HOME_DIR}/.cache/pip" >/dev/null 2>&1 || true
-  chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
-fi
+    # prefer centralized resolver
+    if command -v fh_resolve_version >/dev/null 2>&1; then
+      v=$(fh_resolve_version "$tool" || true)
+    elif [ -f "${PWD}/Artefacts/versions.json" ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+      [ -n "$v" ] && { echo "$v"; return 0; }
 
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}

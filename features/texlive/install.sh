@@ -39,18 +39,28 @@ CTAN_REPO="${CTAN_REPO:-https://ctan.ceremade.dauphine.fr/systems/texlive/tlnet}
 # Resolve version helper (prefer per-feature artefacts/*, then central, then /tmp)
 resolve_version() {
   local tool="$1" v=""
+  # Prefer centralized helper when available
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+
+  # Check repository-local artefacts (case-insensitive Artefacts/artefacts)
   if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // .tools["${tool}" ] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // .tools["${tool}" ] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
+
+  # Check shared /tmp artefacts used during Docker generation
   if [ -f /tmp/versions.json ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // .tools["${tool}" ] // empty' /tmp/versions.json 2>/dev/null || true)
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
+
   echo ""
 }
 
@@ -60,45 +70,84 @@ if [ -n "${TMP_VER}" ]; then
 fi
 TINYTEX_URL="https://github.com/rstudio/tinytex-releases/releases/download/v${TINYTEX_VERSION}/${INSTALLER}-v${TINYTEX_VERSION}.tar.gz"
 
-if [ ! -f /tmp/TeXLive ]; then
-  echo "texlive: /tmp/TeXLive not present; skipping heavy install" >&2
-  exit 0
-fi
-
 echo "texlive: installing TinyTeX (this may be large)"
+if [ ! -f /tmp/TeXLive ]; then
+  echo "texlive: no prebuilt /tmp/TeXLive artefact found; proceeding with direct download/install" >&2
+fi
 resolve_checksum() {
   local tool="$1" ver="$2" arch="$3" cs=""
-  if [ -f "${PWD}/artefacts/${tool}/checksums.json" ]; then
-    cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/artefacts/${tool}/checksums.json" 2>/dev/null || true)
-    [ -n "$cs" ] && { echo "$cs"; return 0; }
+  # Require centralized resolver as single source of truth
+  if ! command -v fh_resolve_checksum >/dev/null 2>&1; then
+    echo "texlive: fh_resolve_checksum not available; checksum resolution required" >&2
+    return 2
   fi
-  if [ -f "${PWD}/Artefacts/checksums.json" ]; then
-    cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/Artefacts/checksums.json" 2>/dev/null || true)
-    [ -n "$cs" ] && { echo "$cs"; return 0; }
+  cs=$(fh_resolve_checksum "$tool" "$ver" || true)
+  if [ -z "${cs}" ]; then
+    echo "texlive: checksum not found for ${tool} ${ver} via fh_resolve_checksum" >&2
+    return 3
   fi
-  if [ -f /tmp/checksums.json ]; then
-    cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' /tmp/checksums.json 2>/dev/null || true)
-    [ -n "$cs" ] && { echo "$cs"; return 0; }
-  fi
-  echo ""
+  echo "$cs"
 }
 
 # Download TinyTeX installer using shared helper
 tmpd=$(mktemp -d)
-download_direct \
+# Download to a directory so the downloader can extract into a predictable tree
+if download_direct \
   "${TINYTEX_URL}" \
   "tinytex" \
-  "${tmpd}/${INSTALLER}.tar.gz" \
-  true
-
-# Extract and run installer
-if [ -f "${tmpd}/${INSTALLER}.tar.gz" ]; then
-  tar xf "${tmpd}/${INSTALLER}.tar.gz" -C "${tmpd}"
-  if [ -f "${tmpd}/install.sh" ]; then
-    pushd "${tmpd}"
-    ./install.sh || true
-    popd
+  "${tmpd}" \
+  false; then
+  # download_direct will copy the downloaded archive to ${tmpd}/tinytex
+  if [ -f "${tmpd}/tinytex" ]; then
+    mkdir -p "${tmpd}/extracted"
+    tar -xzf "${tmpd}/tinytex" -C "${tmpd}/extracted" || true
+    rm -f "${tmpd}/tinytex"
+    # look for install.sh under extracted tree
+    installer_sh=""
+    if [ -f "${tmpd}/extracted/install.sh" ]; then
+      installer_sh="${tmpd}/extracted/install.sh"
+    else
+      for d in "${tmpd}/extracted"/*; do
+        if [ -f "$d/install.sh" ]; then
+          installer_sh="$d/install.sh"
+          break
+        fi
+      done
+    fi
   fi
+else
+  installer_sh=""
+fi
+
+# If an installer script was produced by extraction, run it; otherwise fall back
+# to direct curl + verification path used historically.
+installer_sh=""
+if [ -f "${tmpd}/install.sh" ]; then
+  installer_sh="${tmpd}/install.sh"
+else
+  # look for install.sh under any top-level extracted directory
+  for d in "${tmpd}"/*; do
+    if [ -f "$d/install.sh" ]; then
+      installer_sh="$d/install.sh"
+      break
+    fi
+  done
+fi
+
+if [ -n "${installer_sh}" ]; then
+  # Ensure system libraries required by TeX engines are present
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq || true
+    apt-get install -y --no-install-recommends \
+      fontconfig libfontconfig1 libfreetype6 libx11-6 libxrender1 libxext6 fonts-dejavu-core \
+      ca-certificates >/dev/null 2>&1 || true
+    rm -rf /var/lib/apt/lists/* || true
+  fi
+
+  pushd "$(dirname "${installer_sh}")"
+  ./install.sh || true
+  popd
   rm -rf "${tmpd}"
 else
   curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz

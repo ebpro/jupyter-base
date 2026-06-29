@@ -159,6 +159,13 @@ emit_run_features() {
   done
 
   # Shared bind mounts (read-only)
+  # Expose repo-level checksums/versions to the build container so fh_helpers can find them
+  if [ -f "$ROOT/checksums.json" ]; then
+    echo "  --mount=type=bind,source=$ROOT/checksums.json,target=/tmp/checksums.json,readonly \\" >> "$OUT"
+  fi
+  if [ -f "$ROOT/versions.json" ]; then
+    echo "  --mount=type=bind,source=$ROOT/versions.json,target=/tmp/versions.json,readonly \\" >> "$OUT"
+  fi
   echo "  --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \\" >> "$OUT"
   echo "  --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \\" >> "$OUT"
   echo "  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \\" >> "$OUT"
@@ -176,7 +183,7 @@ emit_run_features() {
   local feats_array
   feats_array=$(IFS=' '; printf '%s ' "${quoted_feats[@]}")
 
-  echo "  bash -eux -o pipefail -c 'feats=(${feats_array}); for f in \"\${feats[@]}\"; do \\" >> "$OUT"
+  echo "  bash -eux -o pipefail -c 'feats=(${feats_array}); echo \"=== debug: list /opt/solen/_lib\"; ls -la /opt/solen/_lib || true; echo \"=== debug: helpers.sh head\"; head -n 40 /opt/solen/_lib/helpers.sh || true; echo \"=== debug: fh_helpers.sh head\"; head -n 40 /opt/solen/_lib/fh_helpers.sh || true; echo \"=== debug: fh_resolve_checksum exists?\"; type -t fh_resolve_checksum || echo \"fh_resolve_checksum: not-found\"; for f in \"\${feats[@]}\"; do \\" >> "$OUT"
   echo "    if [ -d \"/tmp/features/\$f\" ]; then \\" >> "$OUT"
   echo "      chmod +x /tmp/features/\$f/install.sh 2>/dev/null || true; \\" >> "$OUT"
   echo "      [ -f /tmp/features/\$f/install.sh ] && { set +u; bash /tmp/features/\$f/install.sh; set -u; }; \\" >> "$OUT"
@@ -197,11 +204,13 @@ ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
 COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY features/_lib/fh_helpers.sh /opt/solen/_lib/fh_helpers.sh
 COPY inputs /opt/solen/inputs
 COPY artefacts /opt/solen/artefacts
 ENV FEATURE_HELPERS_DIR=/opt/solen/_lib INPUTS_DIR=/opt/solen/inputs ARTEFACTS_DIR=/opt/solen/artefacts
 RUN mkdir -p /opt/.features /scripts && \\
     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
+RUN if [ -f /opt/solen/_lib/helpers.sh ]; then echo "\n# Source fh_helpers (fh_*) if present" >> /opt/solen/_lib/helpers.sh && echo "source /opt/solen/_lib/fh_helpers.sh || true" >> /opt/solen/_lib/helpers.sh; fi
 EOF
 
 # If a prebaked toolcache exists in the repo, copy it into the image

@@ -48,6 +48,11 @@ resolve_version() {
     v=$(read_tool_from_json "${SCRIPT_DIR}/../../artefacts/${tool}/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
+  # prefer centralized resolver
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
   if [ -f "${PWD}/Artefacts/versions.json" ]; then
     v=$(read_tool_from_json "${PWD}/Artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }

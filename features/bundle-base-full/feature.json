@@ -8,6 +8,7 @@
   "id": "bundle-base-full",
   "description": "Complete base system (shell, VCS, tools, Python, utilities) for most profiles",
   "dependsOn": [
+    "my-utils",
     "container-user",
     "system-essentials",
     "zsh-config",

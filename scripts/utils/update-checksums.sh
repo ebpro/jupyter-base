@@ -2,13 +2,14 @@
 set -euo pipefail
 
 # Script to download binaries for pinned versions and compute SHA256 checksums
-# It updates `Artefacts/checksums.json` with entries like:
+# It updates `checksums.json` (repo root) with entries like:
 # { "quarto": { "1.8.24": { "amd64": "<sha256>" } } }
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-CENTRAL_FILE="$REPO_ROOT/Artefacts/checksums.json"
+# Single source of truth: repo-root checksums.json and versions.json
+CENTRAL_FILE="$REPO_ROOT/checksums.json"
 CHECKSUMS_FILE="$CENTRAL_FILE"
-VERSIONS_FILE="$REPO_ROOT/Artefacts/versions.json"
+VERSIONS_FILE="$REPO_ROOT/versions.json"
 TMPDIR=$(mktemp -d)
 
 # Use centralized arch helper when available

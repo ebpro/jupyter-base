@@ -19,7 +19,7 @@
   "options": {
     "version": {
       "type": "string",
-      "default": "latest",
+      "default": "27-cli",
       "description": "Docker CLI version (e.g., '24.0.7', '25.0.0', or 'latest')"
     }
   },

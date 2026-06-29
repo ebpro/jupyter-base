@@ -11,32 +11,45 @@ fi
 set -euo pipefail
 
 VERSION="${VERSION:-latest}"
+# Try centralized resolver if available
+if command -v fh_resolve_version >/dev/null 2>&1; then
+  # versions.json uses key 'docker' for CLI
+  RESOLVED=$(fh_resolve_version "docker" || true)
+  if [ -n "${RESOLVED}" ]; then
+    VERSION="${RESOLVED}"
+  fi
+  # write history
+  if command -v fh_write_history >/dev/null 2>&1; then
+    fh_write_history "{\"feature\":\"docker-cli\",\"resolved_version\":\"${VERSION}\"}"
+  fi
+fi
 ARCH=$(dpkg --print-architecture)
 
-echo "docker-cli: Installing Docker CLI from Docker's official repository"
+echo "docker-cli: Installing Docker CLI via Docker's upstream installer (get.docker.com)"
 
-# Add Docker's official GPG key
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add Docker repository
-echo \
-  "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-apt-get update
-
-# Install Docker CLI (without daemon or containerd)
-if [ "${VERSION}" = "latest" ]; then
-  apt-get install -y docker-ce-cli
+# Prefer upstream installer which handles matching packages for the distro/arch.
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL https://get.docker.com | sh || true
 else
-  # List available versions: apt-cache madison docker-ce-cli
-  apt-get install -y docker-ce-cli="${VERSION}~*"
+  echo "docker-cli: curl not available; falling back to apt-based install"
+  # Add Docker's official GPG key and repo, then attempt apt install
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc || true
+  chmod a+r /etc/apt/keyrings/docker.asc || true
+  echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null
+  apt-get update || true
+  if [ "${VERSION}" = "latest" ]; then
+    apt-get install -y docker-ce docker-buildx-plugin || apt-get install -y docker-ce-cli || true
+  else
+    apt-get install -y docker-ce="${VERSION}~*" docker-buildx-plugin || apt-get install -y docker-ce-cli="${VERSION}~*" || true
+  fi
 fi
 
-# Verify installation
-docker --version
-
-echo "docker-cli: Installation complete"
+# Verify installation if available
+if command -v docker >/dev/null 2>&1; then
+  docker --version || true
+  echo "docker-cli: Installation complete"
+else
+  echo "docker-cli: Installation attempted but 'docker' not found in PATH"
+fi

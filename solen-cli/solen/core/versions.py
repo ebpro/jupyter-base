@@ -305,3 +305,107 @@ def run_check(repo_root: Path, versions_path: Path, out_dir: Path, github_token:
     out_path = out_dir / f"version-check-{ts}.json"
     out_path.write_text(json.dumps(report, indent=2))
     return {"report_path": str(out_path), "summary": report}
+
+
+def propagate_versions(repo_root: Path, versions_path: Path, write: bool = False) -> dict:
+    """Propagate versions from a central `versions.json` into feature `feature.json` files.
+
+    For each feature under `repo_root/features`, if the feature exposes
+    `options.version.default`, try to map a tool key from `versions.json` and
+    update the default value. Returns a report with changes.
+    """
+    data = load_versions(versions_path)
+    tools = data.get("tools", {}) or {}
+
+    features_dir = repo_root / 'features'
+    report = {"checked_at": datetime.utcnow().isoformat() + 'Z', "updates": []}
+
+    if not features_dir.exists():
+        return {"error": "features directory not found", "report": report}
+
+    def candidate_keys(feature_name: str, feature_id: Optional[str]) -> list[str]:
+        keys = []
+        if feature_id:
+            keys.append(feature_id)
+            keys.append(feature_id.replace('-', ''))
+        keys.append(feature_name)
+        keys.append(feature_name.replace('-', ''))
+        return [k.lower() for k in keys if k]
+
+    # helper to find best match in versions.tools
+    def find_tool_key(feature_name: str, feature_id: Optional[str]) -> Optional[str]:
+        cands = candidate_keys(feature_name, feature_id)
+        tools_keys = list(tools.keys())
+        # exact matches first
+        for c in cands:
+            for tk in tools_keys:
+                if tk.lower() == c:
+                    return tk
+        # substring / normalized match
+        norm_map = {tk.lower().replace('-', ''): tk for tk in tools_keys}
+        for c in cands:
+            nc = c.replace('-', '')
+            if nc in norm_map:
+                return norm_map[nc]
+        # fallback: check if any tool key is contained in id/name
+        for tk in tools_keys:
+            if tk.lower() in (feature_name.lower() or ''):
+                return tk
+            if feature_id and tk.lower() in (feature_id.lower() or ''):
+                return tk
+        return None
+
+    for feat_dir in sorted([p for p in features_dir.iterdir() if p.is_dir()]):
+        feature_json = feat_dir / 'feature.json'
+        if not feature_json.exists():
+            continue
+        try:
+            j = json.loads(feature_json.read_text(encoding='utf-8'))
+        except Exception:
+            report['updates'].append({"feature": feat_dir.name, "error": "invalid_json"})
+            continue
+
+        feature_id = j.get('id')
+        # look for options.version.default
+        opts = j.get('options') or {}
+        ver_opt = opts.get('version') if isinstance(opts, dict) else None
+        if not ver_opt or not isinstance(ver_opt, dict):
+            # nothing to propagate for this feature
+            continue
+
+        current_default = ver_opt.get('default')
+        tool_key = find_tool_key(feat_dir.name, feature_id)
+        if not tool_key:
+            report['updates'].append({"feature": feat_dir.name, "matched": None})
+            continue
+
+        tool_val = tools.get(tool_key)
+        # support both string entries and dict entries in versions.json
+        if isinstance(tool_val, dict):
+            new_default = tool_val.get('version') or tool_val.get('value')
+        else:
+            new_default = tool_val
+
+        # nothing to do if no value found
+        if new_default is None:
+            report['updates'].append({"feature": feat_dir.name, "matched": tool_key, "new": None})
+            continue
+
+        if str(current_default) != str(new_default):
+            # apply update
+            if write:
+                # modify and persist
+                j.setdefault('options', {})
+                j['options'].setdefault('version', {})
+                j['options']['version']['default'] = new_default
+                try:
+                    feature_json.write_text(json.dumps(j, indent=2, ensure_ascii=False), encoding='utf-8')
+                    report['updates'].append({"feature": feat_dir.name, "matched": tool_key, "old": current_default, "new": new_default, "written": True})
+                except Exception as e:
+                    report['updates'].append({"feature": feat_dir.name, "matched": tool_key, "old": current_default, "new": new_default, "written": False, "error": str(e)})
+            else:
+                report['updates'].append({"feature": feat_dir.name, "matched": tool_key, "old": current_default, "new": new_default, "written": False})
+        else:
+            report['updates'].append({"feature": feat_dir.name, "matched": tool_key, "old": current_default, "new": new_default, "written": False, "note": "no_change"})
+
+    return report

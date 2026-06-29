@@ -9,12 +9,16 @@ ENV HOME=/home/jovyan
 WORKDIR /home/jovyan
 
 COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY features/_lib/fh_helpers.sh /opt/solen/_lib/fh_helpers.sh
 COPY inputs /opt/solen/inputs
 COPY artefacts /opt/solen/artefacts
+COPY checksums.json /opt/solen/artefacts/checksums.json
+COPY versions.json /opt/solen/artefacts/versions.json
 ENV FEATURE_HELPERS_DIR=/opt/solen/_lib INPUTS_DIR=/opt/solen/inputs ARTEFACTS_DIR=/opt/solen/artefacts
 
 RUN mkdir -p /opt/.features /scripts/lib && \
     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
+RUN if [ -f /opt/solen/_lib/helpers.sh ]; then echo "\n# Source fh_helpers (fh_*) if present" >> /opt/solen/_lib/helpers.sh && echo "source /opt/solen/_lib/fh_helpers.sh || true" >> /opt/solen/_lib/helpers.sh; fi
 
 {% if toolcache_exists %}
 # Inject prebaked toolcache from repository
@@ -47,8 +51,14 @@ RUN \
   --mount=type=cache,target=/root/.cache,sharing=locked \
   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
   bash -eux -o pipefail <<'SCRIPT'
+
 feats=({% for feat in profile.features %}"{{ feat }}" {% endfor %})
 source /opt/solen/_lib/helpers.sh || true
+
+echo "=== debug: list /opt/solen/_lib"; ls -la /opt/solen/_lib || true
+echo "=== debug: helpers.sh head"; head -n 40 /opt/solen/_lib/helpers.sh || true
+echo "=== debug: fh_helpers.sh head"; head -n 40 /opt/solen/_lib/fh_helpers.sh || true
+echo "=== debug: fh_resolve_checksum exists?"; type -t fh_resolve_checksum || echo "fh_resolve_checksum: not-found"
 
 for f in "${feats[@]}"; do
   if [ -f "/tmp/features/$f/install.sh" ]; then

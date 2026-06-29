@@ -335,6 +335,35 @@ def features(ctx: click.Context, fix: bool) -> None:
         sys.exit(1)
 
 
+@validate.command(name='propagate-versions')
+@click.option('--versions', type=click.Path(exists=True, path_type=Path),
+              default=Path('versions.json'), help='Path to versions.json (repo-relative)')
+@click.option('--write', is_flag=True, help='Write updates to feature.json files')
+@click.option('--verbose', is_flag=True, help='Print full JSON report')
+@click.pass_context
+def propagate_versions_cmd(ctx: click.Context, versions: Path, write: bool, verbose: bool) -> None:
+    """Propagate central `versions.json` values into feature `options.version.default`."""
+    repo_root = ctx.obj['repo_root']
+    versions_path = repo_root / versions if not versions.is_absolute() else versions
+    try:
+        from solen.core.versions import propagate_versions
+    except Exception as e:
+        click.echo(f"❌ Could not import propagation helper: {e}", err=True)
+        sys.exit(1)
+
+    rpt = propagate_versions(repo_root, versions_path, write=write)
+    if verbose:
+        click.echo(json.dumps(rpt, indent=2, ensure_ascii=False))
+    else:
+        updates = rpt.get('updates', [])
+        written = [u for u in updates if u.get('written')]
+        changed = [u for u in updates if u.get('old') != u.get('new')]
+        click.echo(f"Checked {len(updates)} features; candidates={len(changed)}; written={len(written)}")
+        if not write and len(changed) > 0:
+            click.echo("Run with --write to apply changes", err=True)
+    sys.exit(0)
+
+
 # ============================================================================
 # ANALYZE commands
 # ============================================================================

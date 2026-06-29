@@ -16,7 +16,16 @@ echo "===================================================================="
 resolve_version() {
   local tool="$1"
   local default="$2"
-  
+
+  # Prefer centralized helper when available
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    local hv
+    hv=$(fh_resolve_version "$tool" || true)
+    if [ -n "$hv" ]; then
+      echo "$hv"; return 0
+    fi
+  fi
+
   # Try feature-specific versions.json first
   if [ -f "/tmp/artefacts/mongodb-client/versions.json" ]; then
     local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/artefacts/mongodb-client/versions.json" 2>/dev/null || true)
@@ -25,7 +34,7 @@ resolve_version() {
       return
     fi
   fi
-  
+
   # Try central versions.json
   if [ -f "/tmp/Artefacts/versions.json" ]; then
     local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/Artefacts/versions.json" 2>/dev/null || true)
@@ -34,7 +43,7 @@ resolve_version() {
       return
     fi
   fi
-  
+
   # Fallback to default
   echo "$default"
 }

@@ -1,0 +1,8 @@
+{
+  "name": "my-utils",
+  "title": "My utilities: small user bin scripts",
+  "description": "Installs a set of helper scripts into the user's ~/bin directory (default NB_USER=jovyan).",
+  "version": "0.1.0",
+  "maintainer": "local",
+  "license": "MIT"
+}

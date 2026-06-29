@@ -8,12 +8,21 @@ HOME_DIR="/home/${NB_USER}"
 
 echo "quarto-chromium: installing Chromium runtime"
 
+# Use the available Quarto binary (search PATH or common /opt/quarto/* location)
 TMP_SCRIPT="/tmp/quarto-chromium-install-${NB_USER}.sh"
 cat > "${TMP_SCRIPT}" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
-mkdir -p "$HOME/.local/bin" 2>/dev/null || true
-"$HOME/.local/bin/quarto" install chromium --no-prompt || true
+# locate quarto binary, prefer one on PATH, fallback to /opt/quarto/*/bin/quarto
+QUARTO_BIN=$(command -v quarto || true)
+if [ -z "${QUARTO_BIN}" ]; then
+	QUARTO_BIN=$(ls /opt/quarto/*/bin/quarto 2>/dev/null | head -n1 || true)
+fi
+if [ -n "${QUARTO_BIN}" ] && [ -x "${QUARTO_BIN}" ]; then
+	"${QUARTO_BIN}" install chromium --no-prompt || true
+else
+	echo "quarto binary not found; skipping 'quarto install chromium'" >&2
+fi
 BASH
 
 chmod +x "${TMP_SCRIPT}"

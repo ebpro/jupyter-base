@@ -1,3 +1,6 @@
+# Auto-inserted by scripts/inject_prebaked_helpers.sh
+# Source shared feature helpers (prebaked into image) or fall back to repository helper
+# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
 #!/usr/bin/env bash
 # Auto-inserted by scripts/inject_prebaked_helpers.sh
 # Source shared feature helpers (prebaked into image) or fall back to repository helper
@@ -34,18 +37,25 @@ echo "python-conda: installing Miniforge into ${CONDA_DIR} if missing"
 # Helper to resolve a tool version from per-feature artefacts, central Artefacts, or /tmp
 resolve_version() {
   local tool="$1" v=""
-  if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
-    [ -n "$v" ] && { echo "$v"; return 0; }
-  fi
-  if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
-    [ -n "$v" ] && { echo "$v"; return 0; }
-  fi
-  if [ -f /tmp/versions.json ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
-    [ -n "$v" ] && { echo "$v"; return 0; }
-  fi
+    # prefer centralized resolver
+    if command -v fh_resolve_version >/dev/null 2>&1; then
+      v=$(fh_resolve_version "$tool" || true)
+      if [ -n "$v" ]; then
+        echo "$v"; return 0
+      fi
+    fi
+    if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
+      [ -n "$v" ] && { echo "$v"; return 0; }
+    fi
+    if [ -f "${PWD}/Artefacts/versions.json" ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+      [ -n "$v" ] && { echo "$v"; return 0; }
+    fi
+    if [ -f /tmp/versions.json ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+      [ -n "$v" ] && { echo "$v"; return 0; }
+    fi
   echo ""
 }
 
@@ -84,19 +94,17 @@ if [ ! -x "${CONDA_DIR}/bin/conda" ]; then
   # attempt to find checksum for this OS/ARCH combination
   resolve_checksum() {
     local tool="$1" ver="$2" arch="$3" cs=""
-    if [ -f "${PWD}/artefacts/${tool}/checksums.json" ]; then
-      cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/artefacts/${tool}/checksums.json" 2>/dev/null || true)
-      [ -n "$cs" ] && { echo "$cs"; return 0; }
-    fi
-    if [ -f "${PWD}/Artefacts/checksums.json" ]; then
-      cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' "${PWD}/Artefacts/checksums.json" 2>/dev/null || true)
-      [ -n "$cs" ] && { echo "$cs"; return 0; }
-    fi
-    if [ -f /tmp/checksums.json ]; then
-      cs=$(jq -r --arg t "$tool" --arg v "$ver" --arg a "$arch" '.tools[$t].checksums[$v][$a] // empty' /tmp/checksums.json 2>/dev/null || true)
-      [ -n "$cs" ] && { echo "$cs"; return 0; }
-    fi
-    echo ""
+     # Require centralized resolver as single source of truth
+     if ! command -v fh_resolve_checksum >/dev/null 2>&1; then
+       echo "python-conda: fh_resolve_checksum not available; checksum resolution required" >&2
+       return 2
+     fi
+     cs=$(fh_resolve_checksum "$tool" "$ver" || true)
+     if [ -z "${cs}" ]; then
+       echo "python-conda: checksum not found for ${tool} ${ver} via fh_resolve_checksum" >&2
+       return 3
+     fi
+     echo "$cs"
   }
 
   ARCH_STR="$(uname)-$(uname -m)"
