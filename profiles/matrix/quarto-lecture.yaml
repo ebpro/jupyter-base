@@ -15,13 +15,20 @@ matrix:
   quarto-lecture-full:
     features:
       - bundle-quarto-full
+      - quarto-chromium
       - bundle-java-build
       - java-jdk
+      - java-kernel
       - bundle-k8s
-      - podman
-      - docker-cli-helper
-    options:
-      JDK_VERSION: 25
+      - bundle-container-runtimes
+      - postgresql-client-cli
+      - python-db-dev
+      - typescript
+      - react-tools
+      - ml-python-packages
+    services:
+      - dind
+      - k3s
   quarto-lecture-db:
     features:
       - bundle-quarto-base
@@ -35,12 +42,11 @@ matrix:
       - quarto-chromium
       - bundle-java-build
       - java-jdk
-      - docker-dind
-      - podman
-      - docker-cli-helper
+      - bundle-container-runtimes
       - postgresql-client
       - python-db-dev
       - startup
+      - java-kernel
     options:
       JDK_VERSION: 25
       ENABLEBUILDKIT: true
