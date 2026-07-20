@@ -52,46 +52,9 @@ if [ -f "$SCRIPTS_DIR/arch.sh" ]; then
     . "$SCRIPTS_DIR/arch.sh"
 fi
 
-# Source shared build helpers if available
-## Embedded helpers from scripts/lib-build.sh
-check_buildx() {
-    if ! command -v docker >/dev/null 2>&1; then
-        echo "ERROR: docker CLI not found on PATH" >&2; return 2
-    fi
-    if ! docker buildx version >/dev/null 2>&1; then
-        echo "ERROR: docker buildx not available" >&2; return 2
-    fi
-}
-
-create_builder_if_missing() {
-    local name=${1:-jb-builder}
-    if ! docker buildx inspect "$name" >/dev/null 2>&1; then
-        docker buildx create --name "$name" --driver docker-container --use
-    else
-        docker buildx use "$name"
-    fi
-}
-
-normalize_platforms() {
-    local raw="$1"
-    local out=""
-    IFS=',' read -r -a parts <<< "$raw"
-    for part in "${parts[@]}"; do
-        part="$(echo "$part" | sed -e 's/^\s*//' -e 's/\s*$//')"
-        [ -z "$part" ] && continue
-        if [[ "$part" == linux/* ]]; then
-            canon=${part#linux/}
-        else
-            canon=$part
-        fi
-        if [ -z "$out" ]; then
-            out="linux/$canon"
-        else
-            out+=",linux/$canon"
-        fi
-    done
-    echo "$out"
-}
+# Source shared build helpers
+# shellcheck source=scripts/lib-build.sh
+. "$SCRIPTS_DIR/lib-build.sh"
 
 # Support legacy subcommand-style invocations (generate|validate|preview|build-one|build-all)
 if [ "$#" -gt 0 ]; then
@@ -104,8 +67,7 @@ if [ "$#" -gt 0 ]; then
             ;;
         validate)
             shift
-            bash "${PWD}/scripts/validate-profiles.sh" || true
-            python3 "${PWD}/scripts/validate_features.py" || true
+            bash "${PWD}/scripts/validate-generated-files.sh" || true
             exit 0
             ;;
         preview)
@@ -156,24 +118,6 @@ detect_build_platform() {
     local host=$(uname -m)
     local canon=$(arch_map "$host")
     echo "linux/$canon"
-}
-
-normalize_platforms() {
-    # input: comma-separated list of arch tokens (e.g. amd64,arm64 or linux/amd64)
-    local raw="$1"
-    local out=""
-    IFS=',' read -r -a parts <<< "$raw"
-    for part in "${parts[@]}"; do
-        part="$(echo "$part" | sed -e 's/^\s*//' -e 's/\s*$//')"
-        [ -z "$part" ] && continue
-        local canon=$(arch_map "$part")
-        if [ -z "$out" ]; then
-            out="linux/$canon"
-        else
-            out+=",linux/$canon"
-        fi
-    done
-    echo "$out"
 }
 
 docker_buildx_available() {

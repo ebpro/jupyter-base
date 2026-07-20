@@ -28,7 +28,10 @@ normalize_platforms() {
   for part in "${parts[@]}"; do
     part="$(echo "$part" | sed -e 's/^\s*//' -e 's/\s*$//')"
     [ -z "$part" ] && continue
-    if [[ "$part" == linux/* ]]; then
+    local canon
+    if command -v arch_map >/dev/null 2>&1; then
+      canon=$(arch_map "$part")
+    elif [[ "$part" == linux/* ]]; then
       canon=${part#linux/}
     else
       canon=$part
