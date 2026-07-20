@@ -10,7 +10,7 @@
   "options": {
     "version": {
       "type": "string",
-      "default": "latest",
+      "default": "5.7.2",
       "description": "TypeScript version to install (e.g., 5.7.2) or 'latest'"
     }
   },

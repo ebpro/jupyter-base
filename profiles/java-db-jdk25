@@ -8,7 +8,7 @@ bundle-dev-base
 
 # Java tooling
 bundle-java-build
-bundle-java-db
+java-db-dev
 java-jdk
 
 @options:JDK_VERSION=25

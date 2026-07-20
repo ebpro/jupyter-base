@@ -1,5 +1,5 @@
 {
-  "id": "bundle-python-db",
+  "id": "python-db-dev",
   "name": "Python Database Development",
   "version": "1.0.0",
   "description": "Python database libraries and client tools for database development and data science",
@@ -40,5 +40,9 @@
     "postgresql-client",
     "mysql-client",
     "jupyter-kernels"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
   ]
 }

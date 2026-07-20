@@ -1,11 +1,19 @@
 {
   "name": "jupyter-base",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "jupyter-base",
   "description": "Installs core Jupyter packages (jupyter, jupyterlab, nb_conda_kernels) into conda base",
-  "dependsOn": ["python-conda"],
-  "provides": ["jupyter", "jupyterlab"],
+  "dependsOn": [
+    "python-conda"
+  ],
+  "provides": [
+    "jupyter",
+    "jupyterlab"
+  ],
   "options": {},
   "postInstallCheck": {
     "command": "jupyter --version && jupyter-lab --version",
@@ -17,6 +25,12 @@
       "ms-toolsai.jupyter-keymap",
       "ms-toolsai.jupyter-renderers"
     ],
-    "forwardPorts": [8888]
-  }
+    "forwardPorts": [
+      8888
+    ]
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

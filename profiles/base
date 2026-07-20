@@ -8,7 +8,7 @@ prompt-helpers
 startup
 
 # Version control and development tools
-gh-cli
+gh
 git-lfs
 
 # Container helpers

@@ -11,7 +11,10 @@
   "options": {
     "clientType": {
       "type": "string",
-      "enum": ["mysql", "mariadb"],
+      "enum": [
+        "mysql",
+        "mariadb"
+      ],
       "default": "mysql",
       "description": "Client type to install (mysql or mariadb)"
     },
@@ -36,6 +39,12 @@
     "extensions": [
       "cweijan.vscode-database-client2"
     ],
-    "forwardPorts": [3306]
-  }
+    "forwardPorts": [
+      3306
+    ]
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

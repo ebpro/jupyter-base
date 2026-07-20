@@ -1,15 +1,24 @@
 {
   "name": "jetbrains-gateway",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "jetbrains-gateway",
   "description": "Optional SSH server to support JetBrains Gateway / Connect to DevContainer",
-  "dependsOn": ["user"],
+  "dependsOn": [
+    "user"
+  ],
   "options": {
     "start_sshd": {
       "type": "boolean",
       "default": false,
       "description": "If true, configure and enable sshd in the container (expose port in compose)"
     }
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

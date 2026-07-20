@@ -1,13 +1,22 @@
 {
   "name": "docker-cli-helper",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "docker-cli-helper",
   "description": "Helper: configure docker group and helper scripts for using host Docker socket",
-  "dependsOn": ["user"],
+  "dependsOn": [
+    "user"
+  ],
   "options": {},
   "postInstallCheck": {
     "command": "getent group docker && id jovyan | grep -q docker",
     "description": "Verify docker group exists and jovyan is a member"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

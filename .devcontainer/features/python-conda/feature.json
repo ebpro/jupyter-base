@@ -1,10 +1,15 @@
 {
   "name": "python-conda",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "python-conda",
   "description": "Installs Miniforge and updates environment from Artefacts/environment.yml",
-  "dependsOn": ["user"],
+  "dependsOn": [
+    "user"
+  ],
   "options": {
     "miniforge_channel": {
       "type": "string",
@@ -20,5 +25,9 @@
     "settings": {
       "python.defaultInterpreterPath": "/opt/conda/bin/python"
     }
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

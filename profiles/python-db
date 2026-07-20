@@ -11,7 +11,7 @@ bundle-data-science
 
 # Database connectivity (PostgreSQL)
 postgresql-client
-bundle-python-db
+python-db-dev
 
 @options:INSTALL_NOTEBOOK_EXTENSIONS=true
 

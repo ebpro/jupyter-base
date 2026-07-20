@@ -1,12 +1,19 @@
 {
   "name": "user",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "user",
   "description": "Create the non-root user, group, sudoers entry and home directories",
   "options": {},
   "postInstallCheck": {
     "command": "id jovyan && test -d /home/jovyan && sudo -n true",
     "description": "Verify jovyan user exists, home directory is created, and has sudo access"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

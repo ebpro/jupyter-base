@@ -16,5 +16,9 @@
   "postInstallCheck": {
     "command": "pgcli --version",
     "description": "Verify pgcli is installed"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

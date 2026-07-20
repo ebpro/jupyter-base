@@ -11,7 +11,7 @@
   "options": {
     "version": {
       "type": "string",
-      "default": "16",
+      "default": "17",
       "description": "PostgreSQL client version to install (14, 15, 16, 17, or 'latest')"
     },
     "installLibpq": {
@@ -35,6 +35,12 @@
     "extensions": [
       "cweijan.vscode-database-client2"
     ],
-    "forwardPorts": [5432]
-  }
+    "forwardPorts": [
+      5432
+    ]
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

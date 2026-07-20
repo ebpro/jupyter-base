@@ -16,5 +16,9 @@
   "postInstallCheck": {
     "command": "mycli --version",
     "description": "Verify mycli is installed"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

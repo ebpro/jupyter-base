@@ -11,7 +11,7 @@
   "provides": ["cicd-stack", "kubectl"],
   "dependsOn": [
     "kubernetes-dev",
-    "gh-cli",
+    "gh",
     "git-lfs",
     "tilt",
     "docker-cli-helper"

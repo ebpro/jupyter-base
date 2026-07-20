@@ -70,6 +70,9 @@ def parse_profile(profile_path: Path) -> Tuple[Optional[str], List[str], Dict[st
                     if '=' in opt:
                         k, v = opt.split('=', 1)
                         options[k.strip()] = v.strip()
+            elif line.startswith('@services:'):
+                # DevContainer service directive — not a feature
+                continue
             else:
                 # Regular feature line
                 feature_name = line.split()[0] if line.split() else None
@@ -145,6 +148,12 @@ def topological_sort_features(
 
         deps = feature_metadata[feature].get('dependsOn', [])
         for dep in deps:
+            if dep.startswith('_lib/'):
+                continue
+            if dep not in features_list:
+                # External dep (transitive) — not in this profile's list.
+                # Handled by the build system, not a concern for topological sort.
+                continue
             graph[dep].append(feature)
             in_degree[feature] += 1
 
@@ -273,7 +282,7 @@ def main():
                 # Check if it's satisfied by parent
                 if parent:
                     parent_features, _, _ = expand_profile_recursive(parent, profiles_dir)
-                    if any(issue.split("'")[3] in parent_features):
+                    if issue.split("'")[3] in parent_features:
                         warnings.append(f"{issue} (provided by parent)")
                         continue
                 warnings.append(issue)

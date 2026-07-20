@@ -10,7 +10,7 @@
     "zsh-config",
     "prompt-helpers",
     "startup",
-    "gh-cli",
+    "gh",
     "git-lfs",
     "docker-cli-helper",
     "python-base",

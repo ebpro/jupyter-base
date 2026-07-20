@@ -13,6 +13,6 @@
   "provides": ["sdkman"],
   "tags": ["java","sdk","sdkman"],
   "postInstallCheck": {
-    "cmd": "command -v sdk >/dev/null && sdk version || echo 'sdk not found'"
+    "command": "command -v sdk >/dev/null && sdk version || echo 'sdk not found'"
   }
 }

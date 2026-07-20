@@ -25,7 +25,7 @@ startup
 
 # Database clients for teaching
 postgresql-client
-bundle-python-db
+python-db-dev
 
 # Java Jupyter kernel
 java-kernel

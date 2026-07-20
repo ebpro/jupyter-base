@@ -1,13 +1,23 @@
 {
   "name": "prompt-helpers",
   "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
   "id": "prompt-helpers",
   "description": "Installs gitstatusd and related prompt helpers",
-  "dependsOn": ["user", "_lib/download-release"],
+  "dependsOn": [
+    "user",
+    "_lib/download-release"
+  ],
   "options": {},
   "postInstallCheck": {
     "command": "test -x /usr/local/bin/gitstatusd",
     "description": "Verify gitstatusd binary is installed and executable"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

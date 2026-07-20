@@ -1,0 +1,14 @@
+# Purpose: Complete CI/CD teaching environment with Kubernetes, containers, and GitHub tools
+
+# Base system
+bundle-base-full
+bundle-dev-base
+
+# CI/CD teaching bundle (kubectl, k3d, tilt, gh, Docker)
+bundle-cicd-teaching
+
+# Container runtime for local clusters
+podman
+
+@services:dind
+@services:k3s

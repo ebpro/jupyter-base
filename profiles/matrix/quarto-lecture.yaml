@@ -26,7 +26,7 @@ matrix:
     features:
       - bundle-quarto-base
       - postgresql-client
-      - bundle-python-db
+      - python-db-dev
     services:
       - postgres:version=16
   quarto-lecture-containers:
@@ -39,7 +39,7 @@ matrix:
       - podman
       - docker-cli-helper
       - postgresql-client
-      - bundle-python-db
+      - python-db-dev
       - startup
     options:
       JDK_VERSION: 25

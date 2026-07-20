@@ -1,0 +1,8 @@
+# Purpose: Browser-based IDE (code-server) and JetBrains Gateway remote access
+
+# Base system
+bundle-base-full
+bundle-dev-base
+
+# Remote IDE tools (code-server + extensions + JetBrains Gateway)
+bundle-remote-ide

@@ -1,7 +1,7 @@
 {
-  "name": "quarto",
+  "name": "bundle-quarto",
   "version": "0.2.0",
-  "id": "quarto",
+  "id": "bundle-quarto",
   "description": "Meta-feature: Installs Quarto CLI with Python and Chromium support (use quarto-cli for minimal install)",
   "dependsOn": ["quarto-cli", "quarto-python", "quarto-chromium"],
   "options": {},

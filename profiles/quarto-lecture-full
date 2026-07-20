@@ -26,7 +26,7 @@ bundle-container-runtimes
 
 # Database clients for demos with sidecars
 postgresql-client-cli
-bundle-python-db
+python-db-dev
 
 # Web development (TypeScript, React)
 typescript

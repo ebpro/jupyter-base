@@ -3,10 +3,16 @@
   "name": "quarto-common",
   "version": "0.1.0",
   "description": "Create shared Quarto directories and provide a shared Quarto template under /home/<user>/local",
-  "dependsOn": ["user"],
+  "dependsOn": [
+    "user"
+  ],
   "options": {},
   "postInstallCheck": {
     "command": "test -d /home/jovyan/local/quarto-templates",
     "description": "Verify quarto-templates directory is created"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }
