@@ -2,10 +2,25 @@ work
 local
 
 # Generated content (all generated files now in /generated/)
-/generated/
+/generated/*
+!generated/profiles/
+/generated/profiles/*
 !generated/profiles/.gitkeep
 .envrc.local
 build-logs
 
 # ignore all python cache files subdirectories
 **/__pycache__/
+
+# python packaging artifacts
+*.egg-info/
+
+# jupyter caches
+.jupyter_cache/
+
+# quarto build output
+**/*_files/
+
+# build logs and backup files
+*.log
+*.bak
