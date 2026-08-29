@@ -15,7 +15,7 @@ jobs:
       packages: write
     with:
         # Runner label / machine pool used by the reusable workflow
-        runs-on: arc-runner-set-compute-lsis
+        runs-on: ebpro-org
         # Keep existing env-list usage (stringified list). The reusable workflow
         # may parse this and set environment variables for the job.
         env-list: >
