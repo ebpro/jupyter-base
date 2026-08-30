@@ -28,15 +28,15 @@ LOCAL_BIN="${HOME_DIR}/bin"
 mkdir -p "${LOCAL_BIN}"
 
 # Resolve k9s version
-if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ] || [ -f "${PWD}/Artefacts/versions.json" ] || [ -f /tmp/versions.json ]; then
+if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ] || [ -f "${PWD}/artefacts/versions.json" ] || [ -f /tmp/versions.json ]; then
   resolve_version() {
     local tool="$1" v=""
     if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ]; then
       v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/kubernetes-dev/versions.json" 2>/dev/null || true)
       [ -n "$v" ] && { echo "$v"; return 0; }
     fi
-    if [ -f "${PWD}/Artefacts/versions.json" ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+    if [ -f "${PWD}/artefacts/versions.json" ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
       [ -n "$v" ] && { echo "$v"; return 0; }
     fi
     if [ -f /tmp/versions.json ]; then

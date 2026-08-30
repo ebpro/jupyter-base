@@ -6,7 +6,7 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "id": "pip-requirements",
-  "description": "Installs pip requirements from Artefacts/requirements.txt (or base/extra splits). Works with python-base or python-conda.",
+  "description": "Installs pip requirements from artefacts/requirements.txt (or base/extra splits). Works with python-base or python-conda.",
   "dependsOn": [
     "python-base"
   ],

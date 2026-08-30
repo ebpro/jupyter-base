@@ -46,8 +46,8 @@ resolve_version() {
       return
     fi
   fi
-  if [ -f "/tmp/Artefacts/versions.json" ]; then
-    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/Artefacts/versions.json" 2>/dev/null || true)
+  if [ -f "/tmp/artefacts/versions.json" ]; then
+    local ver=$(jq -r ".tools[\"${tool}\"] // empty" "/tmp/artefacts/versions.json" 2>/dev/null || true)
     if [ -n "$ver" ] && [ "$ver" != "null" ]; then
       echo "$ver"
       return

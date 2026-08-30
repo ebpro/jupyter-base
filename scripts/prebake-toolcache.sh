@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERSIONS_FILE="${VERSIONS_FILE:-$ROOT_DIR/Artefacts/versions.json}"
+VERSIONS_FILE="${VERSIONS_FILE:-$ROOT_DIR/artefacts/versions.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/opt/toolcache}"
 
 # Default tools to prebake (can be overridden via --tools)

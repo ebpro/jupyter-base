@@ -1,10 +1,10 @@
 # codeserver-extensions
 
-**Purpose:** Installs code-server extensions listed in Artefacts/codeserver_extensions
+**Purpose:** Installs code-server extensions listed in artefacts/codeserver_extensions
 
 ## Description
 
-Installs code-server extensions listed in Artefacts/codeserver_extensions
+Installs code-server extensions listed in artefacts/codeserver_extensions
 
 
 ## Dependencies

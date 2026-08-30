@@ -34,7 +34,7 @@ CONDA_DIR="${CONDA_DIR:-${HOME_DIR}/miniforge3}"
 
 echo "python-conda: installing Miniforge into ${CONDA_DIR} if missing"
 
-# Helper to resolve a tool version from per-feature artefacts, central Artefacts, or /tmp
+# Helper to resolve a tool version from per-feature artefacts, central artefacts, or /tmp
 resolve_version() {
   local tool="$1" v=""
     # prefer centralized resolver
@@ -48,8 +48,8 @@ resolve_version() {
       v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
       [ -n "$v" ] && { echo "$v"; return 0; }
     fi
-    if [ -f "${PWD}/Artefacts/versions.json" ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+    if [ -f "${PWD}/artefacts/versions.json" ]; then
+      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
       [ -n "$v" ] && { echo "$v"; return 0; }
     fi
     if [ -f /tmp/versions.json ]; then

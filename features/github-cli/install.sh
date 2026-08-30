@@ -40,7 +40,7 @@ LOCAL_BIN="${HOME_DIR}/bin"
 
 mkdir -p "${LOCAL_BIN}"
 
-# Resolve version from Artefacts (check common mounted paths)
+# Resolve version from artefacts (check common mounted paths)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 resolve_version() {
   local tool="$1" v=""
@@ -54,9 +54,9 @@ resolve_version() {
     grep -E "\"$t\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" "$file" 2>/dev/null | sed -E 's/.*:[[:space:]]*"(.*)".*/\1/' | head -n1 || true
   }
 
-  # Check repository-mounted Artefacts
-  if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(read_tool_from_json "${PWD}/Artefacts/versions.json" "$tool")
+  # Check repository-mounted artefacts
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "${PWD}/artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
     # prefer centralized resolver
@@ -68,21 +68,21 @@ resolve_version() {
       fi
     fi
 
-  # Check feature-scoped Artefacts
+  # Check feature-scoped artefacts
   if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
     v=$(read_tool_from_json "${PWD}/artefacts/${tool}/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
 
-  # Check script-relative Artefacts (when mounted into /tmp during build)
-  if [ -f "${SCRIPT_DIR}/../../Artefacts/versions.json" ]; then
-    v=$(read_tool_from_json "${SCRIPT_DIR}/../../Artefacts/versions.json" "$tool")
+  # Check script-relative artefacts (when mounted into /tmp during build)
+  if [ -f "${SCRIPT_DIR}/../../artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "${SCRIPT_DIR}/../../artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
 
-  # Check /tmp/Artefacts and /tmp/versions.json (common build mounts)
-  if [ -f "/tmp/Artefacts/versions.json" ]; then
-    v=$(read_tool_from_json "/tmp/Artefacts/versions.json" "$tool")
+  # Check /tmp/artefacts and /tmp/versions.json (common build mounts)
+  if [ -f "/tmp/artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "/tmp/artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f "/tmp/versions.json" ]; then
@@ -95,7 +95,7 @@ resolve_version() {
 
 GH_VERSION=$(resolve_version "gh")
 if [ -z "${GH_VERSION}" ]; then
-  echo "⚠️  gh-cli: Version not found in Artefacts, using latest"
+  echo "⚠️  gh-cli: Version not found in artefacts, using latest"
   GH_VERSION="latest"
 fi
 

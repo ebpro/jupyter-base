@@ -45,13 +45,13 @@ resolve_version() {
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
 
-  # Check repository-local artefacts (case-insensitive Artefacts/artefacts)
+  # Check repository-local artefacts (case-insensitive artefacts/artefacts)
   if [ -f "${PWD}/artefacts/${tool}/versions.json" ]; then
     v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/${tool}/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
-  if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
 

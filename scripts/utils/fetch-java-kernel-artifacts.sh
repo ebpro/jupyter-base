@@ -2,16 +2,16 @@
 set -euo pipefail
 
 # Fetch IJava / java-kernel release tarball(s) for each supported arch/version,
-# extract into Artefacts and write per-feature checksums.
+# extract into artefacts/ and write per-feature checksums.
 # Usage: scripts/fetch-java-kernel-artifacts.sh [version]
-# If version omitted, reads from Artefacts/versions.json at .tools.java-kernel
+# If version omitted, reads from versions.json (repo root) at .tools.java-kernel
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_ROOT"
 
-VERSION=${1:-$(jq -r '.tools["java-kernel"]' Artefacts/versions.json)}
+VERSION=${1:-$(jq -r '.tools["java-kernel"]' versions.json)}
 if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-  echo "No java-kernel version found in Artefacts/versions.json and none provided." >&2
+  echo "No java-kernel version found in versions.json and none provided." >&2
   exit 1
 fi
 
@@ -76,4 +76,4 @@ CHECKSUM_FILE="$REPO_ROOT/artefacts/java-kernel/checksums.json"
 jq -n --arg v "$VERSION" --arg s "$SUM" '{"checksums": {($v): {"sha256": $s}}}' > "$CHECKSUM_FILE"
 
 echo "Wrote artifact and checksums to $OUTDIR and $CHECKSUM_FILE"
-echo "Done. You can now include the Artefacts directory or bind-mount it when building the image."
+echo "Done. You can now include the artefacts/ directory or bind-mount it when building the image."

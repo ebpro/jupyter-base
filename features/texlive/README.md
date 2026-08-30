@@ -1,10 +1,10 @@
 # texlive
 
-**Purpose:** Installs TinyTeX/TeXLive packages listed in Artefacts/TeXLive
+**Purpose:** Installs TinyTeX/TeXLive packages listed in artefacts/TeXLive
 
 ## Description
 
-Installs TinyTeX/TeXLive packages listed in Artefacts/TeXLive
+Installs TinyTeX/TeXLive packages listed in artefacts/TeXLive
 
 
 ## Dependencies

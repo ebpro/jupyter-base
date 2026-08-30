@@ -6,7 +6,7 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "id": "python-conda",
-  "description": "Installs Miniforge and updates environment from Artefacts/environment.yml",
+  "description": "Installs Miniforge and updates environment from artefacts/environment.yml",
   "dependsOn": [
     "container-user"
   ],

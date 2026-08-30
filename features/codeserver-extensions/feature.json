@@ -6,7 +6,7 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "id": "codeserver-extensions",
-  "description": "Installs code-server extensions listed in Artefacts/codeserver_extensions",
+  "description": "Installs code-server extensions listed in artefacts/codeserver_extensions",
   "dependsOn": [
     "code-server"
   ],

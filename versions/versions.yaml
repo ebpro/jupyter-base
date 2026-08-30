@@ -61,7 +61,7 @@ tools:
     sources:
       - type: github
         repo: "rancher/k3d"
-  kubernetes-client:
+  kubectl:
     version: "1.34.1"
     sources:
       - type: github
@@ -111,12 +111,12 @@ tools:
     sources:
       - type: github
         repo: "conda-forge/miniforge"
-  mongodb-client:
+  mongodb:
     version: "8.0"
     sources:
       - type: github
         repo: "mongodb/mongo"
-  postgresql-client:
+  postgresql:
     version: "17"
     # upstream releases tracked on https://www.postgresql.org/ -- prefer per-feature hook (non-github)
   typescript:

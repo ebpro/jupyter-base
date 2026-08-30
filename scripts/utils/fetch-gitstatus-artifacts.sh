@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fetch gitstatusd release tarballs for each arch, extract into Artefacts, and update per-feature checksums.json
+# Fetch gitstatusd release tarballs for each arch, extract into artefacts/, and update per-feature checksums.json
 # Usage: scripts/fetch-gitstatus-artifacts.sh [version]
-# If version is omitted, reads from Artefacts/versions.json
+# If version is omitted, reads from versions.json (repo root)
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_ROOT"
 
-VERSION=${1:-$(jq -r '.tools.gitstatus' Artefacts/versions.json)}
+VERSION=${1:-$(jq -r '.tools.gitstatus' versions.json)}
 if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-  echo "No gitstatus version found in Artefacts/versions.json and none provided." >&2
+  echo "No gitstatus version found in versions.json and none provided." >&2
   exit 1
 fi
 

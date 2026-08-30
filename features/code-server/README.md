@@ -1,10 +1,10 @@
 # code-server
 
-**Purpose:** Installs code-server (coder) from GitHub releases using Artefacts/versions.json
+**Purpose:** Installs code-server (coder) from GitHub releases using artefacts/versions.json
 
 ## Description
 
-Installs code-server (coder) from GitHub releases using Artefacts/versions.json
+Installs code-server (coder) from GitHub releases using artefacts/versions.json
 
 
 ## Dependencies

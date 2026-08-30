@@ -354,12 +354,12 @@ def features(ctx: click.Context, fix: bool) -> None:
 
 @validate.command(name='propagate-versions')
 @click.option('--versions', type=click.Path(exists=True, path_type=Path),
-              default=Path('versions.json'), help='Path to versions.json (repo-relative)')
+              default=Path('versions/versions.yaml'), help='Source of truth (versions/versions.yaml)')
 @click.option('--write', is_flag=True, help='Write updates to feature.json files')
 @click.option('--verbose', is_flag=True, help='Print full JSON report')
 @click.pass_context
 def propagate_versions_cmd(ctx: click.Context, versions: Path, write: bool, verbose: bool) -> None:
-    """Propagate central `versions.json` values into feature `options.version.default`."""
+    """Propagate central version values into feature `options.version.default`."""
     repo_root = ctx.obj['repo_root']
     versions_path = repo_root / versions if not versions.is_absolute() else versions
     try:

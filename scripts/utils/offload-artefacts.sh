@@ -19,21 +19,21 @@ done
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-OUT_BASE=${DEST_DIR:-"${REPO_ROOT}/Artefacts/offload"}
+OUT_BASE=${DEST_DIR:-"${REPO_ROOT}/artefacts/offload"}
 OUT_DIR="$OUT_BASE/toolcache-offload-$TIMESTAMP"
 mkdir -p "$OUT_DIR"
 
-echo "Scanning for toolcache and large artefacts under Artefacts/..."
-mapfile -t PATHS < <(find "$REPO_ROOT/Artefacts" -type d -name "toolcache" 2>/dev/null || true)
+echo "Scanning for toolcache and large artefacts under artefacts/..."
+mapfile -t PATHS < <(find "$REPO_ROOT/artefacts" -type d -name "toolcache" 2>/dev/null || true)
 
 if [ ${#PATHS[@]} -eq 0 ]; then
-  echo "No toolcache directories found under Artefacts/. Nothing to do."
+  echo "No toolcache directories found under artefacts/. Nothing to do."
   exit 0
 fi
 
 echo "Found ${#PATHS[@]} toolcache directories. Copying to $OUT_DIR"
 for p in "${PATHS[@]}"; do
-  rel=$(realpath --relative-to="$REPO_ROOT/Artefacts" "$p") || rel="$p"
+  rel=$(realpath --relative-to="$REPO_ROOT/artefacts" "$p") || rel="$p"
   dest="$OUT_DIR/$rel"
   mkdir -p "$(dirname "$dest")"
   echo "  - $p -> $dest"
@@ -73,10 +73,10 @@ echo "   - GitHub Release example: \`gh release upload <tag-or-id> $TARBALL --cl
 echo "   - S3 example: \`aws s3 cp $TARBALL s3://your-bucket/artefacts/\`"
 echo
 echo "2) Add a small placeholder file in the repo where the artefacts were, or keep only a manifest with download URL and checksum. E.g.:"
-echo "   - Create 'Artefacts/<feature>/toolcache.README' that points to the external URL and includes the checksum."
+echo "   - Create 'artefacts/<feature>/toolcache.README' that points to the external URL and includes the checksum."
 echo
 echo "3) Untrack files from git index (run these at repo root):"
-echo "   git rm -r --cached 'Artefacts/**/toolcache' || true"
+echo "   git rm -r --cached 'artefacts/**/toolcache' || true"
 echo "   git commit -m 'Remove packed toolcache artefacts from repo; add offload manifest'"
 
 if [ "$DRY_RUN" = true ]; then
@@ -86,43 +86,6 @@ if [ "$DRY_RUN" = true ]; then
 fi
 
 echo
-echo "--no-dry-run selected but script does not auto-remove original files. Follow the printed git commands to untrack and commit when ready."
+"--no-dry-run selected but script does not auto-remove original files. Follow the printed git commands to untrack and commit when ready."
 
 exit 0
-#!/usr/bin/env bash
-set -euo pipefail
-
-# offload-artefacts.sh
-# Archive and remove large or binary artefacts from the repo, leaving metadata behind.
-# Usage: ./scripts/offload-artefacts.sh [paths...]
-# If no paths are provided, defaults to: conda TeXLive features/toolcache
-
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-cd "$REPO_ROOT"
-
-BACKUP_DIR="${REPO_ROOT}/../jupyter-base-artefacts-backup-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
-
-TARGETS=(${@:-conda TeXLive features/toolcache})
-
-echo "Backing up: ${TARGETS[*]} -> $BACKUP_DIR"
-tar -czf "$BACKUP_DIR" $(for p in "${TARGETS[@]}"; do echo "Artefacts/$p"; done) || true
-
-echo "Removing artefacts from repository (will create placeholders)..."
-for p in "${TARGETS[@]}"; do
-  target="Artefacts/$p"
-  if [ -e "$target" ]; then
-    rm -rf "$target"
-    mkdir -p "$(dirname "$target")"
-    cat > "$target" <<EOF
-This artefact was offloaded from the repository on $(date -u).
-The real data has been archived in: $BACKUP_DIR
-
-Fetch on-demand using `./scripts/fetch-artefact.sh` and the configured ARTIFACT_BASE_URL.
-EOF
-    echo "Replaced $target with placeholder"
-  else
-    echo "Not present: $target"
-  fi
-done
-
-echo "Done. Please commit the removals. The backup tarball is located outside the repo: $BACKUP_DIR"

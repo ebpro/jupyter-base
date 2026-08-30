@@ -29,7 +29,7 @@
 
 - `pip-requirements`
   - Depends on: python-conda (requires pip in conda env)
-  - Installs packages from Artefacts/requirements.txt
+  - Installs packages from artefacts/requirements.txt
 
 ### Java Stack
 - `java-sdkman`

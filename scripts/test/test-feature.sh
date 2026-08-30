@@ -136,8 +136,8 @@ WORKDIR /home/jovyan
 
 # Copy shared helpers
 COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
-COPY Artefacts /opt/solen/Artefacts
-ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/Artefacts
+COPY artefacts /opt/solen/artefacts
+ENV FEATURE_HELPERS_DIR=/opt/solen/_lib ARTIFACTS_DIR=/opt/solen/artefacts
 
 # Initialize feature helpers
 RUN mkdir -p /opt/.features /scripts && \\
@@ -164,7 +164,7 @@ EOF
 
 # Install feature under test
 COPY features/$FEATURE_ID /tmp/features/$FEATURE_ID
-COPY Artefacts /tmp/Artefacts
+COPY artefacts /tmp/artefacts
 COPY scripts /tmp/scripts
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \\

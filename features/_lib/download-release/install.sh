@@ -452,7 +452,7 @@ download_github_release() {
         return 1
     fi
 
-    # If checksums.json exists in repository Artefacts or /tmp, verify file integrity
+    # If checksums.json exists in repository artefacts or /tmp, verify file integrity
     local checksums_file=""
     if [ -f /tmp/checksums.json ]; then
         checksums_file=/tmp/checksums.json

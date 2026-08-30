@@ -22,7 +22,7 @@ Each feature lives in `features/<feature-name>/` with:
 - `generated/Dockerfile` - multi-stage Dockerfile
 - `generated/docker-bake.hcl` - buildx configuration
 
-**Static Artefacts**:
+**Static artefacts**:
 - `artefacts/` - feature-specific static data (java-kernel, quarto, etc.)
 
 ## Feature Dependencies
@@ -222,7 +222,7 @@ fh_log "my-feature installation complete"
 ### 1. Version Pinning
 Always pin versions explicitly:
 ```bash
-TOOL_VERSION=$(resolve_version "tool")  # From Artefacts/versions.json
+TOOL_VERSION=$(resolve_version "tool")  # From artefacts/versions.json
 # NOT: curl latest-url
 ```
 

@@ -1,7 +1,7 @@
 {
   "id": "code-server",
   "name": "code-server",
-  "description": "Installs code-server (coder) from GitHub releases using Artefacts/versions.json",
+  "description": "Installs code-server (coder) from GitHub releases using artefacts/versions.json",
   "dependsOn": [
     "container-user",
     "node",

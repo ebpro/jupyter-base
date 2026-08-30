@@ -53,12 +53,12 @@ resolve_version() {
     v=$(fh_resolve_version "$tool" || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
-  if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(read_tool_from_json "${PWD}/Artefacts/versions.json" "$tool")
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "${PWD}/artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
-  if [ -f "${SCRIPT_DIR}/../../Artefacts/versions.json" ]; then
-    v=$(read_tool_from_json "${SCRIPT_DIR}/../../Artefacts/versions.json" "$tool")
+  if [ -f "${SCRIPT_DIR}/../../artefacts/versions.json" ]; then
+    v=$(read_tool_from_json "${SCRIPT_DIR}/../../artefacts/versions.json" "$tool")
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f /tmp/versions.json ]; then

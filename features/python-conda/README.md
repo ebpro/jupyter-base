@@ -1,10 +1,10 @@
 # python-conda
 
-**Purpose:** Installs Miniforge and updates environment from Artefacts/environment.yml
+**Purpose:** Installs Miniforge and updates environment from artefacts/environment.yml
 
 ## Description
 
-Installs Miniforge and updates environment from Artefacts/environment.yml
+Installs Miniforge and updates environment from artefacts/environment.yml
 
 
 ## Dependencies

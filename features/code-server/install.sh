@@ -15,12 +15,9 @@ if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
   fh_ensure_user_dirs "${NB_USER:-jovyan}" "${NB_UID:-1001}" "${NB_GID:-1001}" || true
 else
   HOME_DIR=${HOME_DIR:-/home/${NB_USER:-jovyan}}
-    # prefer centralized resolver
-    if command -v fh_resolve_version >/dev/null 2>&1; then
-      v=$(fh_resolve_version "$tool" || true)
-    elif [ -f "${PWD}/Artefacts/versions.json" ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
-      [ -n "$v" ] && { echo "$v"; return 0; }
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+  chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
+fi
 
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
@@ -31,8 +28,8 @@ echo "code-server: installing code-server runtime"
 
 resolve_version() {
   local tool="$1" v=""
-  if [ -f "${PWD}/Artefacts/versions.json" ]; then
-    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/Artefacts/versions.json" 2>/dev/null || true)
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
     [ -n "$v" ] && { echo "$v"; return 0; }
   fi
   if [ -f /tmp/versions.json ]; then
@@ -44,7 +41,7 @@ resolve_version() {
 
 CODE_SERVER_VERSION=$(resolve_version "code-server")
 if [ -z "${CODE_SERVER_VERSION}" ]; then
-  echo "code-server: version not found in Artefacts or /tmp/versions.json; skipping" >&2
+  echo "code-server: version not found in artefacts or /tmp/versions.json; skipping" >&2
   exit 0
 fi
 

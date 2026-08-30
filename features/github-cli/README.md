@@ -1,10 +1,10 @@
 # GitHub CLI
 
-**Purpose:** Installs GitHub CLI into the dev user's bin using Artefacts/versions.json
+**Purpose:** Installs GitHub CLI into the dev user's bin using artefacts/versions.json
 
 ## Description
 
-Installs GitHub CLI into the dev user's bin using Artefacts/versions.json
+Installs GitHub CLI into the dev user's bin using artefacts/versions.json
 
 
 ## Dependencies

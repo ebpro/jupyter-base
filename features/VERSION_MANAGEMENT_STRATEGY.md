@@ -9,11 +9,11 @@
 
 ### ✅ Strengths of Current System
 
-Your centralized version management system in `Artefacts/` is **well-architected**:
+Your centralized version management system in `artefacts/` is **well-architected**:
 
 #### 1. **Three-Tier Metadata System**
 ```
-Artefacts/
+artefacts/
 ├── versions.json           # Central version registry (17 tools)
 ├── tool-metadata.json      # Install method + checksum policy
 ├── checksums.json          # SHA256 verification data
@@ -303,7 +303,7 @@ sdk install java "${SDKMAN_JAVA_IDENTIFIER}-${JDK_VERSION}"
 
 #### **Optimization 1: Pre-bake Common Tools**
 
-Create `Artefacts/features/common-tools/toolcache/` with:
+Create `artefacts/features/common-tools/toolcache/` with:
 - node (22.12.0, 20.18.0)
 - kubectl (1.34.1)
 - helm (3.18.6)
@@ -312,7 +312,7 @@ Create `Artefacts/features/common-tools/toolcache/` with:
 **Build process**:
 ```bash
 # During image build
-COPY Artefacts/features/common-tools/toolcache /opt/toolcache/
+COPY artefacts/features/common-tools/toolcache /opt/toolcache/
 # Now toolcache-get has instant cache hits
 ```
 
@@ -375,7 +375,7 @@ COPY --from=toolcache-builder /opt/toolcache /opt/toolcache
 
 #### Task 1.1: Add Node.js to Centralized System
 ```json
-// Artefacts/versions.json
+// artefacts/versions.json
 {
   "tools": {
     "node": "22.12.0",
@@ -385,7 +385,7 @@ COPY --from=toolcache-builder /opt/toolcache /opt/toolcache
   }
 }
 
-// Artefacts/tool-metadata.json
+// artefacts/tool-metadata.json
 {
   "tools": {
     "node":       { "install_method": "archive",  "require_checksum": true },
@@ -470,7 +470,7 @@ emit_run_features() {
   cat <<EOF
 RUN --mount=type=bind,source=features,target=/tmp/features,readonly \\
     --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \\
-    --mount=type=bind,source=Artefacts,target=/tmp/Artefacts,readonly \\
+    --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \\
     --mount=type=cache,target=/var/cache/apt,sharing=locked \\
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \\
     --mount=type=cache,target=/opt/toolcache,sharing=locked \\
@@ -499,7 +499,7 @@ TOOLS="${1:-node,kubectl,helm,gh,quarto}"
 OUTPUT="${2:-/opt/toolcache}"
 
 for tool in $(echo "$TOOLS" | tr ',' ' '); do
-  version=$(jq -r ".tools[\"$tool\"]" Artefacts/versions.json)
+  version=$(jq -r ".tools[\"$tool\"]" artefacts/versions.json)
   # ... fetch and install to OUTPUT
 done
 ```
