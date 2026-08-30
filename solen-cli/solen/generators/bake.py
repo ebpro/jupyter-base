@@ -1,11 +1,18 @@
 """Docker Bake file generator."""
 
+import platform
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
-from solen.utils.git import get_version_tags, get_git_sha
+from solen.utils.git import get_git_sha, get_version_tags
+
+
+def host_platform() -> str:
+    """Return the linux platform identifier for the current host arch."""
+    machine = platform.machine().lower()
+    return "linux/arm64" if machine in ("arm64", "aarch64") else "linux/amd64"
 
 
 def generate_bake(
@@ -30,15 +37,15 @@ def generate_bake(
         Number of profiles processed
     """
     if platforms is None:
-        platforms = ["linux/amd64"]
+        platforms = [host_platform()]
 
     # Normalize platforms (ensure linux/ prefix)
     normalized_platforms = []
-    for platform in platforms:
-        if '/' not in platform:
-            normalized_platforms.append(f'linux/{platform}')
+    for plat in platforms:
+        if '/' not in plat:
+            normalized_platforms.append(f'linux/{plat}')
         else:
-            normalized_platforms.append(platform)
+            normalized_platforms.append(plat)
 
     # Get git-aware tags
     tag1, tag2 = get_version_tags(repo_root)

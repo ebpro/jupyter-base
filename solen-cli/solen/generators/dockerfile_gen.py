@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TextIO, Any
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 

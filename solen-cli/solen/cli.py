@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """Solen CLI - Main command-line interface."""
 
-import sys
-from pathlib import Path
-from typing import Optional
-
-import click
+import json
 import os
 import shlex
 import subprocess
-from datetime import datetime
-import json
 import sys
+from datetime import datetime
+from pathlib import Path
+
+import click
 
 from solen import __version__
 
@@ -180,8 +178,8 @@ def profiles(ctx: click.Context, matrix: Path, out: Path, prefix: str, chain: bo
     if chain:
         # Chain to Dockerfile and bake generation (multi-profile)
         try:
-            from solen.generators.dockerfile_gen import generate_multi_profile_dockerfile
             from solen.generators.bake import generate_bake
+            from solen.generators.dockerfile_gen import generate_multi_profile_dockerfile
 
             dockerfile_out = repo_root / 'generated' / 'Dockerfile'
             bake_out = repo_root / 'generated' / 'docker-bake.hcl'
@@ -202,11 +200,11 @@ def profiles(ctx: click.Context, matrix: Path, out: Path, prefix: str, chain: bo
               default=Path('generated/Dockerfile'), help='Output Dockerfile path')
 @click.option('--verbose', is_flag=True, help='Show verbose output')
 @click.pass_context
-def dockerfile(ctx: click.Context, profile: Optional[str], all_profiles: bool, output: Path, verbose: bool) -> None:
+def dockerfile(ctx: click.Context, profile: str | None, all_profiles: bool, output: Path, verbose: bool) -> None:
     """Generate Dockerfile for a profile or all profiles."""
     from solen.generators.dockerfile_gen import (
-        generate_single_profile_dockerfile,
         generate_multi_profile_dockerfile,
+        generate_single_profile_dockerfile,
     )
 
     if not profile and not all_profiles:
@@ -269,19 +267,38 @@ def dockerfile(ctx: click.Context, profile: Optional[str], all_profiles: bool, o
 
 
 @generate.command()
-@click.option('--profile', required=True, help='Profile name')
+@click.option('--profile', help='Profile name to generate devcontainer config for')
+@click.option('--all', 'all_profiles', is_flag=True, help='Generate for all known profiles')
 @click.option('--output', type=click.Path(path_type=Path),
-              default=Path('generated/devcontainer.json'), help='Output path')
+              default=Path('generated/devcontainer'), help='Output directory')
 @click.pass_context
-def devcontainer(ctx: click.Context, profile: str, output: Path) -> None:
-    """Generate devcontainer.json for a profile."""
-    from solen.generators.devcontainer import generate_devcontainer
+def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, output: Path) -> None:
+    """Generate devcontainer.json (and docker-compose.yml) for profile(s)."""
+    from solen.generators.devcontainer import generate_devcontainer, list_generated_profiles
+
+    if bool(profile) == all_profiles:
+        click.echo("❌ Error: specify exactly one of --profile or --all", err=True)
+        sys.exit(1)
 
     repo_root = ctx.obj['repo_root']
-    output_path = repo_root / output if not output.is_absolute() else output
+    out_dir = repo_root / output if not output.is_absolute() else output
 
-    generate_devcontainer(repo_root, profile, output_path)
-    click.echo(f"✅ Generated devcontainer.json: {output_path}")
+    if all_profiles:
+        names = list_generated_profiles(repo_root)
+        if not names:
+            click.echo("❌ No profiles found (run `solen generate profiles` first)", err=True)
+            sys.exit(1)
+    else:
+        names = [profile]
+
+    for name in names:
+        try:
+            path = generate_devcontainer(repo_root, name, out_dir)
+            click.echo(f"✅ Generated: {path}")
+        except FileNotFoundError as e:
+            click.echo(f"❌ {e}", err=True)
+            sys.exit(1)
+    click.echo(f"✅ Generated devcontainer config for {len(names)} profile(s) in {out_dir}")
 
 
 @generate.command()
@@ -374,11 +391,11 @@ def analyze() -> None:
     pass
 
 
-@analyze.command()
+@analyze.command(name='features')
 @click.option('--output', type=click.Path(path_type=Path),
               default=Path('generated/feature-matrix.md'), help='Output matrix file')
 @click.pass_context
-def features(ctx: click.Context, output: Path) -> None:
+def analyze_features_cmd(ctx: click.Context, output: Path) -> None:
     """Analyze features and generate dependency matrix."""
     from solen.generators.readme import analyze_features
 
@@ -403,7 +420,7 @@ def main() -> None:
 @cli.command()
 @click.option('--target', help='Bake target to build (e.g., final-20-01-quarto-lecture-java-lts)')
 @click.option('--profile', help='Profile name to build (alias for --target final-<profile>)')
-@click.option('--platforms', default='linux/arm64', help='Comma-separated platforms for buildx (default: linux/arm64)')
+@click.option('--platforms', default='', help='Comma-separated platforms for buildx (default: platforms from the bake file)')
 @click.option('--no-cache', is_flag=True, help='Pass no-cache to buildx bake')
 @click.option('--load', is_flag=True, help='Pass --load to buildx bake')
 @click.option('--push', is_flag=True, help='Pass --push to buildx bake')
@@ -439,8 +456,8 @@ def build(ctx: click.Context, target: str, profile: str, platforms: str, no_cach
 
     # Generate multi-profile Dockerfile and bake file
     click.echo('🔧 Generating Dockerfile and docker-bake.hcl...')
-    from solen.generators.dockerfile_gen import generate_multi_profile_dockerfile
     from solen.generators.bake import generate_bake
+    from solen.generators.dockerfile_gen import generate_multi_profile_dockerfile
 
     dockerfile_out = repo_root / 'generated' / 'Dockerfile'
     bake_out = repo_root / 'generated' / 'docker-bake.hcl'
@@ -513,7 +530,7 @@ def versions() -> None:
 @click.option('--out', type=click.Path(path_type=Path), default=Path('generated/version-checks'))
 @click.option('--github-token', default=None, help='GitHub token for API requests')
 @click.pass_context
-def check(ctx: click.Context, versions: Path, out: Path, github_token: Optional[str]) -> None:
+def check(ctx: click.Context, versions: Path, out: Path, github_token: str | None) -> None:
     """Check upstream versions for tools defined in the versions manifest."""
     from solen.core.versions import run_check
 
@@ -528,6 +545,36 @@ def check(ctx: click.Context, versions: Path, out: Path, github_token: Optional[
 
     res = run_check(repo_root, versions_path, out_dir, token)
     click.echo(f"✅ Report written: {res['report_path']}")
+
+
+@versions.command()
+@click.option('--source', type=click.Path(exists=True, path_type=Path),
+              default=Path('versions/versions.yaml'), help='Source of truth (versions/versions.yaml)')
+@click.option('--target', type=click.Path(path_type=Path),
+              default=Path('versions.json'), help='Generated flat manifest (versions.json)')
+@click.option('--check', is_flag=True, help='Fail if target is out of date, without writing')
+@click.pass_context
+def sync(ctx: click.Context, source: Path, target: Path, check: bool) -> None:
+    """Generate the flat versions.json manifest from versions/versions.yaml."""
+    from solen.core.versions import sync_versions, versions_up_to_date
+
+    repo_root = ctx.obj['repo_root']
+    source_path = repo_root / source if not source.is_absolute() else source
+    target_path = repo_root / target if not target.is_absolute() else target
+
+    if check:
+        if versions_up_to_date(source_path, target_path):
+            click.echo(f"✅ {target_path} is up to date with {source_path}")
+            return
+        click.echo(f"❌ {target_path} is out of date — run `solen versions sync`", err=True)
+        sys.exit(1)
+
+    try:
+        res = sync_versions(source_path, target_path)
+    except ValueError as e:
+        click.echo(f"❌ {e}", err=True)
+        sys.exit(1)
+    click.echo(f"✅ Wrote {res['path']} ({res['tools']} tools, base={res['base']})")
 
 
 if __name__ == '__main__':

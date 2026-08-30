@@ -496,7 +496,9 @@ def auto_fix_feature(feature_path: Path, validation: FeatureValidation) -> int:
 
             try:
                 with open(readme, 'w', encoding='utf-8') as rf:
-                    rf.writelines([l + '\n' if not l.endswith('\n') else l for l in content_lines])
+                    rf.writelines(
+                        [line + '\n' if not line.endswith('\n') else line for line in content_lines]
+                    )
                 fixed += 1
             except Exception:
                 pass

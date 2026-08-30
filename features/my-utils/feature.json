@@ -1,8 +1,14 @@
 {
   "name": "my-utils",
+  "id": "my-utils",
   "title": "My utilities: small user bin scripts",
-  "description": "Installs a set of helper scripts into the user's ~/bin directory (default NB_USER=jovyan).",
+  "description": "Installs a set of helper scripts into the user's ~/.local/bin directory (default NB_USER=jovyan).",
   "version": "0.1.0",
   "maintainer": "local",
-  "license": "MIT"
+  "license": "MIT",
+  "postInstallCheck": {
+    "command": "test -x /home/jovyan/.local/bin/gitpull",
+    "description": "Verify my-utils scripts are installed and executable"
+  },
+  "documentationURL": "./features/my-utils/README.md"
 }

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -61,7 +61,7 @@ def generate_profile_file(
     profile_spec: dict[str, Any],
     out_dir: Path,
     prefix: str = "",
-    source: Optional[str] = None,
+    source: str | None = None,
 ) -> list[str]:
     """Generate profile files from a profile specification.
 

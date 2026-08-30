@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
-import re
-from typing import Optional
 
 import requests
-import yaml
 import semver
-
+import yaml
 
 GITHUB_API = "https://api.github.com"
 
@@ -19,7 +17,53 @@ def load_versions(path: Path) -> dict:
     return yaml.safe_load(text)
 
 
-def github_latest_release_non_prerelease(owner_repo: str, token: Optional[str] = None) -> Optional[str]:
+def flatten_versions(source_data: dict) -> dict:
+    """Flatten a versions source doc into the runtime manifest shape.
+
+    The source (versions/versions.yaml) may map each tool to either a plain
+    version string or a dict with `version` (and `sources`/`notes` metadata).
+    The runtime manifest (versions.json) requires flat string values under
+    `tools` because feature install scripts consume them directly.
+    """
+    tools: dict = {}
+    for name, info in (source_data.get("tools") or {}).items():
+        version = info.get("version") if isinstance(info, dict) else info
+        if version is None:
+            raise ValueError(f"versions entry {name!r} has no version")
+        tools[name] = str(version)
+
+    base = source_data.get("base") or {}
+    return {
+        "base": {"variant": base.get("variant", "unknown")},
+        "tools": tools,
+    }
+
+
+def sync_versions(source: Path, target: Path) -> dict:
+    """Generate the flat runtime versions.json from the YAML source of truth."""
+    manifest = flatten_versions(load_versions(source))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+    target.write_text(payload, encoding="utf-8")
+    return {"path": str(target), "tools": len(manifest["tools"]), "base": manifest["base"]["variant"]}
+
+
+def versions_up_to_date(source: Path, target: Path) -> bool:
+    """Return True if target matches what sync_versions would write from source."""
+    if not target.exists():
+        return False
+    try:
+        manifest = flatten_versions(load_versions(source))
+        current = json.loads(target.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, yaml.YAMLError, ValueError):
+        return False
+    return (
+        current.get("tools") == manifest["tools"]
+        and (current.get("base") or {}).get("variant") == manifest["base"]["variant"]
+    )
+
+
+def github_latest_release_non_prerelease(owner_repo: str, token: str | None = None) -> str | None:
     headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"token {token}"
@@ -52,14 +96,7 @@ def github_latest_release_non_prerelease(owner_repo: str, token: Optional[str] =
     return None
 
 
-def is_prerelease_tag(tag: Optional[str]) -> bool:
-    if not tag:
-        return False
-    t = str(tag).lower()
-    return bool(re.search(r"[-._]?(?:rc|alpha|beta|preview|pre|prerelease)[.\-\d]*", t))
-
-
-def github_latest_tag(owner_repo: str, token: Optional[str] = None, tag_regex: Optional[str] = None, ignore_prereleases: bool = True) -> Optional[str]:
+def github_latest_tag(owner_repo: str, token: str | None = None, tag_regex: str | None = None, ignore_prereleases: bool = True) -> str | None:
     headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"token {token}"
@@ -94,7 +131,7 @@ def github_latest_tag(owner_repo: str, token: Optional[str] = None, tag_regex: O
         return None
 
     # extract semver-like fragments
-    def extract_semver_from_tag(tag: str) -> Optional[str]:
+    def extract_semver_from_tag(tag: str) -> str | None:
         m = re.search(r"(\d+(?:\.\d+){1,3})", tag)
         if not m:
             return None
@@ -135,7 +172,7 @@ def detect_arches_from_assets(release_json: dict) -> list[str]:
     return sorted(found)
 
 
-def normalize_tag(tag: Optional[str]) -> Optional[str]:
+def normalize_tag(tag: str | None) -> str | None:
     if not tag:
         return None
     s_tag = str(tag)
@@ -150,7 +187,7 @@ def normalize_tag(tag: Optional[str]) -> Optional[str]:
     return s_tag.lstrip("v")
 
 
-def is_prerelease_tag(tag: Optional[str]) -> bool:
+def is_prerelease_tag(tag: str | None) -> bool:
     if not tag:
         return False
     t = str(tag).lower()
@@ -158,7 +195,7 @@ def is_prerelease_tag(tag: Optional[str]) -> bool:
     return bool(re.search(r"[-._]?(?:rc|alpha|beta|preview|pre|prerelease)[.\-\d]*", t))
 
 
-def compare_versions(current: Optional[str], latest: Optional[str]) -> dict:
+def compare_versions(current: str | None, latest: str | None) -> dict:
     result = {
         "current": current,
         "latest": latest,
@@ -216,7 +253,7 @@ def compare_versions(current: Optional[str], latest: Optional[str]) -> dict:
     return result
 
 
-def run_check(repo_root: Path, versions_path: Path, out_dir: Path, github_token: Optional[str] = None) -> dict:
+def run_check(repo_root: Path, versions_path: Path, out_dir: Path, github_token: str | None = None) -> dict:
     data = load_versions(versions_path)
     tools = data.get("tools", {})
     report = {"checked_at": datetime.utcnow().isoformat() + "Z", "tools": []}
@@ -323,7 +360,7 @@ def propagate_versions(repo_root: Path, versions_path: Path, write: bool = False
     if not features_dir.exists():
         return {"error": "features directory not found", "report": report}
 
-    def candidate_keys(feature_name: str, feature_id: Optional[str]) -> list[str]:
+    def candidate_keys(feature_name: str, feature_id: str | None) -> list[str]:
         keys = []
         if feature_id:
             keys.append(feature_id)
@@ -333,7 +370,7 @@ def propagate_versions(repo_root: Path, versions_path: Path, write: bool = False
         return [k.lower() for k in keys if k]
 
     # helper to find best match in versions.tools
-    def find_tool_key(feature_name: str, feature_id: Optional[str]) -> Optional[str]:
+    def find_tool_key(feature_name: str, feature_id: str | None) -> str | None:
         cands = candidate_keys(feature_name, feature_id)
         tools_keys = list(tools.keys())
         # exact matches first
