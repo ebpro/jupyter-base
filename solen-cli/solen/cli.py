@@ -331,10 +331,11 @@ def validate() -> None:
 
 @validate.command()
 @click.option('--fix', is_flag=True, help='Auto-fix issues (e.g., permissions)')
+@click.option('--verbose', is_flag=True, help='Also print warning details')
 @click.pass_context
-def features(ctx: click.Context, fix: bool) -> None:
+def features(ctx: click.Context, fix: bool, verbose: bool) -> None:
     """Validate all features against schema."""
-    from solen.validators.features import validate_features
+    from solen.validators.features import FeatureValidator, validate_features
 
     repo_root = ctx.obj['repo_root']
     features_dir = repo_root / 'features'
@@ -346,10 +347,21 @@ def features(ctx: click.Context, fix: bool) -> None:
         if warnings:
             click.echo(f"⚠️  {warnings} warning(s)")
         sys.exit(0)
-    else:
-        click.echo(f"❌ {total - passed}/{total} features failed validation", err=True)
-        click.echo(f"   {errors} error(s), {warnings} warning(s)", err=True)
-        sys.exit(1)
+
+    # Surface per-feature error detail so failures are actionable in CI.
+    validator = FeatureValidator(features_dir)
+    for path in sorted(p for p in features_dir.iterdir()
+                       if p.is_dir() and not p.name.startswith('.')):
+        fv = validator.validate_feature(path)
+        for r in fv.errors:
+            click.echo(f"   ✗ {fv.feature_id}: {r.message}", err=True)
+        if verbose:
+            for r in fv.warnings:
+                click.echo(f"   ⚠ {fv.feature_id}: {r.message}", err=True)
+
+    click.echo(f"❌ {total - passed}/{total} features failed validation", err=True)
+    click.echo(f"   {errors} error(s), {warnings} warning(s)", err=True)
+    sys.exit(1)
 
 
 @validate.command(name='propagate-versions')
