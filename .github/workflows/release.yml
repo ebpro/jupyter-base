@@ -41,7 +41,7 @@ jobs:
         run: docker buildx create --name multiarch --driver docker-container --use
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -68,11 +68,15 @@ jobs:
           done < <(solen list profiles)
 
       - name: Prepare cosign key
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
         run: |
-          echo "Decoding COSIGN_PRIVATE_KEY..."
-          echo "${{ secrets.COSIGN_PRIVATE_KEY }}" | base64 --decode > cosign.key
-          chmod 600 cosign.key
+          set -euo pipefail
+          if [ -n "${{ secrets.COSIGN_PRIVATE_KEY }}" ]; then
+            echo "Decoding COSIGN_PRIVATE_KEY..."
+            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" | base64 --decode > cosign.key
+            chmod 600 cosign.key
+          else
+            echo "COSIGN_PRIVATE_KEY not set; signing will be skipped"
+          fi
 
       - name: Promote images by digest and sign
         env:

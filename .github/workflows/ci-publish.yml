@@ -73,7 +73,7 @@ jobs:
           solen generate bake --output generated/docker-bake.hcl
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build and push (linux/amd64 + linux/arm64)
         env:
-          PROFILE_LIST: ${{ github.event.inputs.profiles || github.inputs.profiles || '' }}
+          PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
         run: |
           set -euo pipefail
           if [ -n "$PROFILE_LIST" ]; then

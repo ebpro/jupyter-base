@@ -54,8 +54,8 @@ jobs:
       - name: Build profiles (single-arch, loaded into local daemon)
         id: build
         env:
-          PROFILE_LIST: ${{ github.event.inputs.profiles || github.inputs.profiles || 'data-science' }}
-          NO_CACHE: ${{ github.event.inputs.no-cache || github.inputs.no-cache || 'false' }}
+          PROFILE_LIST: ${{ github.event.inputs.profiles || 'data-science' }}
+          NO_CACHE: ${{ github.event.inputs['no-cache'] || 'false' }}
         run: |
           set -euo pipefail
           NO_CACHE_FLAG=""
