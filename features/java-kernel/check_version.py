@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -33,7 +34,10 @@ def github_latest_release(owner_repo: str, token: Optional[str] = None) -> dict 
     headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"token {token}"
-    r = requests.get(url, headers=headers, timeout=15)
+    try:
+        r = requests.get(url, headers=headers, timeout=15)
+    except requests.RequestException:
+        return None
     if r.status_code == 200:
         return r.json()
     return None
@@ -70,12 +74,14 @@ def check_version(info: dict, github_token: Optional[str] = None) -> dict:
     available_arches = []
     reason = None
 
-    if target_url and "github.com" in target_url:
-        # try to extract owner/repo from URL
+    parsed = urlparse(target_url) if target_url else None
+    host = (parsed.hostname or "").lower() if parsed else ""
+    if host == "github.com" or host.endswith(".github.com"):
+        # extract owner/repo from the URL path
         # expected form: https://github.com/owner/repo/releases
-        parts = target_url.split("github.com/")[-1].split("/")
-        if len(parts) >= 2:
-            owner_repo = "/".join(parts[0:2])
+        segments = [s for s in (parsed.path or "").split("/") if s]
+        if len(segments) >= 2:
+            owner_repo = f"{segments[0]}/{segments[1]}"
             rel = github_latest_release(owner_repo, github_token)
             if rel:
                 latest = rel.get("tag_name")
