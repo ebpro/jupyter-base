@@ -3,11 +3,11 @@ name: Validate Artefacts
 on:
   push:
     paths:
-      - 'Artefacts/**'
+      - 'artefacts/**'
       - 'scripts/validate-artefacts.sh'
   pull_request:
     paths:
-      - 'Artefacts/**'
+      - 'artefacts/**'
       - 'scripts/validate-artefacts.sh'
 
 jobs:
@@ -20,4 +20,4 @@ jobs:
       - name: Run artefacts validator
         run: |
           chmod +x scripts/validate-artefacts.sh
-          scripts/validate-artefacts.sh Artefacts
+          scripts/validate-artefacts.sh artefacts
