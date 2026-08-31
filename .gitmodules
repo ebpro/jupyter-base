@@ -1,0 +1,3 @@
+[submodule "samples/quarto-lecture-containers/_quarto-utils"]
+	path = samples/quarto-lecture-containers/_quarto-utils
+	url = https://github.com/ebpro/_quarto-utils.git
