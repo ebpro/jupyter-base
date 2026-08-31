@@ -1,0 +1,35 @@
+{
+  "name": "zsh-config",
+  "version": "0.1.0",
+  "id": "zsh-config",
+  "description": "Installs Prezto and configures Powerlevel10k for the dev user",
+  "dependsOn": [
+    "container-user"
+  ],
+  "caches": [
+    {
+      "id": "cache_zsh_config__zprezto_",
+      "path": "/home/jovyan/.zprezto",
+      "description": "Prezto state cache for user"
+    }
+  ],
+  "options": {
+    "prezto_repo": {
+      "type": "string",
+      "default": "https://github.com/sorin-ionescu/prezto.git",
+      "description": "Prezto repo to clone"
+    }
+  },
+  "postInstallCheck": {
+    "command": "test -d /home/jovyan/.zprezto"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "documentationURL": "./features/zsh-config/README.md"
+}

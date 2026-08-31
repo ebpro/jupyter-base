@@ -1,0 +1,135 @@
+---
+title: "Cheatsheet — Java fonctionnel : Streams, Lambdas, Optionals"
+subtitle: "Résumé compact pour TP et exercices"
+description: "Cheatsheet rapide : formes de `main`, lambdas, interfaces fonctionnelles, Stream API, Optionals, tips"
+
+jupyter: bash
+image: _quarto-utils/MyMedia/images/optimized/taiki-ishikawa-PUXFKuVf_84-unsplash_java-400.webp
+tools:
+  - java
+  - maven
+  - docker
+  - git
+
+programs:
+  - M1-InfoMath [DEV-EXP]
+  - CNAM-I [PO43]
+
+categories:
+  - Cheatsheet
+  - Java
+
+provide_notes: true
+provide_slides: false
+---
+
+## Raccourcis essentiels
+
+- Entrée : `public static void main(String[] args)` ou `main(String... args)`
+- Import utiles : `java.util.*`, `java.util.stream.*`, `java.util.function.*`
+
+## Lambdas & références de méthode
+
+Syntaxe :
+
+```java
+(x, y) -> x + y        // lambda
+String::length         // référence de méthode
+```
+
+Exemples rapides :
+
+```java
+Function<String,Integer> len = s -> s.length();
+Function<String,Integer> len2 = String::length;
+
+@FunctionalInterface
+interface Mapper<T,R> { R map(T t); }
+Mapper<String,Integer> m = String::length;
+```
+
+Quand écrire une interface fonctionnelle :
+
+```java
+@FunctionalInterface
+interface Fn<T,R> { R apply(T t); }
+```
+
+Privilégiez les interfaces standard (`Function`, `Predicate`, `Consumer`, `Supplier`, `UnaryOperator`, `BinaryOperator`).
+
+## Stream API — motifs courants
+
+- Créer un stream : `collection.stream()` ou `Stream.of(...)`
+- Opérations intermédiaires (paresseuses) : `filter`, `map`, `distinct`, `sorted`
+- Opérations terminales : `collect`, `forEach`, `count`, `sum`, `reduce`
+
+Exemples :
+
+```java
+List<String> names = List.of("Alice","Bob","Charlie","Anna");
+
+List<String> aNames = names.stream()
+    .filter(s -> s.startsWith("A"))
+    .map(String::toUpperCase)
+    .collect(Collectors.toList());
+
+int total = names.stream().mapToInt(String::length).sum();
+
+Map<Boolean,List<String>> partitioned = names.stream()
+    .collect(Collectors.partitioningBy(s -> s.length() > 3));
+```
+
+Collectors utiles : `toList()`, `toSet()`, `toMap()`, `joining()`, `groupingBy()`, `partitioningBy()`, `toUnmodifiableList()`.
+
+Conseil : éviter les effets de bord dans `map`/`filter` et préférer les collectors pour l'accumulation.
+
+## Optionals — usage bref
+
+```java
+Optional<String> maybe = Optional.ofNullable(findName());
+maybe.ifPresent(System.out::println);
+String v = maybe.orElse("n/a");
+String v2 = maybe.orElseGet(() -> computeDefault());
+String v3 = maybe.orElseThrow(() -> new IllegalStateException());
+```
+
+Utilisez `map` / `flatMap` sur `Optional` pour enchaîner sans `null`.
+
+## Patterns utiles
+
+- Méthode principale courte + stream :
+
+```java
+public static void main(String[] args) {
+  List.of("a","bb","ccc").stream()
+      .map(String::length)
+      .forEach(System.out::println);
+}
+```
+
+- Méthode utilitaire avec `Function` :
+
+```java
+Function<String,Integer> len = String::length;
+List<Integer> lens = names.stream().map(len).collect(Collectors.toList());
+```
+
+## Performance / bonnes pratiques
+
+- Préférer `List.of(...)` et `Collectors.toUnmodifiableList()` si immuabilité souhaitée.
+- `parallelStream()` : bénéfique pour opérations CPU-bound et grandes collections, attention aux effets de bord.
+- Préférer primitives `mapToInt`/`mapToLong` pour agrégations numériques.
+
+## Commandes & snippets utiles
+
+- Générer un stream à partir d'un tableau : `Arrays.stream(arr)`
+- Convertir en tableau : `list.stream().toArray(String[]::new)`
+
+## Références rapides
+
+- `java.util.stream` — Stream API
+- `java.util.function` — interfaces fonctionnelles
+- `java.util.Optional` — gestion des absences
+
+---
+Petit rappel : garder les opérations de pipeline pures (sans effets secondaires) facilite le raisonnement et la parallélisation.

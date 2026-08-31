@@ -1,0 +1,24 @@
+{
+  "name": "bundle-web-dev",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "bundle-web-dev",
+  "description": "Web development stack (Node, TypeScript, React/Vite/Next.js)",
+  "dependsOn": [
+    "node",
+    "typescript",
+    "react-tools"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'command -v node >/dev/null 2>&1 && node --version || echo \"node not found\"'",
+    "description": "Verify Node.js is available for the web development bundle"
+  },
+  "documentationURL": "./features/bundle-web-dev/README.md"
+}

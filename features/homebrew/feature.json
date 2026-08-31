@@ -1,0 +1,13 @@
+{
+  "id": "homebrew",
+  "name": "homebrew",
+  "version": "0.1.0",
+  "description": "Installs Homebrew (Linuxbrew) into the NB_USER home prefix",
+  "platforms": ["linux"],
+  "provides": ["homebrew"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v brew >/dev/null 2>&1 && brew --version || echo \"brew missing\"'",
+    "description": "Verify brew is available"
+  }
+}

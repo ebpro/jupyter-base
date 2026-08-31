@@ -1,0 +1,106 @@
+# Generated Dockerfile
+ARG VARIANT="ubuntu-24.04"
+FROM mcr.microsoft.com/devcontainers/base:${VARIANT} AS base
+LABEL org.solen.vendor="Solen"
+ARG NB_USER=jovyan
+ARG NB_UID=1001
+ARG NB_GID=1001
+ENV HOME=/home/jovyan
+WORKDIR /home/jovyan
+
+COPY scripts/lib/helpers.sh /opt/solen/_lib/helpers.sh
+COPY features/_lib/fh_helpers.sh /opt/solen/_lib/fh_helpers.sh
+COPY inputs /opt/solen/inputs
+COPY artefacts /opt/solen/artefacts
+COPY checksums.json /opt/solen/artefacts/checksums.json
+COPY versions.json /opt/solen/artefacts/versions.json
+ENV FEATURE_HELPERS_DIR=/opt/solen/_lib INPUTS_DIR=/opt/solen/inputs ARTEFACTS_DIR=/opt/solen/artefacts
+
+RUN mkdir -p /opt/.features /scripts/lib && \
+    printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
+RUN if [ -f /opt/solen/_lib/helpers.sh ]; then echo "\n# Source fh_helpers (fh_*) if present" >> /opt/solen/_lib/helpers.sh && echo "source /opt/solen/_lib/fh_helpers.sh || true" >> /opt/solen/_lib/helpers.sh; fi
+
+{% if toolcache_exists %}
+# Inject prebaked toolcache from repository
+COPY generated/toolcache /opt/toolcache
+RUN chmod -R a+rX /opt/toolcache || true
+{% endif %}
+
+{% for profile in profiles %}
+# --- Profile: {{ profile.name }} ---
+FROM base AS profile-{{ profile.name }}
+
+LABEL org.solen.profile="{{ profile.name }}" \
+      org.solen.features.added="{{ profile.features_str }}" \
+      org.solen.features.provides="{{ profile.provides_str }}"
+
+{% for k, v in profile.env.items() %}
+ENV {{ k }}="{{ v }}"
+{% endfor %}
+
+RUN \
+{% for feat in profile.features %}
+  --mount=type=bind,source=features/{{ feat }},target=/tmp/features/{{ feat }},readonly \
+{% endfor %}
+  --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \
+  --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \
+  --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+  --mount=type=cache,target=/opt/toolcache,sharing=locked \
+  --mount=type=cache,target=/root/.cache,sharing=locked \
+  --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
+  bash -eux -o pipefail <<'SCRIPT'
+
+feats=({% for feat in profile.features %}"{{ feat }}" {% endfor %})
+source /opt/solen/_lib/helpers.sh || true
+
+echo "=== debug: list /opt/solen/_lib"; ls -la /opt/solen/_lib || true
+echo "=== debug: helpers.sh head"; head -n 40 /opt/solen/_lib/helpers.sh || true
+echo "=== debug: fh_helpers.sh head"; head -n 40 /opt/solen/_lib/fh_helpers.sh || true
+echo "=== debug: fh_resolve_checksum exists?"; type -t fh_resolve_checksum || echo "fh_resolve_checksum: not-found"
+
+for f in "${feats[@]}"; do
+  if [ -f "/tmp/features/$f/install.sh" ]; then
+    chmod +x /tmp/features/$f/install.sh || true
+    set +u
+    bash /tmp/features/$f/install.sh
+    set -u
+  fi
+done
+
+# Stage feature tests from the BuildKit-mounted feature directories
+mkdir -p /opt/solen/feature-tests /opt/solen/logs
+for f in "${feats[@]}"; do
+  src="/tmp/features/$f"
+  if [ -d "$src" ]; then
+    for s in "$src"/*test*.sh; do
+      [ -f "$s" ] || continue
+      mkdir -p "/opt/solen/feature-tests/$f"
+      cp "$s" "/opt/solen/feature-tests/$f/"
+      chmod +x "/opt/solen/feature-tests/$f/$(basename "$s")" || true
+    done
+  fi
+done
+
+apt-get clean
+rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial
+SCRIPT
+
+RUN cat > /opt/solen/run-feature-tests.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+failed=0
+echo 'Starting Solen feature tests'
+for t in /opt/solen/feature-tests/*/*.sh; do
+  [ -e "$t" ] || continue
+  echo "=== RUN $t"
+  if bash "$t"; then echo "OK $t"; else echo "FAIL $t"; failed=1; fi
+done
+exit $failed
+SCRIPT
+RUN chmod +x /opt/solen/run-feature-tests.sh
+
+FROM profile-{{ profile.name }} AS final-{{ profile.name }}
+
+{% endfor %}

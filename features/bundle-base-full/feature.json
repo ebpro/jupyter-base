@@ -1,0 +1,33 @@
+{
+  "name": "bundle-base-full",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "bundle-base-full",
+  "description": "Complete base system (shell, VCS, tools, Python, utilities) for most profiles",
+  "dependsOn": [
+    "my-utils",
+    "container-user",
+    "system-essentials",
+    "zsh-config",
+    "prompt-helpers",
+    "container-init",
+    "gh",
+    "git-lfs",
+    "python-base",
+    "build-essentials",
+    "_lib/checksum-verify",
+    "_lib/toolcache"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'command -v python3 >/dev/null 2>&1 && python3 --version || echo \"python3 not found\"'",
+    "description": "Verify Python 3 is available for the base full bundle"
+  },
+  "documentationURL": "./features/bundle-base-full/README.md"
+}

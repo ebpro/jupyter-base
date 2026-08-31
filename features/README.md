@@ -1,0 +1,293 @@
+# Feature Development Guide
+
+This document describes best practices for creating and maintaining devcontainer features in this repository.
+
+## Feature Structure
+
+Each feature lives in `features/<feature-name>/` with:
+- `feature.json` - metadata and options
+- `install.sh` - installation script
+- `files/` (optional) - additional files to copy
+
+## Project Directory Structure
+
+**Build Inputs** (git tracked):
+- `features/` - feature installers (this directory)
+- `inputs/` - shared build inputs (apt packages, conda, python, static files)
+- `profiles/matrix/` - YAML profile definitions
+
+**Generated Content** (.gitignore):
+- `generated/profiles/` - expanded profiles from matrix
+- `generated/toolcache/` - pre-downloaded tools
+- `generated/Dockerfile` - multi-stage Dockerfile
+- `generated/docker-bake.hcl` - buildx configuration
+
+**Static artefacts**:
+- `artefacts/` - feature-specific static data (java-kernel, quarto, etc.)
+
+## Feature Dependencies
+
+### Declaring Dependencies
+
+**IMPORTANT**: All features must declare their dependencies explicitly using the `dependsOn` field in feature.json.
+
+```json
+{
+  "id": "my-feature",
+  "name": "My Feature",
+  "description": "...",
+  "dependsOn": ["python-conda", "user"],
+  "options": { ... }
+}
+```
+
+**Rules**:
+1. **Required**: Use `dependsOn` array to list features that must be installed first
+2. **Foundation features**: `container-user`, `_lib`, `python-base`, `git-lfs`, `gh` have no dependencies
+3. **Transitive**: Dependencies are automatically resolved (A→B→C means A needs C too)
+4. **Automatic ordering**: The build system automatically sorts features by dependencies
+5. **Validation**: Use `solen validate features` to check for cycles and missing deps
+
+**Example Dependencies**:
+```json
+// Feature that needs conda
+{"dependsOn": ["python-conda"]}
+
+// Feature that needs Java and Jupyter
+{"dependsOn": ["java-maven", "jupyter-kernels"]}
+
+// Feature that needs user home directory
+{"dependsOn": ["container-user"]}
+
+// Foundation feature (no dependencies)
+{"dependsOn": []}  // or omit the field
+```
+
+### Dependency Graph
+
+The graph is derived from the `dependsOn` fields — no static diagram is maintained.
+Regenerate the mapping view at any time:
+
+```bash
+solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+# → generated/feature-matrix.md: feature → profile mapping
+```
+
+### Validating Dependencies
+
+Before committing changes to feature.json files, validate dependencies:
+
+```bash
+# Validate all features (missing deps, cycles, install order)
+solen validate features
+```
+
+**What gets validated**:
+- ✅ All dependencies reference existing features
+- ✅ No circular dependencies (A→B→A)
+- ✅ Topological sort produces a valid installation order
+
+### Profiles
+
+Profiles are not written by hand. They are generated from the matrices in
+`profiles/matrix/*.yaml`, where each matrix declares shared base features plus
+named variants:
+
+```bash
+solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+```
+
+A build targets a single generated profile name (e.g. `quarto-full`, `lang-java-25`,
+`db-mysql`). **`quarto-full` is the first MVP profile**: the lecture environment that
+must build and run end-to-end before any other profile (java/zsh/bash kernels, zsh
+shell, Chromium for headless rendering).
+
+## Standard Variables
+
+All features should use these standard variables:
+
+```bash
+NB_USER=${NB_USER:-jovyan}
+NB_UID=${NB_UID:-1001}
+NB_GID=${NB_GID:-1001}
+HOME_DIR="/home/${NB_USER}"
+CONDA_DIR="${CONDA_DIR:-${HOME_DIR}/miniforge3}"
+```
+
+## Installation Script Template
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Source shared helpers
+if [ -n "${FEATURE_HELPERS_DIR:-}" ] && [ -f "${FEATURE_HELPERS_DIR}/helpers.sh" ]; then
+  source "${FEATURE_HELPERS_DIR}/helpers.sh"
+elif [ -f "../../../scripts/feature_helpers.sh" ]; then
+  source "../../../scripts/feature_helpers.sh"
+fi
+
+# Standard variables
+NB_USER=${NB_USER:-jovyan}
+NB_UID=${NB_UID:-1001}
+NB_GID=${NB_GID:-1001}
+HOME_DIR="/home/${NB_USER}"
+
+# Ensure user directories exist
+if command -v fh_ensure_user_dirs >/dev/null 2>&1; then
+  fh_ensure_user_dirs "${NB_USER}" "${NB_UID}" "${NB_GID}" || true
+else
+  mkdir -p "${HOME_DIR}/.local/bin" "${HOME_DIR}/.cache" || true
+  chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" || true
+fi
+
+fh_log "Installing my-feature..."
+
+# Your installation logic here
+
+# Mark feature as installed
+feature_mark_installed
+
+fh_log "my-feature installation complete"
+```
+
+## Best Practices
+
+### 1. Version Pinning
+Always pin versions explicitly:
+```bash
+TOOL_VERSION=$(fh_resolve_version "tool")  # From versions/versions.yaml (synced to versions.json)
+# NOT: curl latest-url
+```
+
+### 2. Error Handling
+Use `set -euo pipefail` and handle errors explicitly:
+```bash
+if ! command -v tool >/dev/null 2>&1; then
+  fh_log "tool not found, installing..."
+fi
+```
+
+### 3. Idempotency
+Features should be safe to run multiple times:
+```bash
+if feature_is_installed; then
+  fh_log "Feature already installed, skipping"
+  exit 0
+fi
+```
+
+### 4. Ownership
+Always ensure correct ownership for user files:
+```bash
+chown -R ${NB_UID}:${NB_GID} "${HOME_DIR}/.config/tool" || true
+```
+
+### 5. Cleanup
+Clean up temporary files and caches:
+```bash
+rm -rf /tmp/install-*.sh
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+```
+
+### 6. Logging
+Use helper functions for consistent output:
+```bash
+fh_log "Step 1: downloading..."
+fh_log "Step 2: extracting..."
+```
+
+## Testing Your Feature
+
+### Local Testing
+```bash
+# Build a test profile locally (positional profile name; default: quarto-full)
+./build.sh minimal
+
+# Run and verify
+docker run --rm <image-tag> bash -c "your-tool --version"
+```
+
+### Post-Install Checks
+Add validation to feature.json:
+```json
+{
+  "postInstallCheck": {
+    "command": "your-tool --version && test -f /path/to/config",
+    "description": "Verify tool is installed and configured"
+  }
+}
+```
+
+## Common Patterns
+
+### Installing from GitHub Releases
+```bash
+TOOL_VERSION=$(fh_resolve_version "tool")
+TOOL_URL="https://github.com/org/tool/releases/download/v${TOOL_VERSION}/tool-${ARCH}.tar.gz"
+TOOL_CHKSUM=$(fh_resolve_checksum "tool" "${TOOL_VERSION}" "${ARCH}")
+
+curl -fsSL "${TOOL_URL}" -o /tmp/tool.tar.gz
+echo "${TOOL_CHKSUM}  /tmp/tool.tar.gz" | sha256sum -c -
+tar -xzf /tmp/tool.tar.gz -C /opt
+```
+
+### Running Commands as Non-Root User
+```bash
+su - ${NB_USER} -s /bin/bash -c "conda install -y package"
+# or with a script
+cat > /tmp/user-install.sh <<'EOF'
+#!/bin/bash
+set -euo pipefail
+conda install -y package
+EOF
+chmod +x /tmp/user-install.sh
+su - ${NB_USER} -s /bin/bash -c /tmp/user-install.sh
+```
+
+### Adding to PATH
+```bash
+# System-wide (all users)
+mkdir -p /etc/profile.d
+cat > /etc/profile.d/tool.sh <<EOF
+export PATH="/opt/tool/bin:\$PATH"
+export TOOL_HOME="/opt/tool"
+EOF
+
+# User-specific
+if ! grep -q '/opt/tool/bin' "${HOME_DIR}/.zshrc" 2>/dev/null; then
+  echo 'export PATH="/opt/tool/bin:$PATH"' >> "${HOME_DIR}/.zshrc"
+fi
+```
+
+## Troubleshooting
+
+### Feature fails with "unbound variable"
+- Ensure all variables are set with defaults: `VAR=${VAR:-default}`
+- Check that sourcing helpers succeeded
+- Use `set +u` temporarily if needed for optional variables
+
+### Ownership errors at runtime
+- Ensure you chowned user directories during install
+- Run user-specific installs as `NB_USER`, not root
+- Check that `HOME_DIR` is correctly set
+
+### Feature runs but doesn't work
+- Add `postInstallCheck` to validate
+- Test in a clean container
+- Check logs: `docker logs <container>`
+
+## Contributing
+
+When adding a new feature:
+1. Copy the template above
+2. Run `solen validate features` to check the dependency graph
+3. Add to an appropriate matrix in `profiles/matrix/` for testing
+4. Submit PR with description and test results
+
+## Resources
+
+- [DevContainer Feature Spec](https://containers.dev/implementors/features/)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [Bash Strict Mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/)

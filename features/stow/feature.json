@@ -1,0 +1,13 @@
+{
+  "id": "stow",
+  "name": "stow",
+  "version": "0.1.0",
+  "description": "Installs GNU Stow (via apt) for managing dotfiles and package symlinks",
+  "platforms": ["linux"],
+  "provides": ["stow"],
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v stow >/dev/null 2>&1 && stow --version || echo \"stow missing\"'",
+    "description": "Verify stow is available"
+  }
+}

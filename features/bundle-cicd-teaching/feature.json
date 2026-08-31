@@ -1,0 +1,29 @@
+{
+  "id": "bundle-cicd-teaching",
+  "version": "2.0.0",
+  "name": "CI/CD Teaching Environment",
+  "description": "Complete environment for teaching CI/CD pipelines with Kubernetes, GitHub CLI, and development tools. Use with dind and k3s sidecars.",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "cicd-stack",
+    "kubectl"
+  ],
+  "dependsOn": [
+    "kubernetes-dev",
+    "gh",
+    "git-lfs",
+    "tilt"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v kubectl >/dev/null 2>&1 && kubectl version --client --short || echo \"kubectl not found\"'",
+    "description": "Verify representative Kubernetes client (kubectl) is available"
+  },
+  "documentationURL": "./features/bundle-cicd-teaching/README.md"
+}

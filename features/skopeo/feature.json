@@ -1,0 +1,25 @@
+{
+  "id": "skopeo",
+  "version": "1.0.0",
+  "name": "Skopeo",
+  "description": "Tool for working with remote container images and registries without requiring a daemon",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "skopeo"
+  ],
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "skopeo --version",
+    "description": "Verify skopeo is installed"
+  },
+  "documentationURL": "./features/skopeo/README.md"
+}

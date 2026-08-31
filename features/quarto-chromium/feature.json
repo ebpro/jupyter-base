@@ -1,0 +1,26 @@
+{
+  "name": "quarto-chromium",
+  "version": "0.1.0",
+  "id": "quarto-chromium",
+  "description": "Installs Chromium runtime for Quarto HTML/PDF rendering",
+  "dependsOn": [
+    "quarto-cli"
+  ],
+  "options": {},
+  "provides": [
+    "quarto-chromium"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "postInstallCheck": {
+    "command": "sh -c 'command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1'",
+    "description": "Verify Chromium is available for Quarto rendering"
+  },
+  "documentationURL": "./features/quarto-chromium/README.md"
+}

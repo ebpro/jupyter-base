@@ -1,0 +1,31 @@
+{
+  "id": "java-sdkman",
+  "name": "Java SDK Manager (SDKMAN)",
+  "version": "1.0.0",
+  "description": "Installs SDKMAN so SDK-managed Java tools (maven, gradle, jdks) can be provisioned.",
+  "dependsOn": [
+    "container-user"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "options": {},
+  "provides": [
+    "sdkman"
+  ],
+  "tags": [
+    "java",
+    "sdk",
+    "sdkman"
+  ],
+  "postInstallCheck": {
+    "command": "sh -c 'command -v sdk >/dev/null && sdk version || echo \"sdk not found\"'",
+    "description": "Verify sdkman shim is available"
+  },
+  "documentationURL": "./features/java-sdkman/README.md"
+}

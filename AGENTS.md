@@ -1,80 +1,93 @@
 # solen (jupyter-base) — Agent Quick Reference
 
 ## What This Is
-Modular devcontainer base image. ~60 features, ~26 profiles (hand-written + matrix-generated), multi-arch builds (amd64/arm64) publishing to `ghcr.io/ebpro/solen`.
+Modular devcontainer base-image factory. ~70 features, ~33 profiles generated from
+8 YAML matrices, multi-arch builds (amd64/arm64) publishing to `ghcr.io/ebpro/solen`.
+**First MVP: `quarto-full`** — the lecture environment (java/zsh/bash kernels, zsh
+shell, Chromium for headless rendering) that must build and run end-to-end before
+any other profile.
 
 ## Critical Rules
-- **NEVER edit `Dockerfile.generated` by hand** — it's regenerated every build via `scripts/generate-dockerfile.sh`. Tracked in git for review only.
-- **Never merge `shared/_lib/helpers.sh` and `scripts/feature_helpers.sh`** — two copies by design: image-side vs. build-time. Keep in sync when adding functions.
-- **All scripts require Bash 4+** — `generate-dockerfile.sh` uses associative arrays.
+- **NEVER edit anything in `generated/`** — profiles, Dockerfile, devcontainers and
+  the bake file are regenerated from `features/` + `profiles/matrix/` on every build.
+  Only `generated/profiles/.gitkeep` is tracked.
+- **`features/` is the source of truth for features** — one directory per feature
+  with `feature.json` + `install.sh`. Declare all dependencies in `dependsOn`.
+- **Profiles are matrix-only** — no hand-written profile files. Edit
+  `profiles/matrix/*.yaml`; profiles are generated with prefixed names
+  (`lang-java-25`, `db-mysql`, `quarto-full`, ...).
+- **Versions: `versions/versions.yaml` is the SoT.** `solen versions sync` regenerates
+  the root `versions.json` (tracked; CI runs `solen versions sync --check`).
+  Install scripts resolve versions via `fh_resolve_version` (see
+  `features/_lib/fh_helpers.sh`), never hardcoded.
+- **All Bash 4+.** Feature install scripts source helpers via
+  `scripts/feature_helpers.sh` (or the prebaked `/opt/solen/_lib/helpers.sh` in images).
 
 ## Key Directories
 | Path | Purpose |
 |------|---------|
-| `.devcontainer/features/` | ~60 features (each has `feature.json` + `install.sh`) |
-| `profiles/` | Hand-written profile files (plain text, one feature per line) |
-| `profiles/matrix/*.yaml` | 8 YAML files generating 10 variants each |
-| `scripts/` | Generators, validators, build helpers |
-| `shared/_lib/` | Image-baked helper lib (copied to `/opt/solen/_lib/` in containers) |
-| `Artefacts/` | Prebaked toolcache, checksums |
-| `generated/` | Matrix output, devcontainers (gitignored) |
+| `features/` | ~70 features (`feature.json` + `install.sh`), incl. `bundle-*` meta-features |
+| `features/_lib/` | Shared install helpers (`fh_helpers.sh`, toolcache, download-release) |
+| `profiles/matrix/*.yaml` | 8 matrices → all generated profiles |
+| `scripts/` | Build helpers, lib (`lib/features.sh`, `lib/helpers.sh`), utils |
+| `solen-cli/` | Python CLI (`solen`) — generators, validator, versions sync |
+| `versions/` | `versions.yaml` (SoT) + tool definitions |
+| `artefacts/` | Static per-feature data (java-kernel, quarto, ...); CI validates via checksums |
+| `generated/` | Build-time output: profiles, Dockerfile, docker-bake.hcl, devcontainers (untracked) |
+| `inputs/` | Shared build inputs (apt lists, conda, python, static files) |
 
 ## Build Commands
 ```bash
-# Full build (auto-generates matrix profiles, Dockerfile, devcontainers, then builds)
-./build.sh --profile <name> --load        # single profile, local load
-./build.sh --profile <name> --push         # push to registry
-./build.sh --all-profiles --push            # build + push all profiles
-./build.sh --generate-only                  # regeneration only, no build
+# Local venv (never `python -m solen` — use the entry point)
+.venv/bin/solen <command>
 
-# Fastest iteration for single profile test
-docker buildx build -f Dockerfile.generated --target final-<slug> --load -t solen:test .
+# Full build (generates profiles + Dockerfile + bake, then builds; default profile quarto-full)
+./build.sh [profile] [--load] [--push] [--no-cache] [--multi-arch]
 
-# Regenerate all artifacts manually
-./scripts/generate-all-matrix-profiles.sh
-./scripts/generate-dockerfile.sh --all-profiles --out Dockerfile.generated
-./scripts/generate-bake.sh
-./scripts/generate-all-devcontainers.sh
+# Generation only
+.venv/bin/solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+.venv/bin/solen generate dockerfile --all --output generated/Dockerfile
+.venv/bin/solen generate bake --output generated/docker-bake.hcl
 
-# Preview without building
-./build.sh preview
-./build.sh validate
+# Inspect
+.venv/bin/solen list profiles
+.venv/bin/solen inspect-profile <name>
+.venv/bin/solen analyze features
 ```
+Bake targets are `final-<profile>`; tags are `<registry>/<repo>:<profile>-<tag>`.
 
-## Feature Helper Architecture
-- **Image-side**: `shared/_lib/helpers.sh` → baked into images at `/opt/solen/_lib/helpers.sh`
-- **Build-time**: `scripts/feature_helpers.sh` → used during local dev/builds
-- Feature `install.sh` scripts source via dual fallback: `${FEATURE_HELPERS_DIR}/helpers.sh` first, then `../../../scripts/feature_helpers.sh`
-- **Don't merge them** — they serve different stages. Keep function signatures in sync.
-
-## Profile Syntax
-```
-# Features (one per line)
-bundle-base-full
-python-base
-
-# Options and services
-@options:PYTHON_VERSION=3.12
-@services:postgres:version=16
-```
-- Hand-written: `profiles/<name>` (plain text file)
-- Matrix: `profiles/matrix/*.yaml` → output to `generated/profiles/<name>`
-- Numeric prefixes order profiles but are stripped from tags: `20-00-data-science` → tag `data-science`
-- `generate-dockerfile.sh` reads from both `profiles/` AND `generated/profiles/`
-
-## Important Gotchas
-- `Dockerfile.generated` is in git AND in `.dockerignore` — the generator uses `-f` flag to read it; `.dockerignore` prevents stale copies in build context
-- Feature bundles (e.g., `bundle-base-full`) are meta-features that list other features
-- Prebake (`./build.sh --prebake`) populates `Artefacts/toolcache/` for faster builds but is opt-in
-- Tag format: `<registry>/<repo>:<profile-slug>-<tag>` (profile slug strips numeric prefixes)
-- `build.sh` produces `build-artifact.json` and `image-digest.txt` after each build
-
-## Validation
+## Validation (the local gate)
 ```bash
-bash scripts/validate-profiles.sh
-python3 scripts/validate_features.py
-bash scripts/validate-feature-deps.sh
+.venv/bin/solen validate features          # feature graph: deps, cycles, ordering
+.venv/bin/solen versions sync --check      # versions.json matches versions.yaml
+pytest tests/ -q                           # solen-cli test suite
+ruff check solen-cli tests                 # lint
+/tmp/opencode/actionlint                   # workflow lint (config .github/actionlint.yaml)
 ```
 
-## No Package Manager
-Pure bash script project. No npm, cargo, go, pip requirements to install. Node imports target installed packages inside containers.
+## CI / Release
+- `ci-validate.yml` — push to main/develop + PRs: full local gate.
+- `ci-build.yml` — push to develop + dispatch: builds on the in-cluster ARC runner
+  (`runs-on: ebpro-org`, docker:dind sidecar). Default profile: **`quarto-full`**
+  (MVP). Produces SBOM (syft) + Trivy scan per profile.
+- `ci-publish.yml` — tags `v*` / push main / dispatch: multi-arch publish
+  (`tonistiigi/binfmt` + buildx `docker-container` driver) to ghcr.
+- `release.yml` — tags `v*`: GitHub release notes from conventional commits.
+- `validate-artefacts.yml` — `artefacts/**` changes: checksum validation.
+- Runner: ARC ephemeral runners, namespace `arc-runners`, label `ebpro-org`,
+  single amd64 node; multi-arch needs binfmt (QEMU) installed in the job.
+
+## Gotchas
+- `.venv/` at repo root is **untracked and not gitignored** — stage explicit paths,
+  never `git add -A`.
+- Feature bundles (`bundle-base-full`, `bundle-quarto-full`, ...) are meta-features;
+  they appear in profiles, their `dependsOn` is the actual content.
+- Prebaking: `scripts/utils/inject_prebaked_helpers.sh` rewrites install-script
+  helper-source blocks so builds use `/opt/solen/_lib/helpers.sh`.
+- `artefacts/` + root `checksums.json` (`tools.<name>.checksums.<version>.<arch>`)
+  feed `fh_verify_from_checksums` in install scripts.
+- Tag format: `ghcr.io/ebpro/solen:<profile>-<tag>`.
+
+## No Package Manager for the Repo Shell
+Repo tooling is Bash + the `solen-cli` Python package (`pip install -e solen-cli[dev]`
+for the dev gate). No npm/cargo/go.

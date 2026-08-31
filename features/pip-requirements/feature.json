@@ -1,0 +1,19 @@
+{
+  "name": "pip-requirements",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "pip-requirements",
+  "description": "Installs pip requirements from artefacts/requirements.txt (or base/extra splits). Works with python-base or python-conda.",
+  "dependsOn": [
+    "python-base"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "python -m pip --version",
+    "description": "Verify pip is available"
+  },
+  "documentationURL": "./features/pip-requirements/README.md"
+}

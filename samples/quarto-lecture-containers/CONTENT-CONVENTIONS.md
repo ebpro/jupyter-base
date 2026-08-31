@@ -269,3 +269,44 @@ provide_slides: true
 ---
 
 **Dernière mise à jour :** 10 janvier 2026
+
+## 6. Programmes et codes de cours — format inline
+
+Pour déclarer les formations et leurs codes de cours associés directement dans le frontmatter (sans fichier YAML externe), utilisez le format :
+
+```yaml
+programs:
+  - ProgramName [COURSE_CODE1]
+  - AnotherProgram [CODE1, CODE2]
+```
+
+**Exemples :**
+```yaml
+programs:
+  - M1-InfoMath [I111]
+  - CNAM-I [PO43]
+```
+
+Pour un programme avec plusieurs codes :
+```yaml
+programs:
+  - MSc-DS [I111, PO43, DEV-EXP]
+```
+
+**Règles :**
+- Chaque entrée commence par le nom du programme, suivi des codes entre crochets `[...]`
+- Plusieurs codes peuvent être séparés par des virgules ou espaces
+- Les codes sont automatiquement extraits et affichés comme badges dans la galerie
+- Les noms de programme (avant les crochets) sont affichés comme badges de programme
+
+**Comportement dans la galerie :**
+- La template `gallery.ejs` parse automatiquement ce format
+- Affiche les noms de programme comme badges `.program-badge`
+- Extrait et affiche les codes de cours comme badges `.code-badge`
+
+**Pourquoi ce format :**
+- Autonome : chaque document déclare explicitement ses formations et codes
+- Portable : pas de dépendance à un registre externe (`programs.yml`)
+- Clair : la correspondance programme → codes est visible directement dans le frontmatter
+
+---

@@ -1,0 +1,34 @@
+{
+  "name": "python-conda",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "python-conda",
+  "description": "Installs Miniforge and updates environment from artefacts/environment.yml",
+  "dependsOn": [
+    "container-user"
+  ],
+  "options": {
+    "miniforge_channel": {
+      "type": "string",
+      "default": "conda-forge",
+      "description": "Channel used by conda"
+    }
+  },
+  "postInstallCheck": {
+    "command": "conda --version && python --version",
+    "description": "Verify conda and python are available"
+  },
+  "vscode": {
+    "settings": {
+      "python.defaultInterpreterPath": "/opt/conda/bin/python"
+    }
+  },
+  "documentationURL": "./features/python-conda/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

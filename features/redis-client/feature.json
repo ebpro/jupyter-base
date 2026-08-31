@@ -1,0 +1,33 @@
+{
+  "name": "redis-client",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "redis-client",
+  "description": "Installs Redis command-line client tools",
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "provides": [
+    "redis-cli"
+  ],
+  "postInstallCheck": {
+    "command": "redis-cli --version",
+    "description": "Verify Redis CLI is installed"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "vscode": {
+    "extensions": [
+      "cweijan.vscode-database-client2"
+    ],
+    "forwardPorts": [
+      6379
+    ]
+  },
+  "documentationURL": "./features/redis-client/README.md"
+}

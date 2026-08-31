@@ -1,0 +1,28 @@
+{
+  "id": "bundle-quarto-base",
+  "version": "1.0.0",
+  "name": "Quarto Authoring Bundle",
+  "description": "Meta-feature bundling Quarto CLI and common templates for document authoring and rendering (without LaTeX/PDF support).",
+  "maintainer": {
+    "name": "Bruno Parmentier",
+    "email": "bruno.parmentier@univ-tlse3.fr"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "quarto",
+    "quarto-templates"
+  ],
+  "dependsOn": [
+    "quarto-cli",
+    "quarto-python",
+    "quarto-common"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v quarto >/dev/null 2>&1 && quarto --version || echo \"quarto not found\"'",
+    "description": "Verify Quarto CLI is available for the Quarto bundle"
+  },
+  "documentationURL": "./features/bundle-quarto-base/README.md"
+}

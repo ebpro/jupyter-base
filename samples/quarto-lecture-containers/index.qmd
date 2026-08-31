@@ -3,11 +3,20 @@ title: Notebooks de démonstration
 subtitle: "Démontrer les fonctionnalités des devcontainers avec Quarto"
 description: "Collection de notebooks Quarto démontrant l'usage des devcontainers avec des exemples pratiques."
 
+format:
+  html:
+    css:
+      - _quarto-utils/gallery-custom.css
+
 metadata-files:
   - _quarto-utils/index-listing.yml
 
-listing: true
-
+listing:
+  id: gallery-listing
+  max-description-length: 200
 
 jupyter: java
 ---
+
+<div id="gallery-listing">
+</div>

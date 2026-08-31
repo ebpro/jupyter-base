@@ -1,9 +1,0 @@
-{
-  "id": "_lib",
-  "name": "_lib",
-  "version": "0.1.0",
-  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "description": "Helper library container features (shared installers). Not intended as standalone feature.",
-  "provides": [],
-  "supported_archs": ["amd64","arm64"]
-}

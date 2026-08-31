@@ -1,0 +1,29 @@
+{
+  "id": "mongodb-client",
+  "name": "MongoDB Client Tools",
+  "version": "1.0.0",
+  "description": "MongoDB command-line tools including mongosh, mongoimport, mongoexport, and mongodump",
+  "documentationURL": "https://www.mongodb.com/docs/mongodb-shell/",
+  "licenseURL": "https://www.mongodb.com/community/licensing",
+  "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
+  "dependsOn": ["system-essentials"],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "8.0",
+      "description": "MongoDB server major version for client tools (7.0, 8.0, or 'latest')"
+    }
+  },
+  "provides": ["mongosh", "mongoimport", "mongoexport", "mongodump", "mongorestore"],
+  "postInstallCheck": {
+    "command": "mongosh --version",
+    "description": "Verify MongoDB shell is installed"
+  },
+  "platforms": ["linux/amd64","linux/arm64"],
+  "vscode": {
+    "extensions": [
+      "mongodb.mongodb-vscode"
+    ],
+    "forwardPorts": [27017]
+  }
+}

@@ -18,11 +18,11 @@ Ask the user for details. Use `question` tool or infer from context. Propose sma
 2. Feature type: [tool download (default) / system packages / bundle / library (_lib) / service]
 3. What does it install? (description)
 4. Dependencies - ask to pick from existing features. Defaults by type:
-   - **Tool download**: `user`, `_lib/download-release`
-   - **System packages**: `user`, `base-apt`
+   - **Tool download**: `container-user`, `_lib/download-release`
+   - **System packages**: `container-user`, `system-essentials`
    - **Bundle**: list of features (user provides)
    - **Library**: none
-   - **Service**: `user`
+   - **Service**: `container-user`
 5. Binary names it provides (e.g. `cargo`, `rustc`) -- for tool/service types
 6. Version to pin (if "latest", check online for current release)
 7. Platforms: [linux/amd64 + linux/arm64 (default) / linux/amd64 only / linux/arm64 only]
@@ -42,7 +42,7 @@ Create `.devcontainer/features/<name>/feature.json`:
   "description": "<description>",
   "documentationURL": "<tool-docs-url>",
   "maintainer": {"name":"Emmanuel BRUNO","email":"emmanuel.bruno@univ-tln.fr"},
-  "dependsOn": ["user", "_lib/download-release"],
+  "dependsOn": ["container-user", "_lib/download-release"],
   "options": {
     "version": {
       "type": "string",
@@ -69,7 +69,7 @@ Create `.devcontainer/features/<name>/feature.json`:
   "name": "<Name>",
   "version": "0.1.0",
   "description": "<description>",
-  "dependsOn": ["user", "base-apt"],
+  "dependsOn": ["container-user", "system-essentials"],
   "options": {},
   "provides": ["<packages>"],
   "postInstallCheck": {
@@ -332,17 +332,17 @@ Verify before presenting to user:
 
 ### Quick Reference: Existing Features Available as Dependencies
 
-Core: `user`, `base-apt`, `zsh-config`, `prompt-helpers`, `startup`, `python-base`
-Dev Tools: `gh-cli`, `git-lfs`, `docker-cli-helper`, `dev-tools`
+Core: `container-user`, `system-essentials`, `zsh-config`, `prompt-helpers`, `container-init`, `python-base`
+Dev Tools: `gh`, `git-lfs`, `docker-cli`, `build-essentials`
 Runtimes: `node`, `python-conda`, `java-jdk`, `java-sdkman`
-Containers: `kubernetes-tools`, `kubernetes-client`, `kubernetes-dev`, `podman`
-Data: `mysql-client`, `postgresql-client`, `mongodb-client`, `redis-client`, `mysql-client-cli`, `postgresql-client-cli`
-Quarto: `quarto-cli`, `quarto`, `quarto-python`, `quarto-chromium`, `quarto-common`
-Java: `java-maven`, `java-gradle`, `java-devtools`, `java-kernel`, `kotlin`, `graalvm`
+Containers: `kubernetes-client`, `kubernetes-dev`, `podman`
+Data: `mysql-client`, `postgresql-client`, `mongodb-client`, `redis-client`
+Quarto: `quarto-cli`, `quarto-python`, `quarto-chromium`, `quarto-common`
+Java: `java-maven`, `java-gradle`, `java-kernel`, `kotlin`, `graalvm`
 Web: `typescript`, `react-tools`
 ML: `ml-python-packages`
 Remote IDE: `code-server`, `codeserver-extensions`, `jetbrains-gateway`
-Other: `tilt`, `texlive`, `xeus-sql`, `pip-requirements`, `startup`, `jupyter-base`, `jupyter-kernels`, `user`
+Other: `tilt`, `texlive`, `pip-requirements`, `container-init`, `jupyter-base`, `jupyter-kernels`, `container-user`
 Libraries: `_lib/download-release`, `_lib/toolcache`, `_lib/checksum-verify`
 
 ### Common Tool GitHub Repos (for download scripts)

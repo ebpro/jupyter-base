@@ -1,0 +1,134 @@
+## Example versions manifest (prototype)
+## Central source of truth for tool versions and optional source metadata
+
+base:
+  variant: ubuntu-24.04
+
+tools:
+  buildx:
+    version: "v0.30.1"
+    sources:
+      - type: github
+        repo: "docker/buildx"
+  compose:
+    version: "v5.0.1"
+    sources:
+      - type: github
+        repo: "docker/compose"
+  docker:
+    version: "27-cli"
+    sources:
+      - type: github
+        repo: "docker/cli"
+  quarto:
+    version: "v1.8.26"
+    sources:
+      - type: github
+        repo: "quarto-dev/quarto-cli"
+  node:
+    version: "22.12.0"
+    sources:
+      - type: github
+        repo: "nodejs/node"
+  docker-ce:
+    version: "27.5.1"
+    sources:
+      - type: github
+        repo: "moby/moby"
+  docker-compose:
+    version: "v5.0.1"
+    sources:
+      - type: github
+        repo: "docker/compose"
+  gitstatus:
+    version: "1.5.4"
+    # best-guess upstream: verify this repo; otherwise provide per-feature hook
+    sources:
+      - type: github
+        repo: "romkatv/gitstatus"
+  helm:
+    version: "v4.0.4"
+    sources:
+      - type: github
+        repo: "helm/helm"
+  k9s:
+    version: "v0.50.18"
+    sources:
+      - type: github
+        repo: "derailed/k9s"
+  k3d:
+    version: "v5.8.3"
+    sources:
+      - type: github
+        repo: "rancher/k3d"
+  kubectl:
+    version: "1.34.1"
+    sources:
+      - type: github
+        repo: "kubernetes/kubernetes"
+  kustomize:
+    version: "v5.8.0"
+    sources:
+      - type: github
+        repo: "kubernetes-sigs/kustomize"
+  code-server:
+    version: "v4.108.0"
+    sources:
+      - type: github
+        repo: "coder/code-server"
+  minikube:
+    version: "1.37.0"
+    sources:
+      - type: github
+        repo: "kubernetes/minikube"
+  gh:
+    version: "2.83.2"
+    sources:
+      - type: github
+        repo: "cli/cli"
+  scout:
+    version: "v1.19.0"
+    sources:
+      - type: github
+        repo: "docker/scout-cli"
+  tinytex:
+    version: "2025.09"
+    sources:
+      - type: github
+        repo: "yihui/tinytex"
+  java-kernel:
+    version: "1.4.5"
+    sources:
+      - type: github
+        repo: "ebpro/IJava"
+  tilt:
+    version: "v0.36.0"
+    sources:
+      - type: github
+        repo: "tilt-dev/tilt"
+  miniforge:
+    version: "25.11.0-1"
+    sources:
+      - type: github
+        repo: "conda-forge/miniforge"
+  mongodb:
+    version: "8.0"
+    sources:
+      - type: github
+        repo: "mongodb/mongo"
+  postgresql:
+    version: "17"
+    # upstream releases tracked on https://www.postgresql.org/ -- prefer per-feature hook (non-github)
+  typescript:
+    version: "5.7.2"
+    sources:
+      - type: github
+        repo: "microsoft/TypeScript"
+
+images:
+  node:
+    ref: "node:22.12.0"
+  ubuntu:
+    ref: "ubuntu:24.04"
+  ghcr_solen_example:
+    ref: "ghcr.io/ebpro/solen:latest"

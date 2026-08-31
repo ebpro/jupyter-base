@@ -1,0 +1,194 @@
+{
+  "meta": {
+    "generated_by": "scripts/update-checksums.sh",
+    "note": "Centralized metadata for tools: pinned version, retrieval commands, URL templates, archive format, and per-arch checksums. Keep this file authoritative for CI verification."
+  },
+  "tools": {
+    "kubectl": {
+      "pinned_version": "1.34.1",
+      "archive_format": "raw-binary",
+      "archive_url_template": "https://dl.k8s.io/release/v{version}/bin/linux/{arch}/kubectl",
+      "checksum_url_template": "https://dl.k8s.io/release/v{version}/bin/linux/{arch}/kubectl.sha256",
+      "latest_version_cmd": "curl -fsSL https://dl.k8s.io/release/stable.txt",
+      "notes": "Official k8s binaries are served from dl.k8s.io (mirror CDN). Arch values: amd64, arm64, arm, 386, ppc64le, s390x, etc.",
+      "checksums": {
+        "1.34.1": {
+          "amd64": "7721f265e18709862655affba5343e85e1980639395d5754473dafaadcaa69e3",
+          "arm64": "420e6110e3ba7ee5a3927b5af868d18df17aae36b720529ffa4e9e945aa95450"
+        }
+      }
+    },
+    "helm": {
+      "pinned_version": "3.18.6",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://get.helm.sh/helm-v{version}-linux-{arch}.tar.gz",
+      "alternate_release_api": "https://api.github.com/repos/helm/helm/releases/tags/v{version}",
+      "checksum_url_template": "https://get.helm.sh/helm-v{version}-linux-{arch}.tar.gz.sha256sum",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/helm/helm/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Helm provides release assets on GitHub and direct downloads on get.helm.sh. Arch values: amd64, arm, arm64, 386, ppc64le, s390x, riscv64.",
+      "checksums": {
+        "3.18.6": {
+          "amd64": "3f43c0aa57243852dd542493a0f54f1396c0bc8ec7296bbb2c01e802010819ce",
+          "arm64": "5b8e00b6709caab466cbbb0bc29ee09059b8dc9417991dd04b497530e49b1737"
+        }
+      }
+    },
+    "k9s": {
+      "pinned_version": "0.50.9",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/derailed/k9s/releases/download/v{version}/k9s_Linux_{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/derailed/k9s/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "k9s release assets include checksums as a release attached `checksums.sha256` file. arch mapping: amd64 -> x86_64 for asset names.",
+      "checksums": {
+        "0.50.9": {
+          "amd64": "5e625efa26c3e14256cf29d242179b32129183b549937ec62d0ad9be1bfe2ca4",
+          "arm64": "147e696b608da9a300b9db6b35fd6dfc0713ce8c64865e550c90452696bb779a"
+        }
+      }
+    },
+    "kustomize": {
+      "pinned_version": "5.7.1",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv{version}/kustomize_v{version}_linux_{arch}.tar.gz",
+      "checksum_asset": "checksums.txt",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/kubernetes-sigs/kustomize/releases/latest | jq -r '.tag_name' | sed 's#kustomize/##' | sed 's/^v//'",
+      "notes": "Kustomize uses GitHub release tag like `kustomize/v5.7.1` — the download URL encodes that. Arch values: amd64, arm64, ppc64le, s390x, etc.",
+      "checksums": {
+        "5.7.1": {
+          "amd64": "ea375e7372f9aa029129d4b2d16c66b7750b7f1213c4f66f910d981c895818d8",
+          "arm64": "4261a040217df3bd6896597c3986d1465925726e4f22a945304b5233a4dcdbda"
+        }
+      }
+    },
+    "minikube": {
+      "pinned_version": "",
+      "archive_format": "binary/tar.gz/zip (varies)",
+      "archive_url_template": "https://github.com/kubernetes/minikube/releases/download/v{version}/minikube-linux-{arch}",
+      "checksum_url_template": "https://github.com/kubernetes/minikube/releases/download/v{version}/checksums.txt",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/kubernetes/minikube/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Minikube provides different assets (raw binary for linux amd64, tar/zip for others); fill checksums by running the generator.",
+      "checksums": {
+        "1.37.0": {
+          "amd64": "d5cf561c71171152ff67d799f041ac0f65c235c87a1e9fc02a6a17b8226214d0",
+          "arm64": "32f95860fffbbc825be38d05888542f10d3d580fe4d138f4aad71339b8038fb1"
+        }
+      }
+    },
+    "gitstatus": {
+      "pinned_version": "1.5.4",
+      "locked": true,
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/romkatv/gitstatus/releases/download/v{version}/gitstatusd-linux-{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/romkatv/gitstatus/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Asset names use `x86_64` for amd64; arch mapping: amd64 -> x86_64.",
+      "checksums": {
+        "1.5.4": {
+          "amd64": "9633816e7832109e530c9e2532b11a1edae08136d63aa7e40246c0339b7db304",
+          "arm64": "32b57eb28bf6d80b280e4020a0045184f8ca897b20b570c12948aa6838673225"
+        }
+      }
+    },
+    "gitstatusd": {
+      "pinned_version": "1.5.4",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/romkatv/gitstatus/releases/download/v{version}/gitstatusd-linux-{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/romkatv/gitstatus/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Alias for gitstatus: provides the gitstatusd binary asset names.",
+      "checksums": {
+        "1.5.4": {
+          "amd64": "9633816e7832109e530c9e2532b11a1edae08136d63aa7e40246c0339b7db304",
+          "arm64": "32b57eb28bf6d80b280e4020a0045184f8ca897b20b570c12948aa6838673225",
+          "x86_64": "9633816e7832109e530c9e2532b11a1edae08136d63aa7e40246c0339b7db304",
+          "aarch64": "32b57eb28bf6d80b280e4020a0045184f8ca897b20b570c12948aa6838673225"
+        }
+      }
+    },
+    "gh": {
+      "pinned_version": "",
+      "archive_format": "deb/tar.gz/zip",
+      "archive_url_template": "https://github.com/cli/cli/releases/download/v{version}/gh_{version}_linux_{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/cli/cli/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "GitHub CLI provides deb packages and tarballs; asset names vary. Fill checksums via generator or GitHub release assets.",
+      "checksums": {
+        "2.83.1": {
+          "amd64": "1c5252d4ce3db07b51c01ff0b909583da6364ff3fdc06d0c2e75e62dc0380a34",
+          "arm64": "36af472f8e96fd67253f813f71d9610624cc4e3c7a5b148459e42ffa1a933f64"
+        },
+        "2.83.2": {
+          "amd64": "ca6e7641214fbd0e21429cec4b64a7ba626fd946d8f9d6d191467545b092015e",
+          "arm64": "b1a0c0a0fcf18524e36996caddc92a062355ed014defc836203fe20fba75a38e"
+        }
+      }
+    },
+    "quarto": {
+      "pinned_version": "1.8.24",
+      "archive_format": "tar.gz / deb / pkg / msi",
+      "archive_url_template": "https://github.com/quarto-dev/quarto-cli/releases/download/v{version}/quarto-{version}-linux-{arch}.tar.gz",
+      "checksum_asset": "quarto-{version}-checksums.txt",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/quarto-dev/quarto-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Quarto publishes a checksums text file in each release; arch values: amd64, arm64, rhel7-amd64, etc.",
+      "checksums": {
+        "1.8.24": {
+          "amd64": "6b83c1c9b6f2ce6454798b42260bd2ee184551d74debe817b8aaf28b09ac22d0",
+          "arm64": "89a97a65a242a5b9b010a9f9978928c1d8e4ac02a558c9cd91a110c3f2611fdd"
+        }
+      }
+    },
+
+    "code-server": {
+      "pinned_version": "4.95.1-rc.2",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/coder/code-server/releases/download/v{version}/code-server-{version}-linux-{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/coder/code-server/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Code-Server release assets are published on GitHub. Arch values: amd64, arm64.",
+      "checksums": {
+        "4.95.1-rc.2": {}
+      }
+    }
+    ,
+    "ijava": {
+      "pinned_version": "1.4.5",
+      "archive_format": "zip",
+      "archive_filename": "IJava-latest.zip",
+      "archive_url_template": "https://github.com/ebpro/IJava/releases/download/v{version}/IJava-latest.zip",
+      "notes": "IJava distribution zip produced by CI (contains install.py and JAR).",
+      "checksums": {
+        "1.4.5": {
+          "amd64": "8336fbcf26cc570fbf33ee52a2e6051d865214355654e32218467db49658f2b5"
+        }
+      }
+    }
+    ,
+    "git-lfs": {
+      "pinned_version": "3.4.1",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/git-lfs/git-lfs/releases/download/v{version}/git-lfs-linux-{arch}-v{version}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/git-lfs/git-lfs/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Git LFS release assets include checksums in the release notes; arch values: amd64, arm64, x86_64, aarch64, arm.",
+      "checksums": {
+        "3.4.1": {
+          "amd64": "1772dc260961db27958088740b7e9ecebf945abad8c2d504d412448f53faf147",
+          "arm64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce",
+          "x86_64": "1772dc260961db27958088740b7e9ecebf945abad8c2d504d412448f53faf147",
+          "aarch64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce"
+        }
+      }
+    }
+    ,
+    "miniforge": {
+      "pinned_version": "25.11.0-1",
+      "archive_format": "sh",
+      "archive_url_template": "https://github.com/conda-forge/miniforge/releases/download/{version}/Miniforge3-{version}-Linux-{arch}.sh",
+      "latest_version_cmd": "curl -fsSL https://api.github.com/repos/conda-forge/miniforge/releases/latest | jq -r '.tag_name'",
+      "notes": "Miniforge installer sh; arch values: x86_64, aarch64, amd64, arm64. Checksums are released per-asset.",
+      "checksums": {
+        "25.11.0-1": {
+          "x86_64": "be1bad9d4e67a8753eb76fb4940e9a08036786675c7adf060627e55791bf110d",
+          "aarch64": "43a3783f9e121088f1c92b131b4305b9ebf159424ad2543dfcfc0f1952b5e127",
+          "amd64": "be1bad9d4e67a8753eb76fb4940e9a08036786675c7adf060627e55791bf110d",
+          "arm64": "43a3783f9e121088f1c92b131b4305b9ebf159424ad2543dfcfc0f1952b5e127"
+        }
+      }
+    }
+  }
+}

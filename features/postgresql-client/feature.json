@@ -1,0 +1,55 @@
+{
+  "id": "postgresql-client",
+  "name": "PostgreSQL Client Tools",
+  "version": "1.2.0",
+  "description": "PostgreSQL client tools including psql, pg_dump, pg_restore, libpq development libraries, and pgcli enhanced CLI",
+  "documentationURL": "https://www.postgresql.org/docs/current/app-psql.html",
+  "licenseURL": "https://www.postgresql.org/about/licence/",
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "17",
+      "description": "PostgreSQL client version to install (14, 15, 16, 17, or 'latest')"
+    },
+    "installLibpq": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install libpq-dev (PostgreSQL C library headers for building extensions)"
+    },
+    "installPgcli": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install pgcli - enhanced PostgreSQL CLI with autocomplete and syntax highlighting"
+    }
+  },
+  "provides": [
+    "psql",
+    "pg_dump",
+    "pg_restore",
+    "pg_isready",
+    "pgcli"
+  ],
+  "installsAfter": [
+    "system-essentials",
+    "python-base"
+  ],
+  "vscode": {
+    "extensions": [
+      "cweijan.vscode-database-client2"
+    ],
+    "forwardPorts": [
+      5432
+    ]
+  },
+  "postInstallCheck": {
+    "command": "psql --version",
+    "description": "Verify PostgreSQL client (psql) is available"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

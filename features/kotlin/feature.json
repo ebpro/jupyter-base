@@ -1,0 +1,33 @@
+{
+  "id": "kotlin",
+  "name": "kotlin",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "description": "Installs Kotlin tooling and optional Kotlin kernel (kotlin-jupyter)",
+  "dependsOn": [
+    "java-sdkman"
+  ],
+  "options": {
+    "install_kotlin_compiler": {
+      "type": "boolean",
+      "default": true
+    },
+    "install_kotlin_kernel": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "postInstallCheck": {
+    "command": "kotlinc -version",
+    "description": "Verify Kotlin compiler is available"
+  },
+  "vscode": {
+    "extensions": [
+      "mathiasfrohlich.kotlin"
+    ]
+  },
+  "documentationURL": "./features/kotlin/README.md"
+}

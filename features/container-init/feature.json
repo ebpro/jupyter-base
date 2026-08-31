@@ -1,0 +1,23 @@
+{
+  "id": "container-init",
+  "name": "Container Initialization",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "description": "Installs run-startup-scripts helper and exposes a smoke/health command",
+  "dependsOn": [
+    "container-user"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "test -x /usr/local/bin/run-startup-scripts.sh",
+    "description": "Verify startup scripts runner is installed and executable"
+  },
+  "documentationURL": "./features/container-init/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

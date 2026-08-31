@@ -1,0 +1,53 @@
+{
+  "id": "java-jdk",
+  "name": "Java JDK",
+  "version": "1.0.0",
+  "description": "Installs Java JDK via SDKMAN (Temurin, OpenJDK, Oracle, etc.)",
+  "dependsOn": [
+    "java-sdkman"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "options": {
+    "JDK_VERSION": {
+      "type": "string",
+      "default": "25",
+      "description": "JDK version: numeric (8, 11, 17, 21, 25), 'latest', 'ea', or 'default'"
+    },
+    "SDKMAN_JAVA_IDENTIFIER": {
+      "type": "string",
+      "default": "temurin",
+      "description": "SDKMAN Java distribution identifier (temurin, openjdk, oracle, etc.)"
+    }
+  },
+  "provides": [
+    "java",
+    "javac"
+  ],
+  "postInstallCheck": {
+    "command": "java -version && javac -version",
+    "description": "Verify Java and compiler are available"
+  },
+  "vscode": {
+    "extensions": [
+      "vscjava.vscode-java-pack",
+      "vscjava.vscode-gradle",
+      "vscjava.vscode-maven"
+    ],
+    "settings": {
+      "java.configuration.runtimes": [
+        {
+          "name": "JavaSE-25",
+          "path": "/usr/local/sdkman/candidates/java/current"
+        }
+      ]
+    }
+  },
+  "documentationURL": "./features/java-jdk/README.md"
+}

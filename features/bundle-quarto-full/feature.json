@@ -1,0 +1,28 @@
+{
+  "id": "bundle-quarto-full",
+  "version": "1.0.0",
+  "name": "Quarto Full Stack Bundle",
+  "description": "Meta-feature bundling Quarto with TeXLive for full document authoring including PDF output (heavy feature for lecture/publication workflows).",
+  "maintainer": {
+    "name": "Bruno Parmentier",
+    "email": "bruno.parmentier@univ-tlse3.fr"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "quarto",
+    "quarto-templates",
+    "texlive"
+  ],
+  "dependsOn": [
+    "bundle-quarto-base",
+    "texlive"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "sh -c 'command -v quarto >/dev/null 2>&1 && quarto --version || echo \"quarto not found\"'",
+    "description": "Verify Quarto CLI is available for the full Quarto bundle"
+  },
+  "documentationURL": "./features/bundle-quarto-full/README.md"
+}

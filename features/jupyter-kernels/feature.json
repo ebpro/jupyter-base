@@ -1,0 +1,37 @@
+{
+  "name": "jupyter-kernels",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "jupyter-kernels",
+  "description": "Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel",
+  "dependsOn": [
+    "python-conda",
+    "jupyter-base"
+  ],
+  "options": {
+    "INSTALL_ZSH_KERNEL": {
+      "type": "boolean",
+      "description": "Install zsh_jupyter_kernel into the conda base environment and register it",
+      "default": true,
+      "env": "INSTALL_ZSH_KERNEL"
+    },
+    "INSTALL_BASH_KERNEL": {
+      "type": "boolean",
+      "description": "Install bash_kernel into the conda base environment and register it",
+      "default": true,
+      "env": "INSTALL_BASH_KERNEL"
+    }
+  },
+  "postInstallCheck": {
+    "command": "jupyter kernelspec list | grep -E '(python3|bash|zsh)'",
+    "description": "Verify python3, bash, and zsh kernels are registered"
+  },
+  "documentationURL": "./features/jupyter-kernels/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "trivy",
+  "version": "1.0.0",
+  "name": "Trivy",
+  "description": "Comprehensive vulnerability scanner for containers, filesystems, and git repositories - industry standard security tool",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "provides": [
+    "trivy"
+  ],
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "latest",
+      "description": "Trivy version (e.g., '0.48.0' or 'latest')"
+    }
+  },
+  "postInstallCheck": {
+    "command": "trivy --version",
+    "description": "Verify trivy is installed"
+  },
+  "documentationURL": "./features/trivy/README.md"
+}

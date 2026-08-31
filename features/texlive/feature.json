@@ -1,0 +1,34 @@
+{
+  "name": "texlive",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "texlive",
+  "description": "Installs TinyTeX/TeXLive packages listed in artefacts/TeXLive",
+  "dependsOn": [
+    "system-essentials",
+    "_lib/download-release"
+  ],
+  "options": {
+    "install_extra": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "postInstallCheck": {
+    "command": "pdflatex --version && tlmgr --version",
+    "description": "Verify pdflatex and tlmgr are available"
+  },
+  "vscode": {
+    "extensions": [
+      "James-Yu.latex-workshop"
+    ]
+  },
+  "documentationURL": "./features/texlive/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

@@ -1,0 +1,42 @@
+# Purpose: Generate specialized profile variants
+# Profiles for specific use cases: full, codeserver, containers-tools, jetbrains-gateway
+
+features:
+  - bundle-base-full
+  - bundle-dev-base
+options: {}
+matrix:
+  base:
+    features: []
+    options: {}
+  full:
+    features:
+      - bundle-data-science
+      - bundle-quarto-full
+      - bundle-java-build
+      - java-jdk
+      - bundle-k8s
+      - podman
+      - code-server
+      - codeserver-extensions
+      - jetbrains-gateway
+    options:
+      JDK_VERSION: 25
+  codeserver:
+    features:
+      - code-server
+      - codeserver-extensions
+    options: {}
+  containers-tools:
+    features:
+      - bundle-container-runtimes
+    options: {}
+  jetbrains-gateway:
+    features:
+      - jetbrains-gateway
+    options: {}
+  k8s-sim:
+    features:
+      - bundle-k8s
+      - podman
+    options: {}

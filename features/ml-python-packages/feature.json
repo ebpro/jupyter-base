@@ -1,0 +1,34 @@
+{
+  "name": "ml-python-packages",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "ml-python-packages",
+  "description": "Installs essential ML/Data Science Python packages (scikit-learn, matplotlib, seaborn, pandas)",
+  "dependsOn": [
+    "python-conda",
+    "jupyter-base"
+  ],
+  "provides": [
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "pandas"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "vscode": {
+    "extensions": [
+      "ms-toolsai.vscode-ai"
+    ]
+  },
+  "postInstallCheck": {
+    "command": "python -m pip --version",
+    "description": "Verify Python/pip environment is available"
+  },
+  "documentationURL": "./features/ml-python-packages/README.md"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "tinytex",
+  "name": "tinytex (legacy stub)",
+  "version": "0.0.0",
+  "description": "TinyTeX (lightweight TeX Live distribution) for LaTeX/PDF rendering used by Quarto and document tooling.",
+  "deprecated": true,
+  "postInstallCheck": {"command": "sh -c 'command -v pdflatex >/dev/null 2>&1 && pdflatex --version || command -v tlmgr >/dev/null 2>&1 && tlmgr --version || echo \"TinyTeX not found\"'", "description": "Verify pdflatex or tlmgr is available for TinyTeX/TeXLive"},
+  "documentationURL": "./features/tinytex/README.md"
+}

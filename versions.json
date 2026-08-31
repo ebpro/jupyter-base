@@ -1,0 +1,31 @@
+{
+  "base": {
+    "variant": "ubuntu-24.04"
+  },
+  "tools": {
+    "buildx": "v0.30.1",
+    "compose": "v5.0.1",
+    "docker": "27-cli",
+    "quarto": "v1.8.26",
+    "node": "22.12.0",
+    "docker-ce": "27.5.1",
+    "docker-compose": "v5.0.1",
+    "gitstatus": "1.5.4",
+    "helm": "v4.0.4",
+    "k9s": "v0.50.18",
+    "k3d": "v5.8.3",
+    "kubectl": "1.34.1",
+    "kustomize": "v5.8.0",
+    "code-server": "v4.108.0",
+    "minikube": "1.37.0",
+    "gh": "2.83.2",
+    "scout": "v1.19.0",
+    "tinytex": "2025.09",
+    "java-kernel": "1.4.5",
+    "tilt": "v0.36.0",
+    "miniforge": "25.11.0-1",
+    "mongodb": "8.0",
+    "postgresql": "17",
+    "typescript": "5.7.2"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "java-kernel",
+  "name": "java-kernel",
+  "version": "0.1.0",
+  "description": "Installs a Java Jupyter kernel (IJava) from release or submodule and registers kernelspec.",
+  "options": {
+    "KERNEL_VERSION": {
+      "type": "string",
+      "description": "Kernel release version to download when using 'release' source (e.g. v1.4.5)",
+      "default": "v1.4.5"
+    },
+    "ARTIFACTS_BASE_URL": {
+      "type": "string",
+      "description": "Base URL for release artefacts (e.g. GitHub releases base)",
+      "default": "https://github.com/ebpro/IJava/releases"
+    },
+    "ARTEFACT_URL": {
+      "type": "string",
+      "description": "Direct artefact URL (overrides ARTIFACTS_BASE_URL)",
+      "default": ""
+    },
+    "JDK_VERSION": {
+      "type": "string",
+      "description": "JDK version to use (e.g., 17, 21)",
+      "default": "21"
+    }
+  },
+  "dependsOn": [
+    "java-jdk",
+    "jupyter-kernels"
+  ],
+  "postInstallCheck": {
+    "command": "bash -lc 'if [ -d /usr/local/share/jupyter/kernels/java ]; then exit 0; else jupyter kernelspec list --json | python -c \"import sys,json; ks=json.load(sys.stdin).get(\\\"kernelspecs\\\",{}); sys.exit(0) if \\\"java\\\" in ks else sys.exit(1)\"; fi'"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "documentationURL": "./features/java-kernel/README.md"
+}
