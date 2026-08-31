@@ -19,7 +19,7 @@ Complete base system (shell, VCS, tools, Python, utilities) for most profiles
 
 - `container-init`
 
-- `github-cli`
+- `gh`
 
 - `git-lfs`
 

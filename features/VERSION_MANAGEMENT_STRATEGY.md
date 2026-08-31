@@ -41,7 +41,7 @@ artefacts/
 
 #### 3. **Consistent Patterns**
 - 8 features use `resolve_version()` properly
-- kubernetes-tools exemplifies best practice (kubectl, helm, k9s, kustomize, minikube)
+- kubernetes-client exemplifies best practice (kubectl, helm, k9s, kustomize, minikube)
 - Integration with checksum verification via `fh_verify_from_checksums()`
 
 ---
@@ -53,7 +53,7 @@ artefacts/
 | Tool | Install Method | Version Management | Issues |
 |------|---------------|-------------------|--------|
 | kubectl, helm, k9s | ✅ toolcache + versions.json | ✅ Central | Perfect |
-| gh-cli | ✅ toolcache + versions.json | ✅ Central | Perfect |
+| gh | ✅ toolcache + versions.json | ✅ Central | Perfect |
 | quarto, gitstatus | ✅ toolcache + versions.json | ✅ Central | Perfect |
 | **Node.js** | ⚠️ apt OR Volta | ❌ None | Depends on env var |
 | **TypeScript** | ⚠️ npm global | ❌ Hardcoded | No version control |

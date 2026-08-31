@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       profiles:
-        description: 'Comma-separated list of profiles to build (defaults to data-science)'
+        description: 'Comma-separated list of profiles to build (defaults to quarto-full, the first MVP)'
         required: false
-        default: 'data-science'
+        default: 'quarto-full'
       no-cache:
         description: 'Disable buildx cache'
         required: false
@@ -57,7 +57,7 @@ jobs:
       - name: Build profiles (single-arch, loaded into local daemon)
         id: build
         env:
-          PROFILE_LIST: ${{ github.event.inputs.profiles || 'data-science' }}
+          PROFILE_LIST: ${{ github.event.inputs.profiles || 'quarto-full' }}
           NO_CACHE: ${{ github.event.inputs['no-cache'] || 'false' }}
         run: |
           set -euo pipefail

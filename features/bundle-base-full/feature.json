@@ -14,7 +14,7 @@
     "zsh-config",
     "prompt-helpers",
     "container-init",
-    "github-cli",
+    "gh",
     "git-lfs",
     "python-base",
     "build-essentials",

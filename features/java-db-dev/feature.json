@@ -1,5 +1,5 @@
 {
-  "id": "bundle-java-db",
+  "id": "java-db-dev",
   "name": "Java Database Development",
   "version": "1.0.0",
   "description": "Meta-feature combining Java development tools with database clients for Java+DB development",
@@ -31,6 +31,10 @@
     "java-gradle",
     "postgresql-client",
     "mysql-client"
+  ],
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
   ]
   ,
   "postInstallCheck": {"command": "sh -c 'java -version >/dev/null 2>&1 || true'", "description": "Verify Java runtime is available (bundle meta-check)"}

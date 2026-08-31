@@ -15,7 +15,7 @@ if [ -f "/usr/local/lib/download-release-helpers.sh" ]; then
   # shellcheck disable=SC1091
   source "/usr/local/lib/download-release-helpers.sh"
 else
-  echo "❌ gh-cli: download-release helper not found, ensure _lib/download-release is installed first"
+  echo "❌ gh: download-release helper not found, ensure _lib/download-release is installed first"
   exit 1
 fi
 
@@ -95,7 +95,7 @@ resolve_version() {
 
 GH_VERSION=$(resolve_version "gh")
 if [ -z "${GH_VERSION}" ]; then
-  echo "⚠️  gh-cli: Version not found in artefacts, using latest"
+  echo "⚠️  gh: Version not found in artefacts, using latest"
   GH_VERSION="latest"
 fi
 

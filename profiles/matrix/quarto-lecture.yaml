@@ -1,5 +1,10 @@
 # Purpose: Generate quarto profile variants
 # Quarto lecture environments with different focuses
+#
+# MVP: `quarto-full` is the first profile that must build and run end-to-end.
+# It carries the lecture kernel set (java-kernel, zsh + bash kernels via
+# jupyter-kernels), zsh shell (zsh-config) and Chromium for headless
+# rendering (quarto-chromium). CI builds it by default (build.sh, ci-build.yml).
 
 features:
   - bundle-base-full
@@ -41,7 +46,7 @@ matrix:
     features:
       - bundle-quarto-base
       - postgresql-client
-      - bundle-python-db
+      - python-db-dev
     services:
       - postgres:version=16
   quarto-containers:
@@ -53,7 +58,7 @@ matrix:
       - bundle-container-runtimes
       - bundle-container-dev
       - postgresql-client
-      - bundle-python-db
+      - python-db-dev
       - container-init
     options:
       JDK_VERSION: 25

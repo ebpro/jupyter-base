@@ -52,7 +52,7 @@ Examples:
   $0 --build
 
   # Test specific features in parallel
-  $0 --features node,python-base,gh-cli --parallel --build
+  $0 --features node,python-base,gh --parallel --build
 
   # Generate JSON report
   $0 --build --report test-results.json

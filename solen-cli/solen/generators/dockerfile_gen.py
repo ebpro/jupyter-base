@@ -82,6 +82,7 @@ def generate_multi_profile_dockerfile(
         import shutil
         shutil.rmtree(generated_dir)
     generated_dir.mkdir(parents=True, exist_ok=True)
+    (generated_dir / ".gitkeep").touch()
 
     if matrix_dir.exists():
         for m in matrix_dir.glob("*.y*ml"):
@@ -92,7 +93,7 @@ def generate_multi_profile_dockerfile(
         for d in (profiles_dir, generated_dir)
         if d.exists()
         for p in d.iterdir()
-        if p.is_file() and p.name not in {"README.md", "base"}
+        if p.is_file() and p.name not in {"README.md", "base", ".gitkeep"}
     }
 
     profiles_data = [build_profile_data(repo_root, n) for n in sorted(profile_names)]

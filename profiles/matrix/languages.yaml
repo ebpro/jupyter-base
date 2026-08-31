@@ -60,7 +60,7 @@ matrix:
 
   lang-java-db-jdk25:
     features:
-      - bundle-java-db
+      - java-db-dev
       - java-jdk
     options:
       JDK_VERSION: 25

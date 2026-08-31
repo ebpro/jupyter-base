@@ -42,6 +42,10 @@
       "cweijan.vscode-database-client2"
     ],
     "forwardPorts": [3306]
-  }
-  ,"postInstallCheck": {"command": "mysql --version", "description": "Verify MySQL client is available"}
+  },
+  "postInstallCheck": {"command": "mysql --version", "description": "Verify MySQL client is available"},
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

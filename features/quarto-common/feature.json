@@ -11,5 +11,9 @@
     "command": "test -d /home/jovyan/local/quarto-templates",
     "description": "Verify quarto-templates directory is created"
   },
-  "documentationURL": "./features/quarto-common/README.md"
+  "documentationURL": "./features/quarto-common/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

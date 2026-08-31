@@ -47,5 +47,9 @@
   "postInstallCheck": {
     "command": "psql --version",
     "description": "Verify PostgreSQL client (psql) is available"
-  }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

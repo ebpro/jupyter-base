@@ -76,9 +76,9 @@
 - **Best Practice**: Always cleanup with helper or manual `rm -rf /var/lib/apt/lists/*`
 
 #### 7. **No Checksum Verification**
-- **Problem**: Downloads (gh-cli, java-jdk, etc.) don't verify checksums for most tools
+- **Problem**: Downloads (gh, java-jdk, etc.) don't verify checksums for most tools
 - **Risk**: Supply chain attacks, corrupted downloads
-- **Good Example**: `gh-cli` has checksum logic but many others don't
+- **Good Example**: `gh` has checksum logic but many others don't
 - **Best Practice**: Use `fh_verify_from_checksums()` for all downloads
 
 #### 8. **Hardcoded URLs and Versions**

@@ -12,5 +12,9 @@
     "command": "id jovyan && test -d /home/jovyan && sudo -n true",
     "description": "Verify jovyan user exists, home directory is created, and has sudo access"
   },
-  "documentationURL": "./features/container-user/README.md"
+  "documentationURL": "./features/container-user/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

@@ -11,7 +11,7 @@ Complete environment for teaching CI/CD pipelines with Kubernetes, GitHub CLI, a
 
 - `kubernetes-dev`
 
-- `github-cli`
+- `gh`
 
 - `git-lfs`
 

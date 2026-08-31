@@ -43,10 +43,10 @@ Each feature lives in `features/<feature-name>/` with:
 
 **Rules**:
 1. **Required**: Use `dependsOn` array to list features that must be installed first
-2. **Foundation features**: `user`, `_lib`, `python-base`, `git-lfs`, `gh-cli` have no dependencies
+2. **Foundation features**: `container-user`, `_lib`, `python-base`, `git-lfs`, `gh` have no dependencies
 3. **Transitive**: Dependencies are automatically resolved (A→B→C means A needs C too)
 4. **Automatic ordering**: The build system automatically sorts features by dependencies
-5. **Validation**: Use `scripts/validate-feature-deps.py` to check for cycles and missing deps
+5. **Validation**: Use `solen validate features` to check for cycles and missing deps
 
 **Example Dependencies**:
 ```json
@@ -54,119 +54,53 @@ Each feature lives in `features/<feature-name>/` with:
 {"dependsOn": ["python-conda"]}
 
 // Feature that needs Java and Jupyter
-{"dependsOn": ["java-devtools", "jupyter-kernels"]}
+{"dependsOn": ["java-maven", "jupyter-kernels"]}
 
 // Feature that needs user home directory
-{"dependsOn": ["user"]}
+{"dependsOn": ["container-user"]}
 
 // Foundation feature (no dependencies)
 {"dependsOn": []}  // or omit the field
 ```
 
-### Dependency Graph Visualization
+### Dependency Graph
 
-See [DEPENDENCIES.md](DEPENDENCIES.md) for the complete dependency graph with Mermaid diagram.
+The graph is derived from the `dependsOn` fields — no static diagram is maintained.
+Regenerate the mapping view at any time:
 
-**Quick Reference**:
-
-**Core Features** (no dependencies):
-- `user` - creates NB_USER
-- `_lib` - shared helpers
-- `python-base` - system Python
-- Standalone tools: `git-lfs`, `gh-cli`, `kubernetes-tools`, `tilt`
-
-**System Layer** (depends on: user):
-- `base-apt` - core packages
-- `zsh-config` - shell
-- `prompt-helpers` - gitstatusd
-- `startup` - init scripts
-- `docker-cli-helper` - docker group
-- `podman` - container runtime
-- `jetbrains-gateway` - SSH server
-
-**Python Stack**:
-- `python-conda` (depends on: user)
-  - `jupyter-kernels` (depends on: python-conda)
-  - `pip-requirements` (depends on: python-conda)
-  - `quarto` (depends on: python-conda)
-
-**Java Stack**:
-- `java-sdkman` (depends on: user)
-  - `java-devtools` (depends on: java-sdkman)
-    - `java-kernel` (depends on: java-devtools, jupyter-kernels)
-  - `kotlin` (depends on: java-sdkman)
-  - `graalvm` (depends on: java-sdkman)
-
-**Node Stack**:
-- `node` (depends on: user)
-  - `lsp-tools` (depends on: node)
-  - `code-server` (depends on: user, node)
-    - `codeserver-extensions` (depends on: code-server)
-
-**Build Tools** (depend on: base-apt):
-- `dev-tools` - compilers
-- `texlive` - LaTeX
+```bash
+solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+# → generated/feature-matrix.md: feature → profile mapping
+```
 
 ### Validating Dependencies
 
 Before committing changes to feature.json files, validate dependencies:
 
 ```bash
-# Validate all features
-python3 scripts/validate-feature-deps.py
-
-# Validate a specific profile
-python3 scripts/validate-feature-deps.py --profile profiles/20-02-quarto-lecture-dev-java-25
+# Validate all features (missing deps, cycles, install order)
+solen validate features
 ```
 
 **What gets validated**:
 - ✅ All dependencies reference existing features
 - ✅ No circular dependencies (A→B→A)
-- ✅ Topological sort produces valid installation order
-- ✅ Profile feature ordering respects dependencies (when checking profiles)
-- `texlive` → LaTeX (independent)
+- ✅ Topological sort produces a valid installation order
 
-**Development Tools**:
-- `node` → Node.js (independent)
-- `lsp-tools` → Language servers (depends on: node, python-conda)
-- `dev-tools` → jq, fd, ripgrep, etc. (independent)
-- `code-server` → VS Code web (independent)
+### Profiles
 
-**Container Tools**:
-- `docker-cli-helper` → Docker CLI (independent)
-- `podman` → Podman (independent)
-- `kubernetes-tools` → kubectl, helm (independent)
-- `tilt` → Tilt (depends on: kubernetes-tools)
+Profiles are not written by hand. They are generated from the matrices in
+`profiles/matrix/*.yaml`, where each matrix declares shared base features plus
+named variants:
 
-**Git Tools**:
-- `git-lfs` → Git LFS (independent)
-- `gh-cli` → GitHub CLI (independent)
-
-**Shared Features**:
-- `quarto-common` → Quarto templates/dirs (depends on: user)
-- `prompt-helpers` → Shell prompts (depends on: zsh-config)
-- `startup` → Init scripts (depends on: user)
-
-### Ordering Rules
-
-When creating profiles, order features from low-level to high-level:
-1. User/system setup (user, base-apt, zsh-config)
-2. Language runtimes (python-conda, java-sdkman, node)
-3. Development tools (dev-tools, lsp-tools)
-4. Application tools (quarto, jupyter-kernels, java-kernel)
-5. Customizations (prompt-helpers, startup)
-
-**Example Profile** (`profiles/20-02-quarto-lecture-dev-java-25`):
-```
-@parent:20-01-quarto-lecture
-java-devtools
-java-kernel
+```bash
+solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
 ```
 
-Parent chain resolves to:
-```
-user → base-apt → zsh-config → python-conda → jupyter-kernels → quarto → java-devtools → java-kernel
-```
+A build targets a single generated profile name (e.g. `quarto-full`, `lang-java-25`,
+`db-mysql`). **`quarto-full` is the first MVP profile**: the lecture environment that
+must build and run end-to-end before any other profile (java/zsh/bash kernels, zsh
+shell, Chromium for headless rendering).
 
 ## Standard Variables
 
@@ -222,7 +156,7 @@ fh_log "my-feature installation complete"
 ### 1. Version Pinning
 Always pin versions explicitly:
 ```bash
-TOOL_VERSION=$(resolve_version "tool")  # From artefacts/versions.json
+TOOL_VERSION=$(fh_resolve_version "tool")  # From versions/versions.yaml (synced to versions.json)
 # NOT: curl latest-url
 ```
 
@@ -268,12 +202,11 @@ fh_log "Step 2: extracting..."
 
 ### Local Testing
 ```bash
-# Generate and build a test profile
-./build.sh --profile 00-01-minimal --generate-only
-docker build -f Dockerfile.generated --target profile-00-01-minimal -t test .
+# Build a test profile locally (positional profile name; default: quarto-full)
+./build.sh minimal
 
 # Run and verify
-docker run --rm test bash -c "your-tool --version"
+docker run --rm <image-tag> bash -c "your-tool --version"
 ```
 
 ### Post-Install Checks
@@ -291,9 +224,9 @@ Add validation to feature.json:
 
 ### Installing from GitHub Releases
 ```bash
-TOOL_VERSION=$(resolve_version "tool")
+TOOL_VERSION=$(fh_resolve_version "tool")
 TOOL_URL="https://github.com/org/tool/releases/download/v${TOOL_VERSION}/tool-${ARCH}.tar.gz"
-TOOL_CHKSUM=$(resolve_checksum "tool" "${TOOL_VERSION}" "${ARCH}")
+TOOL_CHKSUM=$(fh_resolve_checksum "tool" "${TOOL_VERSION}" "${ARCH}")
 
 curl -fsSL "${TOOL_URL}" -o /tmp/tool.tar.gz
 echo "${TOOL_CHKSUM}  /tmp/tool.tar.gz" | sha256sum -c -
@@ -349,8 +282,8 @@ fi
 
 When adding a new feature:
 1. Copy the template above
-2. Update this dependency graph
-3. Add to an appropriate profile for testing
+2. Run `solen validate features` to check the dependency graph
+3. Add to an appropriate matrix in `profiles/matrix/` for testing
 4. Submit PR with description and test results
 
 ## Resources

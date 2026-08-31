@@ -13,6 +13,6 @@ matrix:
   python-db:
     features:
       - postgresql-client
-      - bundle-python-db
+      - python-db-dev
     services:
       - postgres:version=16

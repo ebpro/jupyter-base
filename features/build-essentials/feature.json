@@ -21,5 +21,9 @@
       "editorconfig.editorconfig"
     ]
   },
-  "documentationURL": "./features/build-essentials/README.md"
+  "documentationURL": "./features/build-essentials/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

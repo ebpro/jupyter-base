@@ -26,5 +26,9 @@
       "python.defaultInterpreterPath": "/opt/conda/bin/python"
     }
   },
-  "documentationURL": "./features/python-conda/README.md"
+  "documentationURL": "./features/python-conda/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

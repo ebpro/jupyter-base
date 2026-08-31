@@ -16,5 +16,9 @@
     "command": "test -x /usr/local/bin/gitstatusd",
     "description": "Verify gitstatusd binary is installed and executable"
   },
-  "documentationURL": "./features/prompt-helpers/README.md"
+  "documentationURL": "./features/prompt-helpers/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

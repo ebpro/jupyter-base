@@ -26,5 +26,9 @@
       "James-Yu.latex-workshop"
     ]
   },
-  "documentationURL": "./features/texlive/README.md"
+  "documentationURL": "./features/texlive/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

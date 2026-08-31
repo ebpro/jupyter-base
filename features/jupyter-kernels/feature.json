@@ -29,5 +29,9 @@
     "command": "jupyter kernelspec list | grep -E '(python3|bash|zsh)'",
     "description": "Verify python3, bash, and zsh kernels are registered"
   },
-  "documentationURL": "./features/jupyter-kernels/README.md"
+  "documentationURL": "./features/jupyter-kernels/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

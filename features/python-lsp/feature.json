@@ -20,5 +20,9 @@
       "python.languageServer": "Pylance"
     }
   },
-  "documentationURL": "./features/python-lsp/README.md"
+  "documentationURL": "./features/python-lsp/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

@@ -16,7 +16,7 @@
   ],
   "dependsOn": [
     "kubernetes-dev",
-    "github-cli",
+    "gh",
     "git-lfs",
     "tilt"
   ],

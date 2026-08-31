@@ -43,7 +43,7 @@ Usage: $0 FEATURE_ID [OPTIONS]
 Test a single feature in an isolated container.
 
 Arguments:
-  FEATURE_ID          Feature to test (e.g., node, python-conda, gh-cli)
+  FEATURE_ID          Feature to test (e.g., node, python-conda, gh)
 
 Options:
   --build-first       Build test image before running tests

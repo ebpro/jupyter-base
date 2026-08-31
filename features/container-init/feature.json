@@ -15,5 +15,9 @@
     "command": "test -x /usr/local/bin/run-startup-scripts.sh",
     "description": "Verify startup scripts runner is installed and executable"
   },
-  "documentationURL": "./features/container-init/README.md"
+  "documentationURL": "./features/container-init/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
 }

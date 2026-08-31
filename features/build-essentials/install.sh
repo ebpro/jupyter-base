@@ -22,7 +22,7 @@ fi
 # This feature installs build tools and monitoring utilities.
 PKGS="build-essential cmake pkg-config python3-dev libssl-dev libffi-dev git htop lsof strace"
 
-echo "dev-tools: installing packages: ${PKGS}"
+echo "build-essentials: installing packages: ${PKGS}"
 if command -v apt_install >/dev/null 2>&1; then
   apt_install ${PKGS} || true
 else
@@ -30,4 +30,4 @@ else
 fi
 rm -rf /var/lib/apt/lists/* || true
 
-echo "dev-tools: done"
+echo "build-essentials: done"
