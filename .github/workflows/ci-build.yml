@@ -52,7 +52,7 @@ jobs:
       - name: Generate Dockerfile and bake file
         run: |
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME"
 
       - name: Build profiles (single-arch, loaded into local daemon)
         id: build

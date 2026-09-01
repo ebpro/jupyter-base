@@ -79,7 +79,7 @@ jobs:
         run: |
           solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME"
 
       - name: Login to GHCR
         uses: docker/login-action@v3
