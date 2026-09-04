@@ -185,8 +185,13 @@ def collect_feature_metadata(features_dir: Path, feature_list: list[str]) -> dic
         if not metadata:
             continue
 
-        if metadata.maintainer:
-            maintainers.add(metadata.maintainer)
+        maintainer = metadata.maintainer
+        if isinstance(maintainer, dict):
+            name = maintainer.get('name', '')
+            email = maintainer.get('email', '')
+            maintainer = f"{name} ({email})" if name and email else name or email
+        if maintainer:
+            maintainers.add(maintainer)
 
         platforms.update(metadata.platforms)
         provides.update(metadata.provides)
@@ -196,6 +201,40 @@ def collect_feature_metadata(features_dir: Path, feature_list: list[str]) -> dic
         'platforms': sorted(platforms),
         'provides': sorted(provides),
     }
+
+
+def collect_post_install_checks(features_dir: Path, feature_list: list[str]) -> list[dict[str, str]]:
+    """Collect postInstallCheck commands from features in install order."""
+    checks: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    for feature_id in feature_list:
+        if feature_id in seen:
+            continue
+        seen.add(feature_id)
+
+        feature_json = features_dir / feature_id / 'feature.json'
+        if not feature_json.exists():
+            continue
+
+        try:
+            data = json.loads(feature_json.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+
+        check = data.get('postInstallCheck')
+        if not isinstance(check, dict):
+            continue
+
+        command = check.get('command')
+        if isinstance(command, str) and command.strip():
+            checks.append({
+                'id': feature_id,
+                'command': command.strip(),
+                'description': str(check.get('description', '')),
+            })
+
+    return checks
 
 
 def collect_feature_options(features_dir: Path, feature_list: list[str]) -> dict[str, str]:

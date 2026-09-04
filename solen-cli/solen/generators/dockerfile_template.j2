@@ -38,6 +38,62 @@ LABEL org.solen.profile="{{ profile.name }}" \
 ENV {{ k }}="{{ v }}"
 {% endfor %}
 
+ARG RUN_POSTINSTALL_CHECKS="false"
+ENV RUN_POSTINSTALL_CHECKS="${RUN_POSTINSTALL_CHECKS}"
+
+RUN cat > /opt/solen/run-postinstall-checks.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -uo pipefail
+
+features=(
+{% for check in profile.checks %}
+  "{{ check.id }}"
+{% endfor %}
+)
+commands_b64=(
+{% for check in profile.checks %}
+  "{{ check.command_b64 }}"
+{% endfor %}
+)
+
+run_check_as_user() {
+  local check_cmd="$1"
+  local user="${NB_USER:-jovyan}"
+  if [ "$(id -un)" = "$user" ]; then
+    bash -lc "$check_cmd"
+  elif command -v runuser >/dev/null 2>&1; then
+    runuser -u "$user" -- bash -lc "$check_cmd"
+  elif command -v setpriv >/dev/null 2>&1; then
+    local uid
+    local gid
+    uid="$(id -u "$user")"
+    gid="$(id -g "$user")"
+    setpriv --reuid="$uid" --regid="$gid" --init-groups bash -lc "$check_cmd"
+  else
+    CHECK_CMD="$check_cmd" su -s /bin/bash "$user" -c 'bash -lc "$CHECK_CMD"'
+  fi
+}
+
+total=0
+failed=0
+echo "Starting Solen post-install checks"
+for i in "${!features[@]}"; do
+  feature="${features[$i]}"
+  check_cmd="$(printf '%s' "${commands_b64[$i]}" | base64 -d)"
+  total=$((total + 1))
+  echo "=== RUN postInstallCheck: $feature"
+  if run_check_as_user "$check_cmd"; then
+    echo "OK postInstallCheck: $feature"
+  else
+    echo "FAIL postInstallCheck: $feature" >&2
+    failed=$((failed + 1))
+  fi
+done
+echo "Solen post-install checks complete: $((total - failed))/$total passed"
+exit "$failed"
+SCRIPT
+RUN chmod +x /opt/solen/run-postinstall-checks.sh
+
 RUN \
 {% for feat in profile.features %}
   --mount=type=bind,source=features/{{ feat }},target=/tmp/features/{{ feat }},readonly \
@@ -60,12 +116,40 @@ echo "=== debug: helpers.sh head"; head -n 40 /opt/solen/_lib/helpers.sh || true
 echo "=== debug: fh_helpers.sh head"; head -n 40 /opt/solen/_lib/fh_helpers.sh || true
 echo "=== debug: fh_resolve_checksum exists?"; type -t fh_resolve_checksum || echo "fh_resolve_checksum: not-found"
 
+if [ "${RUN_POSTINSTALL_CHECKS:-false}" = "true" ]; then
+  declare -A feature_check=()
+{% for check in profile.checks %}
+  feature_check["{{ check.id }}"]="{{ check.command_b64 }}"
+{% endfor %}
+  run_feature_check() {
+    local check_cmd="$1"
+    local user="${NB_USER:-jovyan}"
+    if [ "$(id -un)" = "$user" ]; then
+      bash -lc "$check_cmd"
+    elif command -v runuser >/dev/null 2>&1; then
+      runuser -u "$user" -- bash -lc "$check_cmd"
+    elif command -v setpriv >/dev/null 2>&1; then
+      local uid
+      local gid
+      uid="$(id -u "$user")"
+      gid="$(id -g "$user")"
+      setpriv --reuid="$uid" --regid="$gid" --init-groups bash -lc "$check_cmd"
+    else
+      CHECK_CMD="$check_cmd" su -s /bin/bash "$user" -c 'bash -lc "$CHECK_CMD"'
+    fi
+  }
+fi
+
 for f in "${feats[@]}"; do
   if [ -f "/tmp/features/$f/install.sh" ]; then
     chmod +x /tmp/features/$f/install.sh || true
     set +u
     bash /tmp/features/$f/install.sh
     set -u
+    if [ "${RUN_POSTINSTALL_CHECKS:-false}" = "true" ] && [ -n "${feature_check[$f]:-}" ]; then
+      check_cmd="$(printf '%s' "${feature_check[$f]}" | base64 -d)"
+      run_feature_check "$check_cmd"
+    fi
   fi
 done
 
@@ -82,6 +166,10 @@ for f in "${feats[@]}"; do
     done
   fi
 done
+
+if [ "${RUN_POSTINSTALL_CHECKS:-false}" = "true" ]; then
+  /opt/solen/run-postinstall-checks.sh
+fi
 
 apt-get clean
 rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial
