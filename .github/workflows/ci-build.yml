@@ -96,7 +96,7 @@ jobs:
           while read -r profile; do
             [ -n "$profile" ] || continue
             tag=$(sed -n "/^target \"final-$profile\" /,/^}/p" generated/docker-bake.hcl \
-              | sed -n '/tags = \[/,/\]/p' | grep -m1 '"' | tr -d '"')
+              | awk '/tags = \[/{flag=1; next} flag && /\]/{exit} flag {gsub(/[",]/, ""); gsub(/^[ \t]+|[ \t]+$/, ""); if ($0 != "") {print; exit}}')
             if [ -z "$tag" ]; then
               echo "No tag found in bake file for $profile; skipping post-install checks" >&2
               continue
@@ -113,7 +113,7 @@ jobs:
           while read -r profile; do
             [ -n "$profile" ] || continue
             tag=$(sed -n "/^target \"final-$profile\" /,/^}/p" generated/docker-bake.hcl \
-              | sed -n '/tags = \[/,/\]/p' | grep -m1 '"' | tr -d '"')
+              | awk '/tags = \[/{flag=1; next} flag && /\]/{exit} flag {gsub(/[",]/, ""); gsub(/^[ \t]+|[ \t]+$/, ""); if ($0 != "") {print; exit}}')
             if [ -z "$tag" ]; then
               echo "No tag found in bake file for $profile; skipping scans" >&2
               continue
