@@ -132,3 +132,8 @@ if [ ! -x "${TARGET_BIN}" ]; then
     echo "prompt-helpers: ❌ gitstatusd still not found after fallback"
   fi
 fi
+
+if [ -x "${TARGET_BIN}" ]; then
+  ln -sf "${TARGET_BIN}" /usr/local/bin/gitstatusd || true
+  chmod +x /usr/local/bin/gitstatusd || true
+fi

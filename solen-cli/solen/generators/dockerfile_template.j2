@@ -20,6 +20,62 @@ RUN mkdir -p /opt/.features /scripts/lib && \
     printf "source /opt/solen/_lib/helpers.sh || true" > /scripts/lib/features.sh
 RUN if [ -f /opt/solen/_lib/helpers.sh ]; then echo "\n# Source fh_helpers (fh_*) if present" >> /opt/solen/_lib/helpers.sh && echo "source /opt/solen/_lib/fh_helpers.sh || true" >> /opt/solen/_lib/helpers.sh; fi
 
+RUN cat > /opt/solen/run-check-env.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -uo pipefail
+
+user="${1:-${NB_USER:-jovyan}}"
+check_cmd="${2:-}"
+if [ -z "${check_cmd}" ]; then
+  echo "run-check-env: missing check command" >&2
+  exit 2
+fi
+
+user_home="/home/${user}"
+extra_path="${user_home}/.local/bin:${user_home}/bin:${user_home}/.quarto/bin:${user_home}/miniforge3/bin:${user_home}/.linuxbrew/bin:${user_home}/.linuxbrew/opt/bin:/opt/quarto/bin:/usr/local/bin"
+
+for d in "${user_home}/.TinyTeX"/bin/*/; do
+  if [ -d "${d}" ]; then
+    extra_path="${d%/}:${extra_path}"
+    break
+  fi
+done
+
+export PATH="${extra_path}:${PATH}"
+
+if [ -f "${user_home}/.sdkman/bin/sdkman-init.sh" ]; then
+  set +u
+  # shellcheck source=/dev/null
+  . "${user_home}/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true
+  set -u
+fi
+
+eval "${check_cmd}"
+SCRIPT
+RUN chmod +x /opt/solen/run-check-env.sh
+
+RUN cat > /opt/solen/_lib/run-check-as-user.sh <<'SCRIPT'
+run_check_as_user() {
+  local check_cmd="$1"
+  local user="${NB_USER:-jovyan}"
+  local wrapper="/opt/solen/run-check-env.sh"
+
+  if [ "$(id -un)" = "$user" ]; then
+    "$wrapper" "$user" "$check_cmd"
+  elif command -v runuser >/dev/null 2>&1; then
+    runuser -u "$user" -- "$wrapper" "$user" "$check_cmd"
+  elif command -v setpriv >/dev/null 2>&1; then
+    local uid
+    local gid
+    uid="$(id -u "$user")"
+    gid="$(id -g "$user")"
+    setpriv --reuid="$uid" --regid="$gid" --init-groups "$wrapper" "$user" "$check_cmd"
+  else
+    su -s /bin/bash "$user" -c "\"$wrapper\" \"$user\" \"$check_cmd\""
+  fi
+}
+SCRIPT
+
 {% if toolcache_exists %}
 # Inject prebaked toolcache from repository
 COPY generated/toolcache /opt/toolcache
@@ -45,6 +101,8 @@ RUN cat > /opt/solen/run-postinstall-checks.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -uo pipefail
 
+source /opt/solen/_lib/run-check-as-user.sh
+
 features=(
 {% for check in profile.checks %}
   "{{ check.id }}"
@@ -55,24 +113,6 @@ commands_b64=(
   "{{ check.command_b64 }}"
 {% endfor %}
 )
-
-run_check_as_user() {
-  local check_cmd="$1"
-  local user="${NB_USER:-jovyan}"
-  if [ "$(id -un)" = "$user" ]; then
-    bash -lc "$check_cmd"
-  elif command -v runuser >/dev/null 2>&1; then
-    runuser -u "$user" -- bash -lc "$check_cmd"
-  elif command -v setpriv >/dev/null 2>&1; then
-    local uid
-    local gid
-    uid="$(id -u "$user")"
-    gid="$(id -g "$user")"
-    setpriv --reuid="$uid" --regid="$gid" --init-groups bash -lc "$check_cmd"
-  else
-    CHECK_CMD="$check_cmd" su -s /bin/bash "$user" -c 'bash -lc "$CHECK_CMD"'
-  fi
-}
 
 total=0
 failed=0
@@ -121,23 +161,7 @@ if [ "${RUN_POSTINSTALL_CHECKS:-false}" = "true" ]; then
 {% for check in profile.checks %}
   feature_check["{{ check.id }}"]="{{ check.command_b64 }}"
 {% endfor %}
-  run_feature_check() {
-    local check_cmd="$1"
-    local user="${NB_USER:-jovyan}"
-    if [ "$(id -un)" = "$user" ]; then
-      bash -lc "$check_cmd"
-    elif command -v runuser >/dev/null 2>&1; then
-      runuser -u "$user" -- bash -lc "$check_cmd"
-    elif command -v setpriv >/dev/null 2>&1; then
-      local uid
-      local gid
-      uid="$(id -u "$user")"
-      gid="$(id -g "$user")"
-      setpriv --reuid="$uid" --regid="$gid" --init-groups bash -lc "$check_cmd"
-    else
-      CHECK_CMD="$check_cmd" su -s /bin/bash "$user" -c 'bash -lc "$CHECK_CMD"'
-    fi
-  }
+  source /opt/solen/_lib/run-check-as-user.sh
 fi
 
 for f in "${feats[@]}"; do
@@ -148,7 +172,7 @@ for f in "${feats[@]}"; do
     set -u
     if [ "${RUN_POSTINSTALL_CHECKS:-false}" = "true" ] && [ -n "${feature_check[$f]:-}" ]; then
       check_cmd="$(printf '%s' "${feature_check[$f]}" | base64 -d)"
-      run_feature_check "$check_cmd"
+      run_check_as_user "$check_cmd"
     fi
   fi
 done

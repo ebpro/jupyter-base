@@ -19,9 +19,14 @@ else
   chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
 fi
 
-echo "system-essentials: installing packages listed in /tmp/inputs/apt-packages_base (if present)"
-if [ -f /tmp/inputs/apt-packages_base ]; then
-  PKGS=$(grep -v -e "^#" -e "^$" /tmp/inputs/apt-packages_base | tr '\n' ' ' || true)
+APT_LIST="/tmp/inputs/apt-packages/base"
+if [ ! -f "${APT_LIST}" ] && [ -f /tmp/inputs/apt-packages_base ]; then
+  APT_LIST="/tmp/inputs/apt-packages_base"
+fi
+
+echo "system-essentials: installing packages listed in ${APT_LIST} (if present)"
+if [ -f "${APT_LIST}" ]; then
+  PKGS=$(grep -v -e "^#" -e "^$" "${APT_LIST}" | tr '\n' ' ' || true)
   PKGS=$(echo "$PKGS" | xargs || true)
   if [ -n "$PKGS" ]; then
     # Use helper apt_install where available for consistent, non-interactive installs
@@ -34,7 +39,7 @@ if [ -f /tmp/inputs/apt-packages_base ]; then
     fi
   fi
 else
-  echo "system-essentials: /tmp/inputs/apt-packages_base not present; skipping"
+  echo "system-essentials: ${APT_LIST} not present; skipping"
 fi
 
 echo "system-essentials: done"

@@ -7,7 +7,7 @@
   "maintainer": "local",
   "license": "MIT",
   "postInstallCheck": {
-    "command": "test -x /home/jovyan/.local/bin/gitpull",
+    "command": "test -x /home/jovyan/.local/bin/gitpull.sh",
     "description": "Verify my-utils scripts are installed and executable"
   },
   "documentationURL": "./features/my-utils/README.md"

@@ -22,21 +22,41 @@ TMP_SCRIPT="/tmp/quarto-chromium-install-${NB_USER}.sh"
 cat > "${TMP_SCRIPT}" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
-# locate quarto binary, prefer one on PATH, fallback to /opt/quarto/*/bin/quarto
+# locate quarto binary, prefer PATH, then common install locations
 QUARTO_BIN=$(command -v quarto || true)
 if [ -z "${QUARTO_BIN}" ]; then
-	QUARTO_BIN=$(ls /opt/quarto/*/bin/quarto 2>/dev/null | head -n1 || true)
+  for c in "$HOME/.local/bin/quarto" "$HOME/miniforge3/bin/quarto" /usr/local/bin/quarto /opt/quarto/*/bin/quarto; do
+    if [ -x "$c" ]; then
+      QUARTO_BIN="$c"
+      break
+    fi
+  done
 fi
 if [ -n "${QUARTO_BIN}" ] && [ -x "${QUARTO_BIN}" ]; then
-	"${QUARTO_BIN}" install chromium --no-prompt || true
+  CI=true "${QUARTO_BIN}" install chromium --no-prompt || CI=true "${QUARTO_BIN}" install chromium || true
 else
-	echo "quarto binary not found; skipping 'quarto install chromium'" >&2
+  echo "quarto binary not found; skipping 'quarto install chromium'" >&2
 fi
 BASH
 
 chmod +x "${TMP_SCRIPT}"
 su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
 rm -f "${TMP_SCRIPT}"
+
+CHROMIUM_BIN=""
+for c in "${HOME_DIR}/.quarto/bin/chromium" "${HOME_DIR}/.quarto/bin/chromium-browser" /usr/bin/chromium /usr/bin/chromium-browser; do
+  if [ -x "$c" ]; then
+    CHROMIUM_BIN="$c"
+    break
+  fi
+done
+if [ -z "${CHROMIUM_BIN}" ]; then
+  CHROMIUM_BIN=$(find "${HOME_DIR}/.quarto" -type f \( -name chromium -o -name chromium-browser -o -name chrome \) -perm -111 2>/dev/null | head -n1 || true)
+fi
+if [ -n "${CHROMIUM_BIN}" ]; then
+  ln -sf "${CHROMIUM_BIN}" /usr/local/bin/chromium || true
+  ln -sf "${CHROMIUM_BIN}" /usr/local/bin/chromium-browser || true
+fi
 
 echo "quarto-chromium: installation complete"
 
