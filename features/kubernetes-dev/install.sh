@@ -28,24 +28,8 @@ LOCAL_BIN="${HOME_DIR}/bin"
 mkdir -p "${LOCAL_BIN}"
 
 # Resolve k9s version
-if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ] || [ -f "${PWD}/artefacts/versions.json" ] || [ -f /tmp/versions.json ]; then
-  resolve_version() {
-    local tool="$1" v=""
-    if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/kubernetes-dev/versions.json" 2>/dev/null || true)
-      [ -n "$v" ] && { echo "$v"; return 0; }
-    fi
-    if [ -f "${PWD}/artefacts/versions.json" ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
-      [ -n "$v" ] && { echo "$v"; return 0; }
-    fi
-    if [ -f /tmp/versions.json ]; then
-      v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
-      [ -n "$v" ] && { echo "$v"; return 0; }
-    fi
-    echo ""
-  }
-
+resolve_version() {
+  local tool="$1" v=""
   # prefer centralized resolver
   if command -v fh_resolve_version >/dev/null 2>&1; then
     v=$(fh_resolve_version "$tool" || true)
@@ -53,9 +37,24 @@ if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ] || [ -f "${PWD}/artefa
       echo "$v"; return 0
     fi
   fi
-  K9S_VERSION=$(resolve_version "k9s")
-else
-  echo "kubernetes-dev: no versions.json found, skipping" >&2
+  if [ -f "${PWD}/artefacts/kubernetes-dev/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/kubernetes-dev/versions.json" 2>/dev/null || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  if [ -f /tmp/versions.json ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+    [ -n "$v" ] && { echo "$v"; return 0; }
+  fi
+  echo ""
+}
+
+K9S_VERSION=$(resolve_version "k9s")
+if [ -z "${K9S_VERSION}" ]; then
+  echo "kubernetes-dev: no k9s version resolved, skipping" >&2
   exit 0
 fi
 

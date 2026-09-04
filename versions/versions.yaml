@@ -92,7 +92,7 @@ tools:
       - type: github
         repo: "docker/scout-cli"
   tinytex:
-    version: "2025.09"
+    version: "2026.09"
     sources:
       - type: github
         repo: "yihui/tinytex"

@@ -175,6 +175,22 @@
       }
     }
     ,
+    "tinytex": {
+      "pinned_version": "2026.09",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/rstudio/tinytex-releases/releases/download/v{version}/installer-unix-v{version}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/rstudio/tinytex-releases/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "TinyTeX unix installer; same asset for amd64/arm64.",
+      "checksums": {
+        "2026.09": {
+          "amd64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "arm64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "x86_64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "aarch64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080"
+        }
+      }
+    }
+    ,
     "miniforge": {
       "pinned_version": "25.11.0-1",
       "archive_format": "sh",

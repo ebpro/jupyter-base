@@ -64,9 +64,8 @@ echo "prompt-helpers: preparing to install gitstatusd ${GITSTATUS_VERSION}"
 # hard failures during multi-arch builds.
 probe_arch=$(uname -m)
 case "$probe_arch" in
-  x86_64) probe_token="amd64" ;;
-  aarch64) probe_token="aarch64" ;;
-  arm64) probe_token="aarch64" ;;
+  x86_64|X86_64|amd64) probe_token="x86_64" ;;
+  aarch64|arm64) probe_token="aarch64" ;;
   *) probe_token="$probe_arch" ;;
 esac
 probe_url="https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-${probe_token}.tar.gz"

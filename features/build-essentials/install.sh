@@ -30,4 +30,9 @@ else
 fi
 rm -rf /var/lib/apt/lists/* || true
 
+# Ubuntu/Debian package `fd-find` installs `fdfind`, while consumers expect `fd`.
+if [ -x /usr/bin/fdfind ] && [ ! -e /usr/local/bin/fd ]; then
+  ln -sf /usr/bin/fdfind /usr/local/bin/fd || true
+fi
+
 echo "build-essentials: done"
