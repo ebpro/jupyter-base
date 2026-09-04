@@ -6,8 +6,8 @@
   "options": {
     "KERNEL_VERSION": {
       "type": "string",
-      "description": "Kernel release version to download when using 'release' source (e.g. v1.4.5)",
-      "default": "v1.4.5"
+      "description": "Kernel release version to download when using 'release' source (e.g. v1.4.6-pr12)",
+      "default": "v1.4.6-pr12"
     },
     "ARTIFACTS_BASE_URL": {
       "type": "string",
@@ -21,8 +21,8 @@
     },
     "JDK_VERSION": {
       "type": "string",
-      "description": "JDK version to use (e.g., 17, 21)",
-      "default": "21"
+      "description": "JDK version to use (e.g. 21, 25)",
+      "default": "25"
     }
   },
   "dependsOn": [
@@ -30,7 +30,7 @@
     "jupyter-kernels"
   ],
   "postInstallCheck": {
-    "command": "bash -lc 'if [ -d /usr/local/share/jupyter/kernels/java ]; then exit 0; else jupyter kernelspec list --json | python -c \"import sys,json; ks=json.load(sys.stdin).get(\\\"kernelspecs\\\",{}); sys.exit(0) if \\\"java\\\" in ks else sys.exit(1)\"; fi'"
+    "command": "bash -lc 'jupyter kernelspec list --json | python - <<PY\nimport json, os, sys\nks = json.load(sys.stdin).get(\"kernelspecs\", {})\nspec = ks.get(\"java\")\nassert spec, \"java kernelspec missing\"\nargv = spec.get(\"argv\", [])\njar = next((a for a in argv if a.endswith(\".jar\")), None)\nassert jar and os.path.exists(jar), f\"java kernel jar missing: {jar}\"\nprint(f\"java kernelspec OK: {jar}\")\nPY'"
   },
   "platforms": [
     "linux/amd64",

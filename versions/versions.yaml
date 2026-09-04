@@ -97,7 +97,7 @@ tools:
       - type: github
         repo: "yihui/tinytex"
   java-kernel:
-    version: "1.4.5"
+    version: "1.4.6-pr12"
     sources:
       - type: github
         repo: "ebpro/IJava"
