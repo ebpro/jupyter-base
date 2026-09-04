@@ -51,6 +51,7 @@ find_chromium_bin() {
     "${HOME_DIR}/.quarto/bin/chromium" \
     "${HOME_DIR}/.quarto/bin/chromium-browser" \
     "${HOME_DIR}/.quarto/bin/chrome" \
+    "${HOME_DIR}/.local/share/quarto/chromium/linux-"*/chrome-linux/chrome \
     "${HOME_DIR}/.local/share/quarto-chromium/chromium" \
     "${HOME_DIR}/.local/share/quarto-chromium/chromium-browser" \
     "${HOME_DIR}/.local/share/quarto-chromium/chrome" \
@@ -65,8 +66,10 @@ find_chromium_bin() {
     fi
   done
 
-  local search_dir found
+  local search_dir found candidate
   for search_dir in \
+    "${HOME_DIR}/.local/share/quarto/chromium" \
+    "${HOME_DIR}/.local/share/quarto" \
     "${HOME_DIR}/.quarto" \
     "${HOME_DIR}/.local/share/quarto-chromium" \
     /opt/quarto \
@@ -80,7 +83,15 @@ find_chromium_bin() {
     /var/cache
   do
     [ -d "${search_dir}" ] || continue
-    found=$(find "${search_dir}" -type f \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) -perm -111 2>/dev/null | head -n1 || true)
+    found=$(
+      find "${search_dir}" \( -type f -o -type l \) \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null |
+        while IFS= read -r candidate; do
+          if [ -x "${candidate}" ]; then
+            printf '%s\n' "${candidate}"
+            break
+          fi
+        done
+    )
     if [ -n "${found}" ]; then
       printf '%s\n' "${found}"
       return 0
@@ -141,6 +152,8 @@ if [ -n "${CHROMIUM_BIN}" ]; then
 else
   echo "quarto-chromium: WARNING: Chromium binary not found after installation" >&2
   for search_dir in \
+    "${HOME_DIR}/.local/share/quarto/chromium" \
+    "${HOME_DIR}/.local/share/quarto" \
     "${HOME_DIR}/.quarto" \
     "${HOME_DIR}/.cache" \
     /root/.quarto \
@@ -149,7 +162,7 @@ else
     /var/cache
   do
     [ -d "${search_dir}" ] || continue
-    find "${search_dir}" -maxdepth 5 -type f \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null | head -n 20 || true
+    find "${search_dir}" -maxdepth 6 \( -type f -o -type l \) \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null | head -n 20 || true
   done
   if [ -f "${HOME_DIR}/.quarto-chromium-install.log" ]; then
     echo "quarto-chromium: Quarto install log tail:" >&2
