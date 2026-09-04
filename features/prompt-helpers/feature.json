@@ -13,7 +13,7 @@
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "test -x /usr/local/bin/gitstatusd",
+    "command": "test -x /usr/local/bin/gitstatusd || test -x ${HOME}/.local/share/gitstatus/gitstatusd",
     "description": "Verify gitstatusd binary is installed and executable"
   },
   "documentationURL": "./features/prompt-helpers/README.md",

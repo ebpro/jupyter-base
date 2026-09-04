@@ -19,7 +19,7 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "postInstallCheck": {
-    "command": "sh -c 'command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || find ${HOME}/.quarto -type f \\( -name chrome -o -name chromium -o -name chromium-browser \\) -perm -111 -print -quit 2>/dev/null | grep -q .'",
+    "command": "sh -c 'command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || find ${HOME}/.quarto ${HOME}/.local/share/quarto-chromium -type f \\( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \\) -perm -111 -print -quit 2>/dev/null | grep -q .'",
     "description": "Verify Chromium is available for Quarto rendering"
   },
   "documentationURL": "./features/quarto-chromium/README.md"

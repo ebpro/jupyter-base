@@ -77,7 +77,7 @@ if curl -sfI "$probe_url" >/dev/null 2>&1; then
     "romkatv/gitstatus" \
     "gitstatusd" \
     "${GITSTATUS_VERSION}" \
-    "${HOME_DIR}/.cache/gitstatus" \
+    "${HOME_DIR}/.local/share/gitstatus" \
     "gitstatusd-linux-{arch}.tar.gz" \
     "true"
 else
@@ -89,14 +89,14 @@ else
 fi
 
 # Set ownership
-chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.cache/gitstatus" || true
+chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.local/share/gitstatus" || true
 
 echo "prompt-helpers: done"
 
 # If the helper didn't place an executable at the expected path, try a resilient
 # fallback: search cached archives, list their contents and extract any matching
 # gitstatus/gitstatusd binary into the cache location.
-TARGET_DIR="${HOME_DIR}/.cache/gitstatus"
+TARGET_DIR="${HOME_DIR}/.local/share/gitstatus"
 TARGET_BIN="${TARGET_DIR}/gitstatusd"
 mkdir -p "${TARGET_DIR}" || true
 if [ ! -x "${TARGET_BIN}" ]; then
