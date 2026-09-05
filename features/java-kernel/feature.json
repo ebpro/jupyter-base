@@ -30,7 +30,7 @@
     "jupyter-kernels"
   ],
   "postInstallCheck": {
-    "command": "bash -lc 'jupyter kernelspec list --json | python - <<PY\nimport json, os, sys\nks = json.load(sys.stdin).get(\"kernelspecs\", {})\nspec = ks.get(\"java\")\nassert spec, \"java kernelspec missing\"\nargv = spec.get(\"argv\", [])\njar = next((a for a in argv if a.endswith(\".jar\")), None)\nassert jar and os.path.exists(jar), f\"java kernel jar missing: {jar}\"\nprint(f\"java kernelspec OK: {jar}\")\nPY'"
+    "command": "bash -lc 'jupyter kernelspec list --json > /tmp/solen-java-kernelspecs.json && python - <<PY\nimport json, os\nwith open(\"/tmp/solen-java-kernelspecs.json\", encoding=\"utf-8\") as f:\n    ks = json.load(f).get(\"kernelspecs\", {})\nspec = ks.get(\"java\")\nassert spec, \"java kernelspec missing\"\nargv = spec.get(\"argv\", [])\njar = next((a for a in argv if a.endswith(\".jar\")), None)\nassert jar and os.path.exists(jar), f\"java kernel jar missing: {jar}\"\nprint(f\"java kernelspec OK: {jar}\")\nPY'"
   },
   "platforms": [
     "linux/amd64",
