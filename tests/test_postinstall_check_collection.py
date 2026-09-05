@@ -9,7 +9,8 @@ def test_collect_post_install_checks_returns_java_kernel_command():
 
     assert checks
     assert checks[0]['id'] == 'java-kernel'
-    assert 'jupyter kernelspec list' in checks[0]['command']
+    assert 'from jupyter_client.kernelspec import KernelSpecManager' in checks[0]['command']
+    assert 'java kernel jar missing' in checks[0]['command']
 
 
 def test_collect_post_install_checks_skips_missing_feature():
