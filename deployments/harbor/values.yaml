@@ -1,0 +1,56 @@
+harborAdminPassword: "CHANGE-ME"
+database:
+  password: "CHANGE-ME"
+
+postgresql:
+  enabled: true
+  dataVolumeSize: 8Gi
+redis:
+  enabled: true
+
+exposure:
+  type: ingress
+  tls:
+    enabled: true
+    certManager: true
+    notAfter: 21d
+  ingress:
+    hosts:
+      core: registry.ebpro.local
+
+registry:
+  replicas: 1
+  volumes:
+    - registry storage:
+        type: persistentVolumeClaim
+        persistentVolumeClaim:
+          size: 30Gi
+          accessMode: ReadWriteOnce
+
+jobService:
+  jobLog:
+    persistentVolume:
+      enabled: true
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+trivy:
+  image:
+    registry: docker.io
+    repository: aquasec/trivy
+    tag: v0.51.2
+  skipUpdate: false
+  ignoreUnfixed: false
+  resourcesRequests:
+    memory: 512Mi
+
+core:
+  replicas: 1
+jobservice:
+  replicas: 1
+portal:
+  replicas: 1
+chartmuseum:
+  replicas: 1
+exporter:
+  replicas: 1

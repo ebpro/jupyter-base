@@ -1,0 +1,80 @@
+name: SonarQube
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ['**']
+  push:
+    branches: ['**']
+
+concurrency:
+  group: sonarqube-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarqube:
+    name: Analyze with SonarQube
+    if: github.event_name == 'workflow_dispatch' || vars.SONAR_HOST_URL != '' || vars.SONAR_PUBLIC_URL != ''
+    runs-on: ${{ vars.SONAR_RUNNER || 'ubuntu-latest' }}
+    env:
+      SONAR_HOST_URL: ${{ vars.SONAR_RUNNER && vars.SONAR_HOST_URL || vars.SONAR_PUBLIC_URL || vars.SONAR_HOST_URL }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_RUNNER: ${{ vars.SONAR_RUNNER }}
+      SONAR_MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'main' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install solen-cli with dev extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e solen-cli[dev]
+
+      - name: Validate SonarQube configuration
+        run: |
+          set -euo pipefail
+          if [ -z "$SONAR_HOST_URL" ]; then
+            echo "::error::Set SONAR_HOST_URL or SONAR_PUBLIC_URL to the SonarQube URL."
+            exit 1
+          fi
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::error::Set the repository secret SONAR_TOKEN to a SonarQube analysis token."
+            exit 1
+          fi
+          if [ -z "$SONAR_RUNNER" ] && [[ "$SONAR_HOST_URL" == *"svc.cluster.local"* ]]; then
+            echo "::error::SONAR_HOST_URL is cluster-local. Set SONAR_RUNNER to an in-cluster self-hosted runner, or set SONAR_PUBLIC_URL to an ingress/load-balancer URL."
+            exit 1
+          fi
+
+      - name: Run tests with coverage
+        run: python -m pytest tests/ --cov=solen --cov-report=xml:coverage.xml
+
+      - name: Prepare SonarQube analysis target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          REF_NAME: ${{ github.ref_name }}
+          MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'main' }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "SONAR_SCAN_ARGS=-Dsonar.pullRequest.key=$PR_NUMBER -Dsonar.pullRequest.branch=$HEAD_REF -Dsonar.pullRequest.base=$BASE_REF -Dsonar.projectVersion=$COMMIT_SHA" >> "$GITHUB_ENV"
+          elif [ "$REF_NAME" = "$MAIN_BRANCH" ]; then
+            echo "SONAR_SCAN_ARGS=-Dsonar.projectVersion=$COMMIT_SHA" >> "$GITHUB_ENV"
+          else
+            echo "SONAR_SCAN_ARGS=-Dsonar.branch.name=$REF_NAME -Dsonar.projectVersion=$COMMIT_SHA" >> "$GITHUB_ENV"
+          fi
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v6
+        with:
+          args: ${{ env.SONAR_SCAN_ARGS }}
