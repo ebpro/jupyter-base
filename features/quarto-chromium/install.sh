@@ -179,7 +179,11 @@ wrap_chromium_shim() {
 #!/bin/sh
 # solen-chromium-shim: CI-safe flags for headless Chromium in restricted
 # containers (baked by features/quarto-chromium; original: ${bin_name}.real)
-exec "\$(dirname "\$0")/${bin_name}.real" --no-sandbox --disable-gpu --disable-dev-shm-usage "\$@"
+# Resolve our canonical path first: this shim is commonly invoked through
+# the /usr/local/bin + ~/.local/bin symlinks, where \$0 would point at the
+# symlink and dirname(\$0) would miss ${bin_name}.real next to the original.
+self="\$(readlink -f "\$0" 2>/dev/null || echo "\$0")"
+exec "\$(dirname "\$self")/${bin_name}.real" --no-sandbox --disable-gpu --disable-dev-shm-usage "\$@"
 SHIM
   chmod 0755 "${bin}"
   chown "${NB_UID}":"${NB_GID}" "${bin}" "${real}" || true
