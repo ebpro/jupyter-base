@@ -19,8 +19,8 @@
     "email": "emmanuel.bruno@univ-tln.fr"
   },
   "postInstallCheck": {
-    "command": "sh -c 'command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 || find ${HOME}/.local/share/quarto/chromium ${HOME}/.quarto ${HOME}/.local/share/quarto-chromium \\( -type f -o -type l \\) \\( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \\) -print -quit 2>/dev/null | grep -q .'",
-    "description": "Verify Chromium is available for Quarto rendering"
+    "command": "chromium_bin=\"$(command -v chromium || command -v chromium-browser || true)\"\nif [ -z \"${chromium_bin}\" ]; then\n  echo \"quarto-chromium: CHECK FAIL - no chromium/chromium-browser on PATH\" >&2\n  exit 1\nfi\nerr_file=\"$(mktemp)\"\nout=\"$(timeout 60 \"${chromium_bin}\" --headless --disable-gpu --dump-dom about:blank 2>\"${err_file}\")\" && rc=0 || rc=$?\nif [ \"${rc}\" -ne 0 ]; then\n  echo \"quarto-chromium: CHECK FAIL - headless chromium exited ${rc}\" >&2\n  cat \"${err_file}\" >&2\n  rm -f \"${err_file}\"\n  exit 1\nfi\nrm -f \"${err_file}\"\nif [ -z \"${out}\" ]; then\n  echo \"quarto-chromium: CHECK FAIL - headless chromium produced no output\" >&2\n  exit 1\nfi\necho \"quarto-chromium: check OK (headless chromium rendered via ${chromium_bin})\"",
+    "description": "Functionally verify headless Chromium starts and renders (CI-safe shim + shared libraries), not just that the binary exists"
   },
   "documentationURL": "./features/quarto-chromium/README.md"
 }
