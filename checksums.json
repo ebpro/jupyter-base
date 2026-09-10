@@ -121,7 +121,7 @@
       }
     },
     "quarto": {
-      "pinned_version": "1.8.24",
+      "pinned_version": "1.10.18",
       "archive_format": "tar.gz / deb / pkg / msi",
       "archive_url_template": "https://github.com/quarto-dev/quarto-cli/releases/download/v{version}/quarto-{version}-linux-{arch}.tar.gz",
       "checksum_asset": "quarto-{version}-checksums.txt",
@@ -131,6 +131,10 @@
         "1.8.24": {
           "amd64": "6b83c1c9b6f2ce6454798b42260bd2ee184551d74debe817b8aaf28b09ac22d0",
           "arm64": "89a97a65a242a5b9b010a9f9978928c1d8e4ac02a558c9cd91a110c3f2611fdd"
+        },
+        "1.10.18": {
+          "amd64": "afad071b5bd22c02f2d300695743189d3650e0537a53073e654b630cff2b0c73",
+          "arm64": "f6a07df68e25330b5df34f65d3df66bca605acce3b830c593a58e91884d4cf6c"
         }
       }
     },
@@ -147,14 +151,18 @@
     }
     ,
     "ijava": {
-      "pinned_version": "1.4.5",
+      "pinned_version": "1.4.6-pr12",
       "archive_format": "zip",
-      "archive_filename": "IJava-latest.zip",
-      "archive_url_template": "https://github.com/ebpro/IJava/releases/download/v{version}/IJava-latest.zip",
+      "archive_filename": "IJava-{version}.zip",
+      "archive_url_template": "https://github.com/ebpro/IJava/releases/download/v{version}/IJava-{version}.zip",
       "notes": "IJava distribution zip produced by CI (contains install.py and JAR).",
       "checksums": {
         "1.4.5": {
           "amd64": "8336fbcf26cc570fbf33ee52a2e6051d865214355654e32218467db49658f2b5"
+        },
+        "1.4.6-pr12": {
+          "amd64": "c2fa3bcb3fc22602e7e116bf0f2590dcc521ebf8cecb347885b799919ab6a870",
+          "arm64": "c2fa3bcb3fc22602e7e116bf0f2590dcc521ebf8cecb347885b799919ab6a870"
         }
       }
     }
@@ -171,6 +179,22 @@
           "arm64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce",
           "x86_64": "1772dc260961db27958088740b7e9ecebf945abad8c2d504d412448f53faf147",
           "aarch64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce"
+        }
+      }
+    }
+    ,
+    "tinytex": {
+      "pinned_version": "2026.09",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/rstudio/tinytex-releases/releases/download/v{version}/installer-unix-v{version}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/rstudio/tinytex-releases/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "TinyTeX unix installer; same asset for amd64/arm64.",
+      "checksums": {
+        "2026.09": {
+          "amd64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "arm64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "x86_64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080",
+          "aarch64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080"
         }
       }
     }

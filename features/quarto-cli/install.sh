@@ -149,11 +149,32 @@ fi
 
 echo "quarto-cli: found runtime at ${INSTDIR} -> ${QUARTO_EXE}"
 
+# The tarball ships bundled tools (typst, pandoc, deno, ...) under
+# <install-dir>/bin/tools/<arch>/ (arch = x86_64 | aarch64). Quarto
+# itself locates them relative to its own binary (QUARTO_BIN_PATH), so
+# renders work without PATH; expose the dir on PATH so that direct
+# `typst` invocations (user notebook cells, scripts) resolve too.
+QUARTO_TOOLS_DIR=""
+for cand in "$(dirname "$QUARTO_EXE")"/tools/*/typst; do
+  if [ -x "$cand" ]; then
+    QUARTO_TOOLS_DIR="$(dirname "$cand")"
+    break
+  fi
+done
+if [ -n "${QUARTO_TOOLS_DIR}" ]; then
+  echo "quarto-cli: bundled tools dir at ${QUARTO_TOOLS_DIR}"
+fi
+
+QUARTO_PATH_ADD="${CONDA_DIR}/bin:$(dirname "$QUARTO_EXE")"
+if [ -n "${QUARTO_TOOLS_DIR}" ]; then
+  QUARTO_PATH_ADD="${QUARTO_PATH_ADD}:${QUARTO_TOOLS_DIR}"
+fi
+
 # Create wrapper in /usr/local/bin
 mkdir -p /usr/local/bin
 cat > /usr/local/bin/quarto <<WRAPPER
 #!/bin/sh
-export PATH="${CONDA_DIR}/bin:$(dirname "$QUARTO_EXE"):\$PATH"
+export PATH="${QUARTO_PATH_ADD}:\$PATH"
 export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
 exec "$QUARTO_EXE" "\$@"
 WRAPPER
@@ -163,7 +184,7 @@ chown root:root /usr/local/bin/quarto
 # Add to system PATH via profile.d
 mkdir -p /etc/profile.d
 cat > /etc/profile.d/quarto.sh <<PROFILE
-export PATH="${CONDA_DIR}/bin:$(dirname "$QUARTO_EXE"):\$PATH"
+export PATH="${QUARTO_PATH_ADD}:\$PATH"
 export QUARTO_PYTHON="${CONDA_DIR}/bin/python3"
 PROFILE
 chmod 644 /etc/profile.d/quarto.sh

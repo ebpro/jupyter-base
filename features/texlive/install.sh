@@ -25,16 +25,12 @@ NB_GID=${NB_GID:-1001}
 HOME_DIR="/home/${NB_USER}"
 TEXDIR="${HOME_DIR}/.TinyTeX"
 INSTALLER="installer-unix"
-TINYTEX_VERSION="2025.05"
+TINYTEX_VERSION="2026.09"
 
-# Pin CTAN repository to a France mirror by default to avoid auto mirror selection.
-# User-provided mirrors (preferred):
-# - https://ctan.ceremade.dauphine.fr (Paris)
-# - https://ctan.mines-albi.fr (Albi)
-# - https://ctan.tetaneutral.net (Toulouse)
-# - https://distrib-coffee.ipsl.jussieu.fr (Paris)
-# Default to ceremade.dauphine.fr for TLS/https access; can be overridden by setting CTAN_REPO env var.
-CTAN_REPO="${CTAN_REPO:-https://ctan.ceremade.dauphine.fr/systems/texlive/tlnet}"
+# Use the maintained TinyTeX TeX Live mirror by default. This keeps the TinyTeX
+# installer and the downloaded TeX Live repository in sync unless the caller
+# explicitly provides a compatible override.
+CTAN_REPO="${CTAN_REPO:-https://tlnet.yihui.org}"
 
 # Resolve version helper (prefer per-feature artefacts/*, then central, then /tmp)
 resolve_version() {
@@ -145,9 +141,22 @@ if [ -n "${installer_sh}" ]; then
     rm -rf /var/lib/apt/lists/* || true
   fi
 
-  pushd "$(dirname "${installer_sh}")"
+  export CTAN_REPO
+  install_root="$(cd "$(dirname "${installer_sh}")" && pwd)"
+  pushd "${install_root}"
   ./install.sh || true
   popd
+
+  mkdir -p "${TEXDIR}"
+  if [ -d "${install_root}/texlive" ]; then
+    mv "${install_root}/texlive"/* "${TEXDIR}" || true
+    rm -rf "${install_root}/texlive" || true
+  elif [ -d texlive ]; then
+    mv texlive/* "${TEXDIR}" || true
+    rm -rf texlive || true
+  else
+    echo "texlive: could not locate installed texlive directory under ${install_root}" >&2
+  fi
   rm -rf "${tmpd}"
 else
   curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz

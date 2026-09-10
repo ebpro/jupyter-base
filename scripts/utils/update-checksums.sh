@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Script to download binaries for pinned versions and compute SHA256 checksums
 # It updates `checksums.json` (repo root) with entries like:
-# { "quarto": { "1.8.24": { "amd64": "<sha256>" } } }
+# { "quarto": { "1.10.18": { "amd64": "<sha256>" } } }
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 # Single source of truth: repo-root checksums.json and versions.json

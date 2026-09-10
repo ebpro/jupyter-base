@@ -8,7 +8,7 @@
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "test -d /home/jovyan/local/quarto-templates",
+    "command": "test -d /home/jovyan/local/templates/quarto",
     "description": "Verify quarto-templates directory is created"
   },
   "documentationURL": "./features/quarto-common/README.md",

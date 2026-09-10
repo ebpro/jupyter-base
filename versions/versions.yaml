@@ -21,7 +21,7 @@ tools:
       - type: github
         repo: "docker/cli"
   quarto:
-    version: "v1.8.26"
+    version: "v1.10.18"
     sources:
       - type: github
         repo: "quarto-dev/quarto-cli"
@@ -92,12 +92,12 @@ tools:
       - type: github
         repo: "docker/scout-cli"
   tinytex:
-    version: "2025.09"
+    version: "2026.09"
     sources:
       - type: github
         repo: "yihui/tinytex"
   java-kernel:
-    version: "1.4.5"
+    version: "1.4.6-pr12"
     sources:
       - type: github
         repo: "ebpro/IJava"

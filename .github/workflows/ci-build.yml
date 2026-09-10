@@ -17,6 +17,14 @@ on:
         description: 'Disable buildx cache'
         required: false
         default: 'false'
+      run-postinstall-checks:
+        description: 'Run feature postInstallCheck commands in built images'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 permissions:
   contents: read
@@ -74,13 +82,38 @@ jobs:
             echo "$profile" >> profiles-built.txt
           done
 
+      - name: Run post-install contract checks
+        env:
+          RUN_POSTINSTALL_CHECKS: ${{ github.event.inputs['run-postinstall-checks'] || 'false' }}
+        run: |
+          set -uo pipefail
+          if [ "$RUN_POSTINSTALL_CHECKS" != 'true' ]; then
+            echo "Post-install contract checks disabled"
+            exit 0
+          fi
+
+          failed=0
+          while read -r profile; do
+            [ -n "$profile" ] || continue
+            tag=$(sed -n "/^target \"final-$profile\" /,/^}/p" generated/docker-bake.hcl \
+              | awk '/tags = \[/{flag=1; next} flag && /\]/{exit} flag {gsub(/[",]/, ""); gsub(/^[ \t]+|[ \t]+$/, ""); if ($0 != "") {print; exit}}')
+            if [ -z "$tag" ]; then
+              echo "No tag found in bake file for $profile; skipping post-install checks" >&2
+              continue
+            fi
+            echo "Running post-install contract checks for $tag"
+            docker run --rm --entrypoint /opt/solen/run-postinstall-checks.sh "$tag" || failed=1
+          done < profiles-built.txt
+
+          exit "$failed"
+
       - name: Generate SBOM and Trivy scans
         run: |
           set -uo pipefail
           while read -r profile; do
             [ -n "$profile" ] || continue
             tag=$(sed -n "/^target \"final-$profile\" /,/^}/p" generated/docker-bake.hcl \
-              | sed -n '/tags = \[/,/\]/p' | grep -m1 '"' | tr -d '"')
+              | awk '/tags = \[/{flag=1; next} flag && /\]/{exit} flag {gsub(/[",]/, ""); gsub(/^[ \t]+|[ \t]+$/, ""); if ($0 != "") {print; exit}}')
             if [ -z "$tag" ]; then
               echo "No tag found in bake file for $profile; skipping scans" >&2
               continue

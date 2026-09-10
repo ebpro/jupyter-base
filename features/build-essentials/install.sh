@@ -20,7 +20,7 @@ else
 fi
 
 # This feature installs build tools and monitoring utilities.
-PKGS="build-essential cmake pkg-config python3-dev libssl-dev libffi-dev git htop lsof strace"
+PKGS="build-essential cmake pkg-config python3-dev libssl-dev libffi-dev git htop lsof strace fd-find ripgrep"
 
 echo "build-essentials: installing packages: ${PKGS}"
 if command -v apt_install >/dev/null 2>&1; then
@@ -29,5 +29,10 @@ else
   apt-get update && apt-get install -y --no-install-recommends ${PKGS} || true
 fi
 rm -rf /var/lib/apt/lists/* || true
+
+# Ubuntu/Debian package `fd-find` installs `fdfind`, while consumers expect `fd`.
+if [ -x /usr/bin/fdfind ] && [ ! -e /usr/local/bin/fd ]; then
+  ln -sf /usr/bin/fdfind /usr/local/bin/fd || true
+fi
 
 echo "build-essentials: done"

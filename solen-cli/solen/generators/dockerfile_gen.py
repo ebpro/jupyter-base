@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from solen.core.feature import (
     collect_feature_metadata,
     collect_feature_options,
+    collect_post_install_checks,
     expand_feature_dependencies,
     topological_sort_features,
 )
@@ -45,6 +47,7 @@ def build_profile_data(repo_root: Path, profile_name: str) -> dict[str, Any]:
 
     metadata = collect_feature_metadata(features_dir, features)
     feature_options = collect_feature_options(features_dir, features)
+    checks = collect_post_install_checks(features_dir, features)
     all_options = {**feature_options, **profile_data.options}
 
     return {
@@ -53,6 +56,13 @@ def build_profile_data(repo_root: Path, profile_name: str) -> dict[str, Any]:
         "features_str": " ".join(features) if features else "none",
         "provides_str": ",".join(metadata.get("provides", [])),
         "env": {k: docker_escape(v) for k, v in all_options.items()},
+        "checks": [
+            {
+                **check,
+                "command_b64": base64.b64encode(check["command"].encode("utf-8")).decode("ascii"),
+            }
+            for check in checks
+        ],
     }
 
 

@@ -64,9 +64,8 @@ echo "prompt-helpers: preparing to install gitstatusd ${GITSTATUS_VERSION}"
 # hard failures during multi-arch builds.
 probe_arch=$(uname -m)
 case "$probe_arch" in
-  x86_64) probe_token="amd64" ;;
-  aarch64) probe_token="aarch64" ;;
-  arm64) probe_token="aarch64" ;;
+  x86_64|X86_64|amd64) probe_token="x86_64" ;;
+  aarch64|arm64) probe_token="aarch64" ;;
   *) probe_token="$probe_arch" ;;
 esac
 probe_url="https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-${probe_token}.tar.gz"
@@ -78,7 +77,7 @@ if curl -sfI "$probe_url" >/dev/null 2>&1; then
     "romkatv/gitstatus" \
     "gitstatusd" \
     "${GITSTATUS_VERSION}" \
-    "${HOME_DIR}/.cache/gitstatus" \
+    "${HOME_DIR}/.local/share/gitstatus" \
     "gitstatusd-linux-{arch}.tar.gz" \
     "true"
 else
@@ -90,14 +89,14 @@ else
 fi
 
 # Set ownership
-chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.cache/gitstatus" || true
+chown -R "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.local/share/gitstatus" || true
 
 echo "prompt-helpers: done"
 
 # If the helper didn't place an executable at the expected path, try a resilient
 # fallback: search cached archives, list their contents and extract any matching
 # gitstatus/gitstatusd binary into the cache location.
-TARGET_DIR="${HOME_DIR}/.cache/gitstatus"
+TARGET_DIR="${HOME_DIR}/.local/share/gitstatus"
 TARGET_BIN="${TARGET_DIR}/gitstatusd"
 mkdir -p "${TARGET_DIR}" || true
 if [ ! -x "${TARGET_BIN}" ]; then
@@ -131,4 +130,9 @@ if [ ! -x "${TARGET_BIN}" ]; then
   if [ ! -x "$TARGET_BIN" ]; then
     echo "prompt-helpers: ❌ gitstatusd still not found after fallback"
   fi
+fi
+
+if [ -x "${TARGET_BIN}" ]; then
+  ln -sf "${TARGET_BIN}" /usr/local/bin/gitstatusd || true
+  chmod +x /usr/local/bin/gitstatusd || true
 fi

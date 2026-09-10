@@ -14,10 +14,11 @@ set -euo pipefail
 # Installs a Java kernel (IJava) by downloading a release tarball OR using prebaked artifacts.
 # Relies on ARTIFACTS_BASE_URL or ARTEFACT_URL to point to a release tarball.
 
-KERNEL_VERSION=${KERNEL_VERSION:-${1:-${kernel_version:-v1.4.5}}}
-JDK_VERSION=${JDK_VERSION:-${2:-${jdk_version:-17}}}
+KERNEL_VERSION=${KERNEL_VERSION:-${1:-${kernel_version:-v1.4.6-pr12}}}
+JDK_VERSION=${JDK_VERSION:-${2:-${jdk_version:-25}}}
+CONDA_DIR=${CONDA_DIR:-/home/${NB_USER:-jovyan}/miniforge3}
 
-echo "java-kernel: version=${KERNEL_VERSION} jdk=${JDK_VERSION}"
+echo "java-kernel: version=${KERNEL_VERSION} jdk=${JDK_VERSION} conda=${CONDA_DIR}"
 
 ## JDK installation handled by `java-jdk` feature during image build.
 
@@ -66,13 +67,24 @@ install_from_release() {
   # expect ARTIFACTS_BASE_URL or ARTEFACT_URL and checksums available
   local base_url=${ARTIFACTS_BASE_URL:-}
   local url=${ARTEFACT_URL:-}
+  local candidate_url
+  local version_tag="${KERNEL_VERSION}"
+  local version_raw="${KERNEL_VERSION#v}"
+
   # If user provided base url and version, try to construct common release URL patterns
   if [[ -z "$url" && -n "$KERNEL_VERSION" && -n "$base_url" ]]; then
-    # Support GitHub releases layout: <base>/download/<tag>/IJava-latest.zip
     if echo "$base_url" | grep -qi "github.com"; then
-      url="${base_url%/}/download/${KERNEL_VERSION}/IJava-latest.zip"
+      for candidate_url in \
+        "${base_url%/}/download/${version_tag}/IJava-latest.zip" \
+        "${base_url%/}/download/${version_tag}/IJava-${version_tag}.zip" \
+        "${base_url%/}/download/${version_tag}/IJava-${version_raw}.zip"
+      do
+        if curl -fsIL --max-time 20 "$candidate_url" >/dev/null 2>&1; then
+          url="$candidate_url"
+          break
+        fi
+      done
     else
-      # fallback to a tarball named java-kernel-<version>.tar.gz
       url="${base_url%/}/java-kernel-${KERNEL_VERSION}.tar.gz"
     fi
   fi
@@ -83,6 +95,7 @@ install_from_release() {
   fi
 
   tmpdir=$(mktemp -d)
+  chmod 755 "$tmpdir"
   trap 'rm -rf "$tmpdir"' EXIT
   echo "java-kernel: downloading $url"
 
@@ -141,6 +154,31 @@ install_from_release() {
       ;;
   esac
 
+  chmod -R a+rX "$tmpdir" 2>/dev/null || true
+
+  # Prefer the release-provided installer when present (IJava >= 1.4.6-pr*)
+  install_py=$(find "$tmpdir" -type f -name install.py | head -n1 || true)
+  if [[ -n "$install_py" ]]; then
+    python_bin="${CONDA_DIR}/bin/python"
+    if [[ ! -x "$python_bin" ]]; then
+      python_bin=$(command -v python3 || true)
+    fi
+    if [[ -z "$python_bin" ]]; then
+      echo "java-kernel: no Python interpreter available to run install.py" >&2
+      return 1
+    fi
+
+    install_script_dir=$(dirname "$install_py")
+    if [[ "$(id -u)" == "0" ]]; then
+      su - "${NB_USER:-jovyan}" -c "cd '$install_script_dir' && '$python_bin' '$install_py' --sys-prefix --replace"
+    else
+      (cd "$install_script_dir" && "$python_bin" "$install_py" --sys-prefix --replace)
+    fi
+    chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${CONDA_DIR}/share/jupyter/kernels/java" >/dev/null 2>&1 || true
+    echo "java-kernel: installed kernelspec via install.py"
+    return 0
+  fi
+
   # Expect jar under dist/ or lib/ or root
   jar=$(find "$tmpdir" -type f \( -iname '*ijava*.jar' -o -iname '*kernel*.jar' \) | head -n1 || true)
   if [[ -z "$jar" ]]; then
@@ -151,7 +189,6 @@ install_from_release() {
     return 1
   fi
 
-  CONDA_DIR=${CONDA_DIR:-/home/${NB_USER:-jovyan}/miniforge3}
   dest="${CONDA_DIR}/share/jupyter/kernels/java"
   mkdir -p "$dest"
   cp "$jar" "$dest/ijava.jar"
