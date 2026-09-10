@@ -21,7 +21,7 @@ tools:
       - type: github
         repo: "docker/cli"
   quarto:
-    version: "v1.8.26"
+    version: "v1.10.18"
     sources:
       - type: github
         repo: "quarto-dev/quarto-cli"
