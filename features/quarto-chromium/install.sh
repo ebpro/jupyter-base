@@ -65,7 +65,9 @@ if [ -z "${QUARTO_BIN}" ]; then
   done
 fi
 if [ -n "${QUARTO_BIN}" ] && [ -x "${QUARTO_BIN}" ]; then
-  CI=true "${QUARTO_BIN}" install --no-prompt --log "${HOME}/.quarto-chromium-install.log" --log-level debug chromium \
+  CI=true "${QUARTO_BIN}" install --no-prompt --log "${HOME}/.quarto-chromium-install.log" --log-level debug chrome-headless-shell \
+    || CI=true "${QUARTO_BIN}" install chrome-headless-shell --no-prompt \
+    || CI=true "${QUARTO_BIN}" install --no-prompt --log "${HOME}/.quarto-chromium-install.log" --log-level debug chromium \
     || CI=true "${QUARTO_BIN}" install chromium --no-prompt \
     || true
 else
@@ -83,7 +85,10 @@ find_chromium_bin() {
     "${HOME_DIR}/.quarto/bin/chromium" \
     "${HOME_DIR}/.quarto/bin/chromium-browser" \
     "${HOME_DIR}/.quarto/bin/chrome" \
+    "${HOME_DIR}/.quarto/bin/chrome-headless-shell" \
+    "${HOME_DIR}/.quarto/bin/headless_shell" \
     "${HOME_DIR}/.local/share/quarto/chromium/linux-"*/chrome-linux/chrome \
+    "${HOME_DIR}/.local/share/quarto/chrome-headless-shell/linux-"*/chrome-headless-shell \
     "${HOME_DIR}/.local/share/quarto-chromium/chromium" \
     "${HOME_DIR}/.local/share/quarto-chromium/chromium-browser" \
     "${HOME_DIR}/.local/share/quarto-chromium/chrome" \
@@ -116,7 +121,7 @@ find_chromium_bin() {
   do
     [ -d "${search_dir}" ] || continue
     found=$(
-      find "${search_dir}" \( -type f -o -type l \) \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null |
+      find "${search_dir}" \( -type f -o -type l \) \( -name chrome -o -name chrome-headless-shell -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null |
         while IFS= read -r candidate; do
           if [ -x "${candidate}" ]; then
             printf '%s\n' "${candidate}"
@@ -235,14 +240,18 @@ if [ -n "${CHROMIUM_BIN}" ]; then
   mkdir -p "${HOME_DIR}/.local/bin" || true
   ln -sf "${CHROMIUM_BIN}" /usr/local/bin/chromium || true
   ln -sf "${CHROMIUM_BIN}" /usr/local/bin/chromium-browser || true
+  ln -sf "${CHROMIUM_BIN}" /usr/local/bin/chrome-headless-shell || true
+  ln -sf "${CHROMIUM_BIN}" /usr/local/bin/headless_shell || true
   ln -sf "${CHROMIUM_BIN}" "${HOME_DIR}/.local/bin/chromium" || true
   ln -sf "${CHROMIUM_BIN}" "${HOME_DIR}/.local/bin/chromium-browser" || true
-  chown "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.local/bin/chromium" "${HOME_DIR}/.local/bin/chromium-browser" || true
+  ln -sf "${CHROMIUM_BIN}" "${HOME_DIR}/.local/bin/chrome-headless-shell" || true
+  ln -sf "${CHROMIUM_BIN}" "${HOME_DIR}/.local/bin/headless_shell" || true
+  chown "${NB_UID}":"${NB_GID}" "${HOME_DIR}/.local/bin/chromium" "${HOME_DIR}/.local/bin/chromium-browser" "${HOME_DIR}/.local/bin/chrome-headless-shell" "${HOME_DIR}/.local/bin/headless_shell" || true
 
   # Bake the CI-safe flags into the binary itself (idempotent).
   wrap_chromium_shim "${CHROMIUM_BIN}"
 else
-  echo "quarto-chromium: WARNING: Chromium binary not found after installation" >&2
+  echo "quarto-chromium: ERROR: Chromium/Chrome Headless Shell binary not found after installation" >&2
   for search_dir in \
     "${HOME_DIR}/.local/share/quarto/chromium" \
     "${HOME_DIR}/.local/share/quarto" \
@@ -254,12 +263,13 @@ else
     /var/cache
   do
     [ -d "${search_dir}" ] || continue
-    find "${search_dir}" -maxdepth 6 \( -type f -o -type l \) \( -name chrome -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null | head -n 20 || true
+    find "${search_dir}" -maxdepth 6 \( -type f -o -type l \) \( -name chrome -o -name chrome-headless-shell -o -name chromium -o -name chromium-browser -o -name headless_shell \) 2>/dev/null | head -n 20 || true
   done
   if [ -f "${HOME_DIR}/.quarto-chromium-install.log" ]; then
     echo "quarto-chromium: Quarto install log tail:" >&2
     tail -n 40 "${HOME_DIR}/.quarto-chromium-install.log" >&2 || true
   fi
+  exit 1
 fi
 
 echo "quarto-chromium: installation complete"
