@@ -7,6 +7,9 @@ on:
   push:
     branches: ['**']
 
+permissions:
+  contents: read
+
 concurrency:
   group: sonarqube-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,7 +21,6 @@ jobs:
     runs-on: ${{ vars.SONAR_RUNNER || 'ubuntu-latest' }}
     env:
       SONAR_HOST_URL: ${{ vars.SONAR_RUNNER && vars.SONAR_HOST_URL || vars.SONAR_PUBLIC_URL || vars.SONAR_HOST_URL }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       SONAR_RUNNER: ${{ vars.SONAR_RUNNER }}
       SONAR_MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'develop' }}
     steps:
@@ -53,23 +55,8 @@ jobs:
             exit 1
           fi
 
-      - name: Download coverage artifact (from CI Validate)
-        id: download-coverage
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage
-          path: .
-          github-token: ${{ github.token }}
-
-      - name: Run tests with coverage (if no artifact)
-        run: |
-          if [ -f coverage.xml ]; then
-            echo "Using coverage.xml from CI Validate artifact"
-          else
-            echo "No coverage artifact found, running pytest with coverage"
-            python -m pytest tests/ --cov=solen --cov-report=xml:coverage.xml
-          fi
+      - name: Run tests with coverage
+        run: python -m pytest tests/ --cov=solen --cov-report=xml:coverage.xml
 
       - name: Prepare SonarQube analysis target
         env:
@@ -90,6 +77,8 @@ jobs:
           fi
 
       - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         uses: sonarsource/sonarqube-scan-action@v6
         with:
           args: ${{ env.SONAR_SCAN_ARGS }}
@@ -97,5 +86,7 @@ jobs:
       - name: Quality Gate (advisory — does not block)
         if: success()
         continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         uses: sonarsource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
