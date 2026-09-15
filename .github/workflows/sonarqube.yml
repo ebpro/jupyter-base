@@ -20,7 +20,7 @@ jobs:
       SONAR_HOST_URL: ${{ vars.SONAR_RUNNER && vars.SONAR_HOST_URL || vars.SONAR_PUBLIC_URL || vars.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       SONAR_RUNNER: ${{ vars.SONAR_RUNNER }}
-      SONAR_MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'main' }}
+      SONAR_MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'develop' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -53,8 +53,23 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests with coverage
-        run: python -m pytest tests/ --cov=solen --cov-report=xml:coverage.xml
+      - name: Download coverage artifact (from CI Validate)
+        id: download-coverage
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: .
+          github-token: ${{ github.token }}
+
+      - name: Run tests with coverage (if no artifact)
+        run: |
+          if [ -f coverage.xml ]; then
+            echo "Using coverage.xml from CI Validate artifact"
+          else
+            echo "No coverage artifact found, running pytest with coverage"
+            python -m pytest tests/ --cov=solen --cov-report=xml:coverage.xml
+          fi
 
       - name: Prepare SonarQube analysis target
         env:
@@ -63,7 +78,7 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}
           REF_NAME: ${{ github.ref_name }}
-          MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'main' }}
+          MAIN_BRANCH: ${{ vars.SONAR_MAIN_BRANCH || 'develop' }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ "$EVENT_NAME" = "pull_request" ]; then
