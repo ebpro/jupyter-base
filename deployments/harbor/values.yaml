@@ -1,56 +1,58 @@
+# Harbor Registry — Helm values (goharbor/harbor chart)
+# Deploy with: helm install harbor goharbor/harbor -f values.yaml
+#
+# Reference: https://github.com/goharbor/harbor-helm/blob/main/README.md
+
+# External URL — used in generated links, token endpoints, API responses
+externalURL: https://registry.ebpro.local
+
+# Admin password (REPLACE with a real secret before deployment)
 harborAdminPassword: "CHANGE-ME"
+
+# Database: internal PostgreSQL
 database:
-  password: "CHANGE-ME"
+  type: internal
+  internal:
+    password: "CHANGE-ME"
+    sslmode: disable
 
-postgresql:
-  enabled: true
-  dataVolumeSize: 8Gi
+# Redis: internal
 redis:
-  enabled: true
+  type: internal
 
-exposure:
+# Exposure: ingress with TLS via cert-manager
+expose:
   type: ingress
   tls:
     enabled: true
-    certManager: true
-    notAfter: 21d
+    certSource: auto  # cert-manager issues the certificate
   ingress:
     hosts:
       core: registry.ebpro.local
 
-registry:
-  replicas: 1
-  volumes:
-    - registry storage:
-        type: persistentVolumeClaim
-        persistentVolumeClaim:
-          size: 30Gi
-          accessMode: ReadWriteOnce
-
-jobService:
-  jobLog:
-    persistentVolume:
-      enabled: true
+# Persistence
+persistence:
+  persistentVolumeClaim:
+    registry:
+      size: 30Gi
+      accessMode: ReadWriteOnce
+    database:
+      size: 8Gi
+      accessMode: ReadWriteOnce
+    redis:
+      size: 1Gi
+      accessMode: ReadWriteOnce
+    jobservice:
       size: 1Gi
       accessMode: ReadWriteOnce
 
+# Trivy vulnerability scanner
 trivy:
-  image:
-    registry: docker.io
-    repository: aquasec/trivy
-    tag: v0.51.2
   skipUpdate: false
   ignoreUnfixed: false
-  resourcesRequests:
-    memory: 512Mi
-
-core:
-  replicas: 1
-jobservice:
-  replicas: 1
-portal:
-  replicas: 1
-chartmuseum:
-  replicas: 1
-exporter:
-  replicas: 1
+  severity:
+    - HIGH
+    - CRITICAL
+  resources:
+    requests:
+      memory: 512Mi
