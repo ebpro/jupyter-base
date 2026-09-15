@@ -1,0 +1,58 @@
+# Harbor Registry — Helm values (goharbor/harbor chart)
+# Deploy with: helm install harbor goharbor/harbor -f values.yaml
+#
+# Reference: https://github.com/goharbor/harbor-helm/blob/main/README.md
+
+# External URL — used in generated links, token endpoints, API responses
+externalURL: https://registry.ebpro.local
+
+# Admin password (REPLACE with a real secret before deployment)
+harborAdminPassword: "CHANGE-ME"
+
+# Database: internal PostgreSQL
+database:
+  type: internal
+  internal:
+    password: "CHANGE-ME"
+    sslmode: disable
+
+# Redis: internal
+redis:
+  type: internal
+
+# Exposure: ingress with TLS via cert-manager
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    certSource: auto  # cert-manager issues the certificate
+  ingress:
+    hosts:
+      core: registry.ebpro.local
+
+# Persistence
+persistence:
+  persistentVolumeClaim:
+    registry:
+      size: 30Gi
+      accessMode: ReadWriteOnce
+    database:
+      size: 8Gi
+      accessMode: ReadWriteOnce
+    redis:
+      size: 1Gi
+      accessMode: ReadWriteOnce
+    jobservice:
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+# Trivy vulnerability scanner
+trivy:
+  skipUpdate: false
+  ignoreUnfixed: false
+  severity:
+    - HIGH
+    - CRITICAL
+  resources:
+    requests:
+      memory: 512Mi

@@ -37,8 +37,15 @@ jobs:
       - name: Check versions in sync
         run: solen versions sync --check
 
-      - name: Run test suite
-        run: python -m pytest tests/ -q
+      - name: Run test suite with coverage
+        run: python -m pytest tests/ -q --cov=solen --cov-report=xml:coverage.xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 1
 
       - name: Lint
         run: ruff check solen-cli tests
