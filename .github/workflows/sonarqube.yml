@@ -40,6 +40,8 @@ jobs:
           pip install -e solen-cli[dev]
 
       - name: Validate SonarQube configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "$SONAR_HOST_URL" ]; then
