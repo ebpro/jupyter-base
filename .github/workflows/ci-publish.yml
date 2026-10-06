@@ -2,16 +2,12 @@ name: Publish to GHCR
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop ]
     tags: [ 'v*' ]
   workflow_dispatch:
     inputs:
       profiles:
         description: 'Comma-separated profiles to publish (defaults to all generated)'
-        required: false
-        default: ''
-      platforms:
-        description: 'Comma-separated target platforms (default linux/amd64 for dev speed; v* tags publish multi-arch)'
         required: false
         default: ''
 
@@ -21,16 +17,21 @@ permissions:
 
 env:
   IMAGE_REPO: ghcr.io/${{ github.repository_owner }}
-  IMAGE_NAME: ${{ github.event.repository.name }}
+  IMAGE_NAME: solen
 
+# Per-arch publishing, native (no QEMU/binfmt). Each build job runs on a
+# runner of its own architecture and bakes with the host-arch platform that
+# `solen generate bake` emits. On `v*` tags every tag is suffixed per-arch
+# (T-amd64 / T-arm64) and `merge-index` folds them into an OCI index at T.
 jobs:
-  publish:
-    # In-cluster ARC runner (actions-runner-controller) with a privileged
-    # docker:dind sidecar; multi-arch via QEMU + docker-container driver
-    # only when arm64 is requested (v* tags).
+  # Native amd64 build of the standard (non-heavy) profiles.
+  build-amd64:
     runs-on: ebpro-org
     env:
-      PLATFORMS: ${{ github.event.inputs.platforms || (startsWith(github.ref, 'refs/tags/v') && 'linux/amd64,linux/arm64' || 'linux/amd64') }}
+      IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      ARCH: amd64
+      SUBSET: standard
+      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix amd64 --no-build-tag' || '' }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -67,19 +68,12 @@ jobs:
             echo "WARNING: artefact fetch failed; continuing with network downloads" >&2
           }
 
-      - name: Register QEMU emulators for multi-arch
-        if: contains(env.PLATFORMS, 'arm64')
-        run: docker run --rm --privileged tonistiigi/binfmt:latest --install
-
-      - name: Create multi-arch buildx builder
-        if: contains(env.PLATFORMS, 'arm64')
-        run: docker buildx create --name multiarch --driver docker-container --use
-
       - name: Generate profiles, Dockerfile and bake file
         run: |
+          echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
           solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME"
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -88,11 +82,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (${{ env.PLATFORMS }})
+      - name: Build and push (amd64, standard)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
         run: |
           set -euo pipefail
+          # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
+          is_heavy() {
+            case "$1" in
+              quarto-full|lang-java-*|quarto-java-*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           if [ -n "$PROFILE_LIST" ]; then
             IFS=',' read -r -a arr <<< "$PROFILE_LIST"
           else
@@ -101,9 +102,273 @@ jobs:
               [ -f "$f" ] && arr+=("$(basename "$f")")
             done
           fi
-          for profile in "${arr[@]}"; do
-            profile=$(echo "$profile" | xargs)
-            echo "Publishing profile: $profile"
+          filtered=()
+          for p in "${arr[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] || continue
+            case "$SUBSET" in
+              all)      filtered+=("$p") ;;
+              heavy)    if is_heavy "$p"; then filtered+=("$p"); fi ;;
+              standard) if ! is_heavy "$p"; then filtered+=("$p"); fi ;;
+            esac
+          done
+          echo "Subset '$SUBSET' on $ARCH -> ${#filtered[@]} profile(s)"
+          if [ "${#filtered[@]}" -eq 0 ]; then
+            echo "Nothing to build for this job; skipping."
+            exit 0
+          fi
+          for profile in "${filtered[@]}"; do
+            echo "Publishing profile: $profile (arch: $ARCH)"
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.platform=${PLATFORMS}" --push
+              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --push
+          done
+
+  # Native amd64 build of ONLY the heavy profiles (quarto-full + lang-java-*
+  # + quarto-java-*), isolated on the larger pool for resource headroom.
+  build-amd64-heavy:
+    runs-on: ebpro-org-large
+    env:
+      IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      ARCH: amd64
+      SUBSET: heavy
+      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix amd64 --no-build-tag' || '' }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install solen-cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e solen-cli
+
+      - name: Fetch offloaded artefacts (if manifest available)
+        env:
+          ARTEFACTS_BASE_URL: ${{ secrets.ARTEFACTS_BASE_URL }}
+          ARTEFACT_SHA256: ${{ secrets.ARTEFACT_SHA256 }}
+        run: |
+          set -uo pipefail
+          manifest=""
+          for m in artefacts/offload/toolcache-manifest-*.json; do
+            [ -f "$m" ] && manifest="$m" && break
+          done
+          if [ -z "$manifest" ]; then
+            echo "No offload manifest in repo; building from network downloads."
+            exit 0
+          fi
+          echo "Using manifest: $manifest"
+          chmod +x scripts/utils/fetch-artefacts.sh
+          scripts/utils/fetch-artefacts.sh --manifest "$manifest" || {
+            echo "WARNING: artefact fetch failed; continuing with network downloads" >&2
+          }
+
+      - name: Generate profiles, Dockerfile and bake file
+        run: |
+          echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
+          solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+          solen generate dockerfile --all --output generated/Dockerfile
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (amd64, heavy)
+        env:
+          PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+        run: |
+          set -euo pipefail
+          # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
+          is_heavy() {
+            case "$1" in
+              quarto-full|lang-java-*|quarto-java-*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          if [ -n "$PROFILE_LIST" ]; then
+            IFS=',' read -r -a arr <<< "$PROFILE_LIST"
+          else
+            arr=()
+            for f in generated/profiles/*; do
+              [ -f "$f" ] && arr+=("$(basename "$f")")
+            done
+          fi
+          filtered=()
+          for p in "${arr[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] || continue
+            case "$SUBSET" in
+              all)      filtered+=("$p") ;;
+              heavy)    if is_heavy "$p"; then filtered+=("$p"); fi ;;
+              standard) if ! is_heavy "$p"; then filtered+=("$p"); fi ;;
+            esac
+          done
+          echo "Subset '$SUBSET' on $ARCH -> ${#filtered[@]} profile(s)"
+          if [ "${#filtered[@]}" -eq 0 ]; then
+            echo "Nothing to build for this job; skipping."
+            exit 0
+          fi
+          for profile in "${filtered[@]}"; do
+            echo "Publishing profile: $profile (arch: $ARCH)"
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --push
+          done
+
+  # Native arm64 build of ALL profiles. v* only: the develop fast path is
+  # amd64-only (no merge, no arm64).
+  build-arm64:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ebpro-org-arm
+    env:
+      IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      ARCH: arm64
+      SUBSET: all
+      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix arm64 --no-build-tag' || '' }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install solen-cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e solen-cli
+
+      - name: Fetch offloaded artefacts (if manifest available)
+        env:
+          ARTEFACTS_BASE_URL: ${{ secrets.ARTEFACTS_BASE_URL }}
+          ARTEFACT_SHA256: ${{ secrets.ARTEFACT_SHA256 }}
+        run: |
+          set -uo pipefail
+          manifest=""
+          for m in artefacts/offload/toolcache-manifest-*.json; do
+            [ -f "$m" ] && manifest="$m" && break
+          done
+          if [ -z "$manifest" ]; then
+            echo "No offload manifest in repo; building from network downloads."
+            exit 0
+          fi
+          echo "Using manifest: $manifest"
+          chmod +x scripts/utils/fetch-artefacts.sh
+          scripts/utils/fetch-artefacts.sh --manifest "$manifest" || {
+            echo "WARNING: artefact fetch failed; continuing with network downloads" >&2
+          }
+
+      - name: Generate profiles, Dockerfile and bake file
+        run: |
+          echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
+          solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+          solen generate dockerfile --all --output generated/Dockerfile
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (arm64, all)
+        env:
+          PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+        run: |
+          set -euo pipefail
+          # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
+          is_heavy() {
+            case "$1" in
+              quarto-full|lang-java-*|quarto-java-*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          if [ -n "$PROFILE_LIST" ]; then
+            IFS=',' read -r -a arr <<< "$PROFILE_LIST"
+          else
+            arr=()
+            for f in generated/profiles/*; do
+              [ -f "$f" ] && arr+=("$(basename "$f")")
+            done
+          fi
+          filtered=()
+          for p in "${arr[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] || continue
+            case "$SUBSET" in
+              all)      filtered+=("$p") ;;
+              heavy)    if is_heavy "$p"; then filtered+=("$p"); fi ;;
+              standard) if ! is_heavy "$p"; then filtered+=("$p"); fi ;;
+            esac
+          done
+          echo "Subset '$SUBSET' on $ARCH -> ${#filtered[@]} profile(s)"
+          if [ "${#filtered[@]}" -eq 0 ]; then
+            echo "Nothing to build for this job; skipping."
+            exit 0
+          fi
+          for profile in "${filtered[@]}"; do
+            echo "Publishing profile: $profile (arch: $ARCH)"
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
+              --push
+          done
+
+  # Post-build OCI index merge: for each base tag T in the (no-suffix) bake,
+  # fold the per-arch images into a multi-arch index at T.
+  merge-index:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ebpro-org
+    needs: [build-amd64, build-amd64-heavy, build-arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install solen-cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e solen-cli
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate base bake (no suffix, no build tag)
+        run: |
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" --no-build-tag
+
+      - name: Merge per-arch images into the OCI index
+        run: |
+          set -euo pipefail
+          for T in $(grep -oE 'ghcr.io/[^"]+' generated/docker-bake.hcl | sort -u); do
+            # Skip the bare repo ref from the generated header comment (no tag).
+            [[ "$T" == *:* ]] || continue
+            echo "Merging OCI index: $T  <-  ${T}-amd64, ${T}-arm64"
+            docker buildx imagetools create -t "$T" "${T}-amd64" "${T}-arm64"
           done
