@@ -306,15 +306,27 @@ def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, ou
               default=Path('generated/docker-bake.hcl'), help='Output path')
 @click.option('--repo', default='ghcr.io/ebpro', help='Container registry/org URL')
 @click.option('--image-name', default='jupyter-base', help='Container image name')
+@click.option('--tag-suffix', default=None,
+              help='Append "-<suffix>" to every emitted tag (per-arch marker, e.g. amd64)')
+@click.option('--no-build-tag', is_flag=True,
+              help='Omit the non-deterministic build-<UTC> tag')
 @click.pass_context
-def bake(ctx: click.Context, output: Path, repo: str, image_name: str) -> None:
+def bake(ctx: click.Context, output: Path, repo: str, image_name: str,
+         tag_suffix: str, no_build_tag: bool) -> None:
     """Generate docker-bake.hcl for all profiles."""
     from solen.generators.bake import generate_bake
 
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
 
-    count = generate_bake(repo_root, output_path, repo=repo, image_name=image_name)
+    count = generate_bake(
+        repo_root,
+        output_path,
+        repo=repo,
+        image_name=image_name,
+        include_build_tag=not no_build_tag,
+        tag_suffix=tag_suffix
+    )
     click.echo(f"✅ Generated docker-bake.hcl with {count} profile(s): {output_path}")
 
 

@@ -21,7 +21,8 @@ def generate_bake(
     platforms: list[str] | None = None,
     repo: str = "ghcr.io/ebpro",
     image_name: str = "solen",
-    include_build_tag: bool = True
+    include_build_tag: bool = True,
+    tag_suffix: str | None = None
 ) -> int:
     """Generate docker-bake.hcl for all profiles.
 
@@ -32,6 +33,7 @@ def generate_bake(
         repo: Container repository URL
         image_name: Container image name
         include_build_tag: Whether to include build-<timestamp> tag
+        tag_suffix: Optional per-arch marker appended as "-<suffix>" to every emitted tag
 
     Returns:
         Number of profiles processed
@@ -56,6 +58,9 @@ def generate_bake(
     if include_build_tag:
         build_date = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
         tags.append(f'build-{build_date}')
+
+    if tag_suffix:
+        tags = [f'{tag}-{tag_suffix}' for tag in tags]
 
     # Collect all profiles from generated/profiles
     profiles_dir = repo_root / 'generated' / 'profiles'
