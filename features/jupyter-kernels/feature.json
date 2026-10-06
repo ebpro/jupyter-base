@@ -9,7 +9,7 @@
   "description": "Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel",
   "dependsOn": [
     "python-conda",
-    "jupyter-base"
+    "solen-base"
   ],
   "options": {
     "INSTALL_ZSH_KERNEL": {

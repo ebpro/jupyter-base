@@ -11,7 +11,7 @@ Meta-feature bundling Conda environments and Jupyter kernels for Python data sci
 
 - `python-conda`
 
-- `jupyter-base`
+- `solen-base`
 
 - `jupyter-kernels`
 

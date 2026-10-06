@@ -6,9 +6,6 @@ features:
   - bundle-dev-base
 options: {}
 matrix:
-  base:
-    features: []
-    options: {}
   full:
     features:
       - bundle-data-science
@@ -34,9 +31,4 @@ matrix:
   jetbrains-gateway:
     features:
       - jetbrains-gateway
-    options: {}
-  k8s-sim:
-    features:
-      - bundle-k8s
-      - podman
     options: {}

@@ -13,7 +13,7 @@ Installs auxiliary Jupyter kernels such as zsh_jupyter_kernel and bash_kernel
 
 - `python-conda`
 
-- `jupyter-base`
+- `solen-base`
 
 ## Usage
 Describe how to enable or configure this feature.

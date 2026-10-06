@@ -16,7 +16,7 @@
   ],
   "dependsOn": [
     "python-conda",
-    "jupyter-base",
+    "solen-base",
     "jupyter-kernels"
   ],
   "options": {},
