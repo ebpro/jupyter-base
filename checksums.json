@@ -214,5 +214,20 @@
         }
       }
     }
+    ,
+    "chrome-headless-shell": {
+      "pinned_version": "155.0.8059.39",
+      "archive_format": "zip",
+      "archive_url_template": "https://storage.googleapis.com/chrome-for-testing-public/{version}/{platform}/chrome-headless-shell-{platform}.zip",
+      "notes": "Chrome Headless Shell from the official Chrome-for-Testing distribution. Platform values: linux64 (amd64), linux-arm64 (arm64). Bypasses 'quarto install chrome-headless-shell' (Quarto 1.10.x CDN 404s). Checksums computed from the served bytes (no official manifest carries them); CfT URLs are immutable per version.",
+      "checksums": {
+        "155.0.8059.39": {
+          "amd64": "39dcb8c46550632a3d911850ab3b8af840b4e3f6d8622faa2018eb8756278786",
+          "arm64": "9fb86f7c0b2734c5febc0bbb4e85f37da43553f3f8a7970949828c5713e87e94",
+          "x86_64": "39dcb8c46550632a3d911850ab3b8af840b4e3f6d8622faa2018eb8756278786",
+          "aarch64": "9fb86f7c0b2734c5febc0bbb4e85f37da43553f3f8a7970949828c5713e87e94"
+        }
+      }
+    }
   }
 }

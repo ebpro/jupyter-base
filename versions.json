@@ -24,6 +24,7 @@
     "miniforge": "25.11.0-1",
     "mongodb": "8.0",
     "postgresql": "17",
-    "typescript": "5.7.2"
+    "typescript": "5.7.2",
+    "chrome-headless-shell": "155.0.8059.39"
   }
 }

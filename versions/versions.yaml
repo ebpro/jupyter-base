@@ -114,6 +114,8 @@ tools:
     sources:
       - type: github
         repo: "microsoft/TypeScript"
+  chrome-headless-shell:
+    version: "155.0.8059.39"
 
 images:
   node:
