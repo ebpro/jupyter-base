@@ -343,6 +343,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e solen-cli
 
+      - name: Generate profiles
+        run: |
+          solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
