@@ -119,10 +119,7 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --push
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" --push
           done
 
   # Native amd64 build of ONLY the heavy profiles (quarto-full + lang-java-*
@@ -221,10 +218,7 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --push
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" --push
           done
 
   # Native arm64 build of ALL profiles. v* only: the develop fast path is
@@ -324,10 +318,7 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=ghcr.io/ebpro/solen-cache:${profile}-${ARCH},mode=max" \
-              --push
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" --push
           done
 
   # Post-build OCI index merge: for each base tag T in the (no-suffix) bake,
