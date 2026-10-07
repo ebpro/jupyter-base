@@ -75,11 +75,6 @@ jobs:
           solen generate dockerfile --all --output generated/Dockerfile
           solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
 
-      - name: Set up BuildKit (docker-container driver for registry cache)
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker-container
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -93,6 +88,33 @@ jobs:
           registry: harbor.ebruno.fr
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Set up BuildKit (docker-container driver for registry cache)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Debug Docker registry config (redacted)
+        run: |
+          set -uo pipefail
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG:-<unset>}"
+          cfg="${DOCKER_CONFIG:-$HOME/.docker}"
+          echo "config file: $cfg/config.json"
+          if [ -f "$cfg/config.json" ]; then
+            python3 - "$cfg/config.json" <<'PY'
+          import json, sys
+          c = json.load(open(sys.argv[1]))
+          a = c.get("auths", {})
+          print("auths keys:", sorted(a.keys()))
+          for k in sorted(a.keys()):
+              v = a[k]
+              print("  %s -> inline=%s" % (k, ("auth" in v) or ("username" in v)))
+          print("credsStore:", c.get("credsStore", "<none>"))
+          print("credHelpers:", c.get("credHelpers", {}))
+          PY
+          else
+            echo "(no $cfg/config.json)"
+          fi
 
       - name: Build and push (amd64, core)
         env:
@@ -189,11 +211,6 @@ jobs:
           solen generate dockerfile --all --output generated/Dockerfile
           solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
 
-      - name: Set up BuildKit (docker-container driver for registry cache)
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker-container
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -207,6 +224,33 @@ jobs:
           registry: harbor.ebruno.fr
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Set up BuildKit (docker-container driver for registry cache)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Debug Docker registry config (redacted)
+        run: |
+          set -uo pipefail
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG:-<unset>}"
+          cfg="${DOCKER_CONFIG:-$HOME/.docker}"
+          echo "config file: $cfg/config.json"
+          if [ -f "$cfg/config.json" ]; then
+            python3 - "$cfg/config.json" <<'PY'
+          import json, sys
+          c = json.load(open(sys.argv[1]))
+          a = c.get("auths", {})
+          print("auths keys:", sorted(a.keys()))
+          for k in sorted(a.keys()):
+              v = a[k]
+              print("  %s -> inline=%s" % (k, ("auth" in v) or ("username" in v)))
+          print("credsStore:", c.get("credsStore", "<none>"))
+          print("credHelpers:", c.get("credHelpers", {}))
+          PY
+          else
+            echo "(no $cfg/config.json)"
+          fi
 
       - name: Build and push (amd64, heavy/flagship)
         env:
@@ -304,11 +348,6 @@ jobs:
           solen generate dockerfile --all --output generated/Dockerfile
           solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
 
-      - name: Set up BuildKit (docker-container driver for registry cache)
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker-container
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -322,6 +361,33 @@ jobs:
           registry: harbor.ebruno.fr
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Set up BuildKit (docker-container driver for registry cache)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Debug Docker registry config (redacted)
+        run: |
+          set -uo pipefail
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG:-<unset>}"
+          cfg="${DOCKER_CONFIG:-$HOME/.docker}"
+          echo "config file: $cfg/config.json"
+          if [ -f "$cfg/config.json" ]; then
+            python3 - "$cfg/config.json" <<'PY'
+          import json, sys
+          c = json.load(open(sys.argv[1]))
+          a = c.get("auths", {})
+          print("auths keys:", sorted(a.keys()))
+          for k in sorted(a.keys()):
+              v = a[k]
+              print("  %s -> inline=%s" % (k, ("auth" in v) or ("username" in v)))
+          print("credsStore:", c.get("credsStore", "<none>"))
+          print("credHelpers:", c.get("credHelpers", {}))
+          PY
+          else
+            echo "(no $cfg/config.json)"
+          fi
 
       - name: Build and push (arm64, all)
         env:
