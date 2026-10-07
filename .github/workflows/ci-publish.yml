@@ -24,8 +24,8 @@ env:
 # `solen generate bake` emits. On `v*` tags every tag is suffixed per-arch
 # (T-amd64 / T-arm64) and `merge-index` folds them into an OCI index at T.
 jobs:
-  # Native amd64 build of the standard (non-heavy) profiles.
-  build-amd64:
+  # Native amd64 build of the core (standard, non-heavy) profiles.
+  build-amd64-core:
     runs-on: ebpro-org
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -82,7 +82,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (amd64, standard)
+      - name: Build and push (amd64, core)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
         run: |
@@ -122,9 +122,9 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" --push
           done
 
-  # Native amd64 build of ONLY the heavy profiles (quarto-full + lang-java-*
+  # Native amd64 build of ONLY the heavy/flagship profiles (quarto-full + lang-java-*
   # + quarto-java-*), isolated on the larger pool for resource headroom.
-  build-amd64-heavy:
+  build-amd64:
     runs-on: ebpro-org-large
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -181,7 +181,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (amd64, heavy)
+      - name: Build and push (amd64, heavy/flagship)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
         run: |
@@ -326,7 +326,7 @@ jobs:
   merge-index:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     runs-on: ebpro-org
-    needs: [build-amd64, build-amd64-heavy, build-arm64]
+    needs: [build-amd64, build-amd64-core, build-arm64]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
