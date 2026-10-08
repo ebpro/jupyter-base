@@ -305,7 +305,7 @@ def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, ou
 @click.option('--output', type=click.Path(path_type=Path),
               default=Path('generated/docker-bake.hcl'), help='Output path')
 @click.option('--repo', default='ghcr.io/ebpro', help='Container registry/org URL')
-@click.option('--image-name', default='jupyter-base', help='Container image name')
+@click.option('--image-name', default='solen', help='Container image name')
 @click.option('--tag-suffix', default=None,
               help='Append "-<suffix>" to every emitted tag (per-arch marker, e.g. amd64)')
 @click.option('--no-build-tag', is_flag=True,

@@ -441,3 +441,57 @@ jobs:
             echo "Merging OCI index: $T  <-  ${T}-amd64, ${T}-arm64"
             docker buildx imagetools create -t "$T" "${T}-amd64" "${T}-arm64"
           done
+
+  # Post-merge signing: consume the native `solen` OCI index produced by
+  # `merge-index` and sign the release tag with cosign. Release-only (v* tags):
+  # no QEMU/binfmt, no buildx builder, no imagetools promotion — the index
+  # already exists at <slug>-v<version> (single `v`, no double-`v` bug).
+  sign-release:
+    name: Sign release (solen index)
+    needs: [merge-index]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ebpro-org
+    env:
+      REPO: ghcr.io/${{ github.repository_owner }}
+      IMAGE_NAME: solen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install solen-cli
+        run: pip install -e solen-cli
+      - name: Generate profiles
+        run: solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare cosign key
+        run: |
+          if [ -n "${{ secrets.COSIGN_PRIVATE_KEY }}" ]; then
+            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" | base64 -d > cosign.key
+            chmod 600 cosign.key
+          fi
+      - name: Sign solen release indexes
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          version=${GITHUB_REF#refs/tags/v}
+          for profile in $(solen list profiles); do
+            profile_slug=$(echo "$profile" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
+            sign_tag="${profile_slug}-v${version}"
+            ref="${REPO}/${IMAGE_NAME}:${sign_tag}"
+            if [ -f cosign.key ]; then
+              echo "Signing ${ref}"
+              COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key cosign.key "${ref}"
+            else
+              echo "No cosign key present, skipping signing for ${ref}"
+            fi
+          done
