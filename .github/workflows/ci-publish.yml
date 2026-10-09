@@ -97,6 +97,7 @@ jobs:
       - name: Build and push (amd64, core)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -134,6 +135,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
               --push
           done
 
@@ -211,6 +213,7 @@ jobs:
       - name: Build and push (amd64, heavy/flagship)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -248,6 +251,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
               --push
           done
 
@@ -326,6 +330,7 @@ jobs:
       - name: Build and push (arm64, all)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -363,6 +368,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
               --push
           done
 
