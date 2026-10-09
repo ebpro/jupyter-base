@@ -48,12 +48,16 @@ fi
 mkdir -p ~/.mysql
 cat > ~/.my.cnf << 'EOF'
 [client]
+# Intentionally free of mysql-client-specific options. mysqldump and
+# mysqladmin also read the [client] group at startup and fail on options
+# they do not know (e.g. 'unknown option --auto-rehash'), so the options
+# below are scoped to [mysql] where only the interactive client reads them.
+
+[mysql]
 # MySQL client configuration
 auto-rehash
 show-warnings
 prompt="\u@\h [\d]> "
-
-[mysql]
 # Enable pager for large result sets
 # pager=less -S
 EOF
