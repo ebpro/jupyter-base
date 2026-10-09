@@ -17,7 +17,8 @@
   "dependsOn": [
     "quarto-cli",
     "quarto-python",
-    "quarto-common"
+    "quarto-common",
+    "plantuml"
   ],
   "options": {},
   "postInstallCheck": {
