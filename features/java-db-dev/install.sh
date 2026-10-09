@@ -42,8 +42,53 @@ echo ""
 echo "✅ Verifying Java Database Development stack..."
 
 # Check Java
-if command -v java >/dev/null 2>&1; then
-    echo "  ✓ Java: $(java -version 2>&1 | head -n 1)"
+# The JDK is installed via SDKMAN (feature java-sdkman), whose bin dir is only
+# added to PATH by shell profiles. This verification can run in a non-login,
+# non-interactive build shell where that PATH is not loaded, so resolve
+# `java` explicitly before declaring it missing.
+resolve_java_bin() {
+    local candidate home dir
+    local build_user_home
+    build_user_home="$(getent passwd "${NB_USER:-jovyan}" 2>/dev/null | cut -d: -f6 || true)"
+
+    # 1. Plain PATH lookup
+    candidate="$(command -v java || true)"
+    if [ -n "${candidate}" ]; then
+        printf '%s\n' "${candidate}"
+        return 0
+    fi
+
+    # 2. Source SDKMAN init (current user, then build user)
+    for home in "${HOME:-}" "${build_user_home}"; do
+        [ -n "${home}" ] || continue
+        if [ -s "${home}/.sdkman/bin/sdkman-init.sh" ]; then
+            set +u
+            # shellcheck source=/dev/null
+            source "${home}/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true
+            set -u
+            candidate="$(command -v java || true)"
+            if [ -n "${candidate}" ]; then
+                printf '%s\n' "${candidate}"
+                return 0
+            fi
+        fi
+    done
+
+    # 3. Absolute SDKMAN candidate path (last resort)
+    for dir in "${SDKMAN_DIR:-${HOME:-}/.sdkman}" "${build_user_home:+${build_user_home}/.sdkman}"; do
+        [ -n "${dir}" ] || continue
+        if [ -x "${dir}/candidates/java/current/bin/java" ]; then
+            printf '%s\n' "${dir}/candidates/java/current/bin/java"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+JAVA_BIN="$(resolve_java_bin || true)"
+if [ -n "${JAVA_BIN}" ]; then
+    echo "  ✓ Java: $("${JAVA_BIN}" -version 2>&1 | head -n 1)"
 else
     echo "  ✗ Java not found"
     exit 1
