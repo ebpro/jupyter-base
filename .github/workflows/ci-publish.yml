@@ -135,7 +135,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
 
@@ -251,7 +251,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
 
@@ -368,7 +368,7 @@ jobs:
             docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
               --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
               --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --build-arg SSH_PRIVATE_KEY="${SSH_PRIVATE_KEY}" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
 
