@@ -1,0 +1,32 @@
+{
+  "id": "opencode",
+  "name": "OpenCode",
+  "version": "1.0.0",
+  "description": "Installs the OpenCode AI coding agent (opencode-ai, global npm) and deploys the private ebpro/opencode-config repository into the dev user's ~/.config/opencode/",
+  "documentationURL": "./features/opencode/README.md",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "dependsOn": [
+    "node"
+  ],
+  "provides": [
+    "opencode"
+  ],
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "1.18.29",
+      "description": "opencode-ai npm package version to install (e.g., 1.18.29)"
+    }
+  },
+  "postInstallCheck": {
+    "command": "opencode --version",
+    "description": "Verify opencode is installed"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}

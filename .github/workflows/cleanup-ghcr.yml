@@ -29,7 +29,7 @@ jobs:
       - name: GHCR cleanup script
         env:
           OWNER: ${{ github.repository_owner }}
-          PACKAGE: ${{ github.event.repository.name }}
+          PACKAGE: solen
           KEEP_DAYS_PR: 7
           KEEP_COUNT_FEATURE: 5
           KEEP_COUNT_DEV: 5
@@ -84,6 +84,7 @@ jobs:
             for tag in $tags; do
               # skip empty
               [ -z "$tag" ] && continue
+              tag=$(echo "$tag" | sed -E 's/-(amd64|arm64)$//')
               # skip release or prod tags
               if echo "$tag" | grep -E -q '(^v[0-9]+|[-]v[0-9]+|prod$|stable$)'; then
                 continue
@@ -100,7 +101,7 @@ jobs:
                 groups["$key"]+="$id|$created_at|$tag\n"
               else
                 # other ephemeral-like tags (sha builds)
-                if echo "$tag" | grep -E -q '-[0-9a-f]{6,}$|-build-'; then
+                if echo "$tag" | grep -E -q -- '-[0-9a-f]{6,}$|-build-'; then
                   base=$(normalize_tag "$tag")
                   key="feature::$base"
                   groups["$key"]+="$id|$created_at|$tag\n"

@@ -31,7 +31,7 @@ permissions:
 
 env:
   IMAGE_REPO: ghcr.io/${{ github.repository_owner }}
-  IMAGE_NAME: ${{ github.event.repository.name }}
+  IMAGE_NAME: solen
 
 jobs:
   build:

@@ -46,38 +46,53 @@ apt-get install -y --no-install-recommends \
     libasound2t64 \
     libatspi2.0-0t64 \
     libgtk-3-0t64 \
-    libxshmfence1
+    libxshmfence1 \
+    unzip
 rm -rf /var/lib/apt/lists/*
 
-# Use the available Quarto binary (search PATH or common /opt/quarto/* location)
-TMP_SCRIPT="/tmp/quarto-chromium-install-${NB_USER}.sh"
-cat > "${TMP_SCRIPT}" <<'BASH'
-#!/usr/bin/env bash
-set -euo pipefail
-# locate quarto binary, prefer PATH, then common install locations
-QUARTO_BIN=$(command -v quarto || true)
-if [ -z "${QUARTO_BIN}" ]; then
-  for c in "$HOME/.local/bin/quarto" "$HOME/miniforge3/bin/quarto" /usr/local/bin/quarto /opt/quarto/*/bin/quarto; do
-    if [ -x "$c" ]; then
-      QUARTO_BIN="$c"
-      break
-    fi
-  done
-fi
-if [ -n "${QUARTO_BIN}" ] && [ -x "${QUARTO_BIN}" ]; then
-  CI=true "${QUARTO_BIN}" install --no-prompt --log "${HOME}/.quarto-chromium-install.log" --log-level debug chrome-headless-shell \
-    || CI=true "${QUARTO_BIN}" install chrome-headless-shell --no-prompt \
-    || CI=true "${QUARTO_BIN}" install --no-prompt --log "${HOME}/.quarto-chromium-install.log" --log-level debug chromium \
-    || CI=true "${QUARTO_BIN}" install chromium --no-prompt \
-    || true
-else
-  echo "quarto binary not found; skipping 'quarto install chromium'" >&2
-fi
-BASH
+# Download chrome-headless-shell directly from the official Chrome-for-Testing
+# distribution. 'quarto install chrome-headless-shell' (Quarto 1.10.x) 404s
+# against Quarto's own CDN, so we bypass it and pull the pinned,
+# checksum-verified CfT release (the same artifact family Quarto would have
+# fetched). The apt libs installed above are the system deps this binary needs.
+CFT_VERSION="$(fh_resolve_version chrome-headless-shell 2>/dev/null || echo 155.0.8059.39)"
+case "$(uname -m)" in
+  x86_64|X86_64|amd64) CFT_PLATFORM="linux64";;
+  aarch64|arm64)       CFT_PLATFORM="linux-arm64";;
+  *) echo "quarto-chromium: ERROR: unsupported architecture '$(uname -m)'" >&2; exit 1;;
+esac
+CFT_URL="https://storage.googleapis.com/chrome-for-testing-public/${CFT_VERSION}/${CFT_PLATFORM}/chrome-headless-shell-${CFT_PLATFORM}.zip"
+CFT_ZIP="/tmp/chrome-headless-shell-${CFT_PLATFORM}.zip"
+CFT_EXTRACT="/tmp/cft-extract-${NB_USER}"
 
-chmod +x "${TMP_SCRIPT}"
-su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
-rm -f "${TMP_SCRIPT}"
+echo "quarto-chromium: downloading chrome-headless-shell ${CFT_VERSION} (${CFT_PLATFORM}) from CfT"
+curl -fsSL --retry 4 --retry-delay 2 --retry-connrefused -o "${CFT_ZIP}" "${CFT_URL}"
+
+# Verify SHA256 against the pinned, arch-aware checksum before use.
+EXPECTED_SHA="$(fh_resolve_checksum chrome-headless-shell "${CFT_VERSION}" 2>/dev/null || true)"
+ACTUAL_SHA="$(sha256sum "${CFT_ZIP}" | awk '{print $1}')"
+if [ -z "${EXPECTED_SHA}" ]; then
+  echo "quarto-chromium: ERROR: no pinned checksum for chrome-headless-shell ${CFT_VERSION} (${CFT_PLATFORM}); refusing unverified binary" >&2
+  exit 1
+fi
+if [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then
+  echo "quarto-chromium: ERROR: chrome-headless-shell checksum mismatch" >&2
+  echo "  expected: ${EXPECTED_SHA}" >&2
+  echo "  actual:   ${ACTUAL_SHA}" >&2
+  exit 1
+fi
+
+# Extract into the location find_chromium_bin() + Quarto discover:
+#   ~/.local/share/quarto/chrome-headless-shell/linux-<VER>/chrome-headless-shell
+CFT_DEST_DIR="${HOME_DIR}/.local/share/quarto/chrome-headless-shell/linux-${CFT_VERSION}"
+rm -rf "${CFT_EXTRACT}" "${CFT_DEST_DIR}"
+mkdir -p "${CFT_EXTRACT}" "${CFT_DEST_DIR}"
+unzip -oq "${CFT_ZIP}" -d "${CFT_EXTRACT}"
+cp -a "${CFT_EXTRACT}/chrome-headless-shell-${CFT_PLATFORM}/." "${CFT_DEST_DIR}/"
+rm -rf "${CFT_ZIP}" "${CFT_EXTRACT}"
+chmod +x "${CFT_DEST_DIR}/chrome-headless-shell"
+chown "${NB_UID}":"${NB_GID}" "${CFT_DEST_DIR}" 2>/dev/null || true
+echo "quarto-chromium: installed chrome-headless-shell ${CFT_VERSION} at ${CFT_DEST_DIR}/chrome-headless-shell"
 
 find_chromium_bin() {
   local c

@@ -9,7 +9,6 @@
     "quarto": "v1.10.18",
     "node": "22.12.0",
     "docker-ce": "27.5.1",
-    "docker-compose": "v5.0.1",
     "gitstatus": "1.5.4",
     "helm": "v4.0.4",
     "k9s": "v0.50.18",
@@ -19,13 +18,13 @@
     "code-server": "v4.108.0",
     "minikube": "1.37.0",
     "gh": "2.83.2",
-    "scout": "v1.19.0",
     "tinytex": "2026.09",
     "java-kernel": "1.4.6-pr12",
     "tilt": "v0.36.0",
     "miniforge": "25.11.0-1",
     "mongodb": "8.0",
     "postgresql": "17",
-    "typescript": "5.7.2"
+    "typescript": "5.7.2",
+    "chrome-headless-shell": "155.0.8059.39"
   }
 }

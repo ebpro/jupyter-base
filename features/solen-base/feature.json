@@ -1,11 +1,11 @@
 {
-  "name": "jupyter-base",
+  "name": "solen-base",
   "version": "0.1.0",
   "maintainer": {
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "id": "jupyter-base",
+  "id": "solen-base",
   "description": "Installs core Jupyter packages (jupyter, jupyterlab, nb_conda_kernels) into conda base",
   "dependsOn": [
     "python-conda"
@@ -29,7 +29,7 @@
       8888
     ]
   },
-  "documentationURL": "./features/jupyter-base/README.md",
+  "documentationURL": "./features/solen-base/README.md",
   "platforms": [
     "linux/amd64",
     "linux/arm64"

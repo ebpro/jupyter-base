@@ -96,6 +96,7 @@ ENV {{ k }}="{{ v }}"
 
 ARG RUN_POSTINSTALL_CHECKS="false"
 ENV RUN_POSTINSTALL_CHECKS="${RUN_POSTINSTALL_CHECKS}"
+ARG SSH_PRIVATE_KEY=""
 
 RUN cat > /opt/solen/run-postinstall-checks.sh <<'SCRIPT'
 #!/usr/bin/env bash

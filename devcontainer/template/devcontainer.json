@@ -9,7 +9,6 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                // Add profile-specific extensions here
                 "ms-python.python",
                 "ms-python.vscode-pylance",
                 "ms-toolsai.jupyter",
@@ -40,6 +39,8 @@
     },
     "forwardPorts": [],
     "postCreateCommand": "echo 'unset DOCKER_HOST' >> ~/.zshrc && echo 'export DOCKER_HOST=tcp://docker:2375' >> ~/.zshrc && echo '✅ Dev container ready!'",
-    "features": {},
+    "features": {
+        "ghcr.io/ebpro/solen/opencode:1.0.0": {}
+    },
     "remoteEnv": {}
 }

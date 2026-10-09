@@ -1,0 +1,27 @@
+{
+  "id": "plantuml",
+  "name": "PlantUML",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "description": "Installs Graphviz (dot) and PlantUML for diagram rendering from Quarto",
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "provides": [
+    "dot",
+    "plantuml"
+  ],
+  "options": {},
+  "postInstallCheck": {
+    "command": "command -v dot >/dev/null && dot -V",
+    "description": "Verify Graphviz (dot) is available for PlantUML rendering"
+  },
+  "documentationURL": "./features/plantuml/README.md",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ]
+}
