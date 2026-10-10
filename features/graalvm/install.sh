@@ -16,6 +16,14 @@ INSTALL_NATIVE_IMAGE=${INSTALL_NATIVE_IMAGE:-true}
 
 echo "graalvm: installing GraalVM ${GRAALVM_VERSION} (native-image=${INSTALL_NATIVE_IMAGE})"
 
+# SDKMAN may be installed but not on PATH in non-login shells.
+# Source the init script to make `sdk` available.
+if [ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]; then
+    source "${HOME}/.sdkman/bin/sdkman-init.sh"
+elif [ -f "/home/jovyan/.sdkman/bin/sdkman-init.sh" ]; then
+    source "/home/jovyan/.sdkman/bin/sdkman-init.sh"
+fi
+
 # Use SDKMAN exclusively; default candidate is graalvm-ce unless overridden
 if ! command -v sdk >/dev/null 2>&1; then
   echo "graalvm: SDKMAN not available. Please enable SDKMAN in the base image or devcontainer." >&2

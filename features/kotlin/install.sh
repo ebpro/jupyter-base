@@ -29,6 +29,15 @@ if [ "$INSTALL_KOTLIN" = "true" ]; then
     fi
 
     KOTLIN_VERSION="${KOTLIN_VERSION:-}"
+
+    # SDKMAN may be installed but not on PATH in non-login shells.
+    # Source the init script to make `sdk` available.
+    if [ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]; then
+      source "${HOME}/.sdkman/bin/sdkman-init.sh"
+    elif [ -f "/home/jovyan/.sdkman/bin/sdkman-init.sh" ]; then
+      source "/home/jovyan/.sdkman/bin/sdkman-init.sh"
+    fi
+
     if command -v sdk >/dev/null 2>&1; then
       if [ -n "${KOTLIN_VERSION}" ]; then
         su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install kotlin ${KOTLIN_VERSION}" || true
