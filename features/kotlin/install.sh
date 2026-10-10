@@ -33,9 +33,9 @@ if [ "$INSTALL_KOTLIN" = "true" ]; then
     # SDKMAN may be installed but not on PATH in non-login shells.
     # Source the init script to make `sdk` available.
     if [ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]; then
-      source "${HOME}/.sdkman/bin/sdkman-init.sh"
+      set +u; source "${HOME}/.sdkman/bin/sdkman-init.sh"; set -u
     elif [ -f "/home/jovyan/.sdkman/bin/sdkman-init.sh" ]; then
-      source "/home/jovyan/.sdkman/bin/sdkman-init.sh"
+      set +u; source "/home/jovyan/.sdkman/bin/sdkman-init.sh"; set -u
     fi
 
     if command -v sdk >/dev/null 2>&1; then

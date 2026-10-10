@@ -19,9 +19,9 @@ echo "graalvm: installing GraalVM ${GRAALVM_VERSION} (native-image=${INSTALL_NAT
 # SDKMAN may be installed but not on PATH in non-login shells.
 # Source the init script to make `sdk` available.
 if [ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]; then
-    source "${HOME}/.sdkman/bin/sdkman-init.sh"
+    set +u; source "${HOME}/.sdkman/bin/sdkman-init.sh"; set -u
 elif [ -f "/home/jovyan/.sdkman/bin/sdkman-init.sh" ]; then
-    source "/home/jovyan/.sdkman/bin/sdkman-init.sh"
+    set +u; source "/home/jovyan/.sdkman/bin/sdkman-init.sh"; set -u
 fi
 
 # Use SDKMAN exclusively; default candidate is graalvm-ce unless overridden
