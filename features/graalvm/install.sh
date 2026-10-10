@@ -16,14 +16,6 @@ INSTALL_NATIVE_IMAGE=${INSTALL_NATIVE_IMAGE:-true}
 
 echo "graalvm: installing GraalVM ${GRAALVM_VERSION} (native-image=${INSTALL_NATIVE_IMAGE})"
 
-# Source SDKMAN init (installed by java-sdkman feature in same RUN layer)
-if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
-  set +u
-  # shellcheck disable=SC1091
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
-  set -u
-fi
-
 # Use SDKMAN exclusively; default candidate is graalvm-ce unless overridden
 if ! command -v sdk >/dev/null 2>&1; then
   echo "graalvm: SDKMAN not available. Please enable SDKMAN in the base image or devcontainer." >&2

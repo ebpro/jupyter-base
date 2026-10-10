@@ -43,7 +43,7 @@ cat > "$TMP_SCRIPT" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 SDKMAN_DIR="${SDKMAN_DIR:-$HOME/.sdkman}"
-curl -s "https://get.sdkman.io" | bash || true
+curl -fsSL "https://get.sdkman.io?ci=true&rcupdate=false" | bash || true
 if [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
   # Avoid 'set -u' causing errors inside the SDKMAN init script
   set +u
@@ -85,41 +85,4 @@ fi
 
 echo "java-sdk: SDKMAN installation complete"
 echo "java-sdk: Use java-jdk, java-maven, or java-gradle features to install tools"
-
-##
-# Create symlinks for any SDKMAN-installed candidate 'current' binaries into /usr/local/bin
-# This helps non-interactive shells find `java`, `mvn`, `gradle`, etc. immediately after install.
-##
-create_sdkman_symlinks() {
-  # Only run as root (we need to write into /usr/local/bin)
-  if [ "$(id -u)" -ne 0 ]; then
-    return 0
-  fi
-
-  if [ -z "${SDKMAN_DIR:-}" ]; then
-    SDKMAN_DIR="$HOME/.sdkman"
-  fi
-
-  if [ ! -d "$SDKMAN_DIR/candidates" ]; then
-    return 0
-  fi
-
-  for cand in "$SDKMAN_DIR"/candidates/*/current; do
-    [ -d "$cand/bin" ] || continue
-    for bin in "$cand/bin"/*; do
-      [ -f "$bin" ] || continue
-      name=$(basename "$bin")
-      target="/usr/local/bin/$name"
-      # If a regular file exists and is not a symlink, skip to avoid clobbering system binaries
-      if [ -e "$target" ] && [ ! -L "$target" ]; then
-        continue
-      fi
-      ln -sf "$bin" "$target" || true
-      chmod +x "$target" || true
-    done
-  done
-}
-
-# Run symlink creation now (best-effort)
-create_sdkman_symlinks || true
 exit 0

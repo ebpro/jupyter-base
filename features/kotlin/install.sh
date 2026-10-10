@@ -20,8 +20,21 @@ if [ "$INSTALL_KOTLIN" = "true" ]; then
   if command -v kotlinc >/dev/null 2>&1; then
     echo "kotlin: compiler already present"
   else
+    # Source SDKMAN init (installed by java-sdkman feature in same RUN layer)
+    if [ -s "${HOME}/.sdkman/bin/sdkman-init.sh" ]; then
+      set +u
+      # shellcheck disable=SC1091
+      source "${HOME}/.sdkman/bin/sdkman-init.sh"
+      set -u
+    fi
+
+    KOTLIN_VERSION="${KOTLIN_VERSION:-}"
     if command -v sdk >/dev/null 2>&1; then
-      sdk install kotlin || true
+      if [ -n "${KOTLIN_VERSION}" ]; then
+        su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install kotlin ${KOTLIN_VERSION}" || true
+      else
+        su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install kotlin" || true
+      fi
     else
       echo "kotlin: please install Kotlin compiler in base image or enable sdk"
     fi

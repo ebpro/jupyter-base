@@ -98,6 +98,25 @@ ARG RUN_POSTINSTALL_CHECKS="false"
 ENV RUN_POSTINSTALL_CHECKS="${RUN_POSTINSTALL_CHECKS}"
 ARG SSH_PRIVATE_KEY=""
 
+# --- Solaire tool PATH (Dev Container Spec pattern) ---
+# Expose tool binaries on the image PATH for ALL shell types
+# (login, non-login, interactive, non-interactive, docker run, RUN, docker exec).
+# Non-existent directories are harmless (shell skips them).
+ENV SDKMAN_DIR="/home/jovyan/.sdkman" \
+    JAVA_HOME="/home/jovyan/.sdkman/candidates/java/current" \
+    PATH="/home/jovyan/.sdkman/bin:\
+/home/jovyan/.sdkman/candidates/java/current/bin:\
+/home/jovyan/.sdkman/candidates/maven/current/bin:\
+/home/jovyan/.sdkman/candidates/gradle/current/bin:\
+/home/jovyan/.sdkman/candidates/kotlin/current/bin:\
+/home/jovyan/miniforge3/bin:\
+/home/jovyan/.linuxbrew/bin:\
+/home/jovyan/.TinyTeX/bin/aarch64-linux:\
+/home/jovyan/.TinyTeX/bin/x86_64-linux:\
+/home/jovyan/bin:\
+/home/jovyan/.local/bin:\
+${PATH}"
+
 RUN cat > /opt/solen/run-postinstall-checks.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -uo pipefail
@@ -199,6 +218,9 @@ fi
 apt-get clean
 rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/partial
 SCRIPT
+
+# Restore enriched PATH for login shells (which reset PATH from /etc/profile)
+RUN echo 'export PATH="/home/jovyan/.sdkman/bin:/home/jovyan/.sdkman/candidates/java/current/bin:/home/jovyan/.sdkman/candidates/maven/current/bin:/home/jovyan/.sdkman/candidates/gradle/current/bin:/home/jovyan/.sdkman/candidates/kotlin/current/bin:/home/jovyan/miniforge3/bin:/home/jovyan/.linuxbrew/bin:/home/jovyan/.TinyTeX/bin/aarch64-linux:/home/jovyan/.TinyTeX/bin/x86_64-linux:/home/jovyan/bin:/home/jovyan/.local/bin:$PATH"' > /etc/profile.d/solen.sh
 
 RUN cat > /opt/solen/run-feature-tests.sh <<'SCRIPT'
 #!/usr/bin/env bash
