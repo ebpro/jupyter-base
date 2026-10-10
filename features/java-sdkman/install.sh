@@ -43,7 +43,10 @@ cat > "$TMP_SCRIPT" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 SDKMAN_DIR="${SDKMAN_DIR:-$HOME/.sdkman}"
+# Avoid 'set -u' causing errors inside the SDKMAN installer ($3 unbound variable)
+set +u
 curl -fsSL "https://get.sdkman.io?ci=true&rcupdate=false" | bash || true
+set -u
 if [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
   # Avoid 'set -u' causing errors inside the SDKMAN init script
   set +u
