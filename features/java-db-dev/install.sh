@@ -41,40 +41,41 @@ echo ""
 # Verify all components are available
 echo "✅ Verifying Java Database Development stack..."
 
+# The JDK, Maven and Gradle are installed via SDKMAN (features java-sdkman,
+# java-maven, java-gradle), whose bin dirs are only added to PATH by shell
+# profiles. This verification can run in a non-login, non-interactive build
+# shell where that PATH is not loaded, so source SDKMAN init once here to put
+# every SDKMAN binary (java, mvn, gradle, ...) on the PATH before the checks
+# below. If SDKMAN init is absent, the absolute-path fallback for `java`
+# still applies.
+for _home in "${HOME:-}" "$(getent passwd "${NB_USER:-jovyan}" 2>/dev/null | cut -d: -f6 || true)"; do
+    [ -n "${_home}" ] || continue
+    if [ -s "${_home}/.sdkman/bin/sdkman-init.sh" ]; then
+        set +u
+        # shellcheck source=/dev/null
+        source "${_home}/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true
+        set -u
+        break
+    fi
+done
+
 # Check Java
-# The JDK is installed via SDKMAN (feature java-sdkman), whose bin dir is only
-# added to PATH by shell profiles. This verification can run in a non-login,
-# non-interactive build shell where that PATH is not loaded, so resolve
-# `java` explicitly before declaring it missing.
+# Resolve `java` explicitly before declaring it missing: a plain PATH lookup
+# works once the SDKMAN PATH is sourced above, with an absolute-path fallback
+# in case SDKMAN init was absent.
 resolve_java_bin() {
-    local candidate home dir
+    local candidate dir
     local build_user_home
     build_user_home="$(getent passwd "${NB_USER:-jovyan}" 2>/dev/null | cut -d: -f6 || true)"
 
-    # 1. Plain PATH lookup
+    # 1. Plain PATH lookup (SDKMAN PATH already sourced above)
     candidate="$(command -v java || true)"
     if [ -n "${candidate}" ]; then
         printf '%s\n' "${candidate}"
         return 0
     fi
 
-    # 2. Source SDKMAN init (current user, then build user)
-    for home in "${HOME:-}" "${build_user_home}"; do
-        [ -n "${home}" ] || continue
-        if [ -s "${home}/.sdkman/bin/sdkman-init.sh" ]; then
-            set +u
-            # shellcheck source=/dev/null
-            source "${home}/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || true
-            set -u
-            candidate="$(command -v java || true)"
-            if [ -n "${candidate}" ]; then
-                printf '%s\n' "${candidate}"
-                return 0
-            fi
-        fi
-    done
-
-    # 3. Absolute SDKMAN candidate path (last resort)
+    # 2. Absolute SDKMAN candidate path (last resort, if sdkman-init.sh absent)
     for dir in "${SDKMAN_DIR:-${HOME:-}/.sdkman}" "${build_user_home:+${build_user_home}/.sdkman}"; do
         [ -n "${dir}" ] || continue
         if [ -x "${dir}/candidates/java/current/bin/java" ]; then
