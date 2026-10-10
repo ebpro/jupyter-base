@@ -37,7 +37,12 @@ else
   CAND="$DIST_ID"
 fi
 echo "graalvm: running: sdk install java ${CAND}"
+# `sdk` (shell function from sdkman-init.sh) sources sdkman-install.sh, which
+# references $3 without a default. Under `set -u` this aborts with
+# "unbound variable", so disable nounset around the call only.
+set +u
 sdk install java "${CAND}" || sdk install java "${DIST_ID}" || true
+set -u
 
 if [ "$INSTALL_NATIVE_IMAGE" = "true" ]; then
   echo "graalvm: native-image component may need to be installed (use 'gu' from GraalVM to install native-image)"
