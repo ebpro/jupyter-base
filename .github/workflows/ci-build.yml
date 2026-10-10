@@ -1,9 +1,13 @@
 name: CI Build & SBOM
 
 on:
-  push:
-    branches:
-      - develop
+  # Develop promotion path: fires AFTER "Publish to GHCR" completes on develop.
+  # The image is already built + pushed by ci-publish.yml; this workflow PULLS
+  # it instead of rebuilding, eliminating the double-build on develop.
+  workflow_run:
+    workflows: ["Publish to GHCR"]
+    types: [completed]
+    branches: [develop]
   pull_request:
     branches:
       - develop
@@ -35,6 +39,10 @@ env:
 
 jobs:
   build:
+    # On the develop promotion path (workflow_run), skip if the triggering
+    # "Publish to GHCR" run did not succeed — there is no image to pull then.
+    # PR + dispatch always run (they build locally).
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     # In-cluster ARC runner (actions-runner-controller) with a privileged
     # docker:dind sidecar, so buildx works exactly as in a plain docker env.
     runs-on: ebpro-org
@@ -62,25 +70,66 @@ jobs:
           solen generate dockerfile --all --output generated/Dockerfile
           solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME"
 
-      - name: Build profiles (single-arch, loaded into local daemon)
+      - name: Acquire profiles (pull on develop promotion, build on PR/dispatch)
         id: build
         env:
+          EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           PROFILE_LIST: ${{ github.event.inputs.profiles || 'quarto-full' }}
           NO_CACHE: ${{ github.event.inputs['no-cache'] || 'false' }}
         run: |
           set -euo pipefail
-          NO_CACHE_FLAG=""
-          if [ "$NO_CACHE" = 'true' ]; then
-            NO_CACHE_FLAG="--set *.no-cache=true"
-          fi
+          # Human-friendly slug: strip leading numeric prefixes (digits- digits-),
+          # mirroring solen.generators.bake.compute_profile_slug.
+          compute_slug() {
+            local p="$1"
+            if [[ "$p" =~ ^[0-9]+- ]]; then p="${p#*-}"; fi
+            if [[ "$p" =~ ^[0-9]+- ]]; then p="${p#*-}"; fi
+            echo "$p"
+          }
+          # First tag from the generated bake file for a profile (what the
+          # post-install / SBOM / Trivy steps consume).
+          first_tag_for() {
+            sed -n "/^target \"final-$1\" /,/^}/p" generated/docker-bake.hcl \
+              | awk '/tags = \[/{flag=1; next} flag && /\]/{exit} flag {gsub(/[",]/, ""); gsub(/^[ \t]+|[ \t]+$/, ""); if ($0 != "") {print; exit}}'
+          }
           IFS=',' read -r -a arr <<< "$PROFILE_LIST"
           : > profiles-built.txt
-          for profile in "${arr[@]}"; do
-            profile=$(echo "$profile" | xargs)
-            echo "Building profile: $profile"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" --load $NO_CACHE_FLAG
-            echo "$profile" >> profiles-built.txt
-          done
+          if [ "$EVENT" = "workflow_run" ]; then
+            # Develop promotion: the image is already published by
+            # "Publish to GHCR" (on develop the per-commit tag is
+            # <slug>-<short-sha>). Pull it and re-tag to the bake file's
+            # first tag so downstream steps find it locally.
+            SHORT_SHA="${HEAD_SHA:0:7}"
+            echo "Develop promotion: pulling published image(s) for commit ${SHORT_SHA} (conclusion: ${CONCLUSION})"
+            for profile in "${arr[@]}"; do
+              profile=$(echo "$profile" | xargs)
+              [ -n "$profile" ] || continue
+              target_tag="$(first_tag_for "$profile")"
+              if [ -z "$target_tag" ]; then
+                echo "No tag found in bake file for $profile; skipping" >&2
+                continue
+              fi
+              pull_ref="${IMAGE_REPO}/${IMAGE_NAME}:$(compute_slug "$profile")-${SHORT_SHA}"
+              echo "Pulling $pull_ref  ->  $target_tag"
+              docker pull "$pull_ref"
+              docker tag "$pull_ref" "$target_tag"
+              echo "$profile" >> profiles-built.txt
+            done
+          else
+            # PR / dispatch: build locally (single-arch, loaded into local daemon).
+            NO_CACHE_FLAG=""
+            if [ "$NO_CACHE" = 'true' ]; then
+              NO_CACHE_FLAG="--set *.no-cache=true"
+            fi
+            for profile in "${arr[@]}"; do
+              profile=$(echo "$profile" | xargs)
+              echo "Building profile: $profile"
+              docker buildx bake --file generated/docker-bake.hcl "final-$profile" --load $NO_CACHE_FLAG
+              echo "$profile" >> profiles-built.txt
+            done
+          fi
 
       - name: Run post-install contract checks
         env:
