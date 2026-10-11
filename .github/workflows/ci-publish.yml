@@ -21,8 +21,9 @@ env:
 
 # Per-arch publishing, native (no QEMU/binfmt). Each build job runs on a
 # runner of its own architecture and bakes with the host-arch platform that
-# `solen generate bake` emits. On `v*` tags every tag is suffixed per-arch
-# (T-amd64 / T-arm64) and `merge-index` folds them into an OCI index at T.
+# `solen generate bake` emits. Every tag is suffixed per-arch (T-amd64 / T-arm64)
+# and `merge-index` folds them into an OCI index at T on all triggers
+# (develop push, v* tag, workflow_dispatch).
 jobs:
   # Native amd64 build of the standard (non-heavy) profiles.
   build-amd64-standard:
@@ -31,7 +32,7 @@ jobs:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       ARCH: amd64
       SUBSET: standard
-      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix amd64 --no-build-tag' || '' }}"
+      BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -132,11 +133,24 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-              --push
+            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
+            for attempt in 1 2 3; do
+              echo "=== Build/push attempt $attempt/3 ==="
+              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+                --push; then
+                echo "Build/push succeeded on attempt $attempt"
+                break
+              fi
+              if [ "$attempt" -ge 3 ]; then
+                echo "Build/push failed after 3 attempts"
+                exit 1
+              fi
+              echo "Build/push failed (attempt $attempt), retrying in 30s..."
+              sleep 30
+            done
           done
 
   # Native amd64 build of ONLY the heavy/flagship profiles (quarto-full + lang-java-*
@@ -147,7 +161,7 @@ jobs:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       ARCH: amd64
       SUBSET: heavy
-      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix amd64 --no-build-tag' || '' }}"
+      BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -248,23 +262,35 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-              --push
+            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
+            for attempt in 1 2 3; do
+              echo "=== Build/push attempt $attempt/3 ==="
+              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+                --push; then
+                echo "Build/push succeeded on attempt $attempt"
+                break
+              fi
+              if [ "$attempt" -ge 3 ]; then
+                echo "Build/push failed after 3 attempts"
+                exit 1
+              fi
+              echo "Build/push failed (attempt $attempt), retrying in 30s..."
+              sleep 30
+            done
           done
 
-  # Native arm64 build of ALL profiles. v* only: the develop fast path is
-  # amd64-only (no merge, no arm64).
+  # Native arm64 build of ALL profiles. Multi-arch on all triggers
+  # (develop push, v* tag, workflow_dispatch).
   build-arm64:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     runs-on: ebpro-org-arm
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       ARCH: arm64
       SUBSET: all
-      BAKE_FLAGS: "${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '--tag-suffix arm64 --no-build-tag' || '' }}"
+      BAKE_FLAGS: "--tag-suffix arm64 --no-build-tag"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -365,17 +391,29 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-              --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-              --push
+            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
+            for attempt in 1 2 3; do
+              echo "=== Build/push attempt $attempt/3 ==="
+              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
+                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+                --push; then
+                echo "Build/push succeeded on attempt $attempt"
+                break
+              fi
+              if [ "$attempt" -ge 3 ]; then
+                echo "Build/push failed after 3 attempts"
+                exit 1
+              fi
+              echo "Build/push failed (attempt $attempt), retrying in 30s..."
+              sleep 30
+            done
           done
 
   # Post-build OCI index merge: for each base tag T in the (no-suffix) bake,
   # fold the per-arch images into a multi-arch index at T.
   merge-index:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     runs-on: ebpro-org
     needs: [build-amd64-heavy, build-amd64-standard, build-arm64]
     steps:
