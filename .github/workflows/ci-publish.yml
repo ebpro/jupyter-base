@@ -74,7 +74,7 @@ jobs:
           echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
           solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
 
       - name: Set up BuildKit (docker-container driver for registry cache)
         uses: docker/setup-buildx-action@v3
@@ -133,24 +133,27 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
-            for attempt in 1 2 3; do
-              echo "=== Build/push attempt $attempt/3 ==="
-              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-                --push; then
-                echo "Build/push succeeded on attempt $attempt"
-                break
-              fi
-              if [ "$attempt" -ge 3 ]; then
-                echo "Build/push failed after 3 attempts"
-                exit 1
-              fi
-              echo "Build/push failed (attempt $attempt), retrying in 30s..."
-              sleep 30
-            done
+            # The Harbor registry cache (cache-from + cache-to) is carried by
+            # the generated bake file (--harbor-cache in the Generate step).
+            # The cache-to export is best-effort: Harbor answers 499 (Client
+            # Closed Request) on large layer uploads (e.g. quarto-containers),
+            # which must not fail the build — the GHCR push is what matters.
+            # On failure: regenerate the bake WITHOUT cache-to (cache-from is
+            # kept) and retry once; the retry's exit code is propagated, so a
+            # GHCR push failure still fails the build. Note: after a retry,
+            # the remaining profiles in this job build without the cache-to
+            # export (benign — the cache upload is best-effort by design).
+            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile"
+              continue
+            fi
+            echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
+            solen generate bake --no-cache-to --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push
           done
 
   # Native amd64 build of ONLY the heavy/flagship profiles (quarto-full + lang-java-*
@@ -203,7 +206,7 @@ jobs:
           echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
           solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
 
       - name: Set up BuildKit (docker-container driver for registry cache)
         uses: docker/setup-buildx-action@v3
@@ -262,24 +265,27 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
-            for attempt in 1 2 3; do
-              echo "=== Build/push attempt $attempt/3 ==="
-              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-                --push; then
-                echo "Build/push succeeded on attempt $attempt"
-                break
-              fi
-              if [ "$attempt" -ge 3 ]; then
-                echo "Build/push failed after 3 attempts"
-                exit 1
-              fi
-              echo "Build/push failed (attempt $attempt), retrying in 30s..."
-              sleep 30
-            done
+            # The Harbor registry cache (cache-from + cache-to) is carried by
+            # the generated bake file (--harbor-cache in the Generate step).
+            # The cache-to export is best-effort: Harbor answers 499 (Client
+            # Closed Request) on large layer uploads (e.g. quarto-containers),
+            # which must not fail the build — the GHCR push is what matters.
+            # On failure: regenerate the bake WITHOUT cache-to (cache-from is
+            # kept) and retry once; the retry's exit code is propagated, so a
+            # GHCR push failure still fails the build. Note: after a retry,
+            # the remaining profiles in this job build without the cache-to
+            # export (benign — the cache upload is best-effort by design).
+            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile"
+              continue
+            fi
+            echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
+            solen generate bake --no-cache-to --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push
           done
 
   # Native arm64 build of ALL profiles. Multi-arch on all triggers
@@ -332,7 +338,7 @@ jobs:
           echo "IS_VTAG=$IS_VTAG ARCH=$ARCH SUBSET=$SUBSET BAKE_FLAGS='$BAKE_FLAGS'"
           solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
           solen generate dockerfile --all --output generated/Dockerfile
-          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
 
       - name: Set up BuildKit (docker-container driver for registry cache)
         uses: docker/setup-buildx-action@v3
@@ -391,24 +397,27 @@ jobs:
           fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
-            # TEMPORARY WORKAROUND: retry on transient 499 (Harbor build-cache push). Remove once infra is fixed.
-            for attempt in 1 2 3; do
-              echo "=== Build/push attempt $attempt/3 ==="
-              if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
-                --set "*.cache-from=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.cache-to=type=registry,ref=harbor.ebruno.fr/solen/build-cache:${profile}-${ARCH},mode=max" \
-                --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
-                --push; then
-                echo "Build/push succeeded on attempt $attempt"
-                break
-              fi
-              if [ "$attempt" -ge 3 ]; then
-                echo "Build/push failed after 3 attempts"
-                exit 1
-              fi
-              echo "Build/push failed (attempt $attempt), retrying in 30s..."
-              sleep 30
-            done
+            # The Harbor registry cache (cache-from + cache-to) is carried by
+            # the generated bake file (--harbor-cache in the Generate step).
+            # The cache-to export is best-effort: Harbor answers 499 (Client
+            # Closed Request) on large layer uploads (e.g. quarto-containers),
+            # which must not fail the build — the GHCR push is what matters.
+            # On failure: regenerate the bake WITHOUT cache-to (cache-from is
+            # kept) and retry once; the retry's exit code is propagated, so a
+            # GHCR push failure still fails the build. Note: after a retry,
+            # the remaining profiles in this job build without the cache-to
+            # export (benign — the cache upload is best-effort by design).
+            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile"
+              continue
+            fi
+            echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
+            solen generate bake --no-cache-to --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
+            docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push
           done
 
   # Post-build OCI index merge: for each base tag T in the (no-suffix) bake,

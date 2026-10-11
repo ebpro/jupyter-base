@@ -22,7 +22,9 @@ def generate_bake(
     repo: str = "ghcr.io/ebpro",
     image_name: str = "solen",
     include_build_tag: bool = True,
-    tag_suffix: str | None = None
+    tag_suffix: str | None = None,
+    harbor_cache: str | None = None,
+    no_cache_to: bool = False
 ) -> int:
     """Generate docker-bake.hcl for all profiles.
 
@@ -34,6 +36,15 @@ def generate_bake(
         image_name: Container image name
         include_build_tag: Whether to include build-<timestamp> tag
         tag_suffix: Optional per-arch marker appended as "-<suffix>" to every emitted tag
+        harbor_cache: Optional base ref of the Harbor build-cache registry
+            (e.g. "harbor.ebruno.fr/solen/build-cache"). When set, each target
+            emits a per-profile/per-arch ``cache-from`` registry cache entry,
+            plus a ``cache-to`` entry unless ``no_cache_to`` is True.
+        no_cache_to: When ``harbor_cache`` is set, omit the ``cache-to`` export
+            attribute. The cache upload is best-effort: Harbor answers 499
+            (Client Closed Request) on large layer uploads (e.g. quarto-containers),
+            which must not fail the build. ``cache-from`` (reading the Harbor
+            cache) is always kept.
 
     Returns:
         Number of profiles processed
@@ -61,6 +72,10 @@ def generate_bake(
 
     if tag_suffix:
         tags = [f'{tag}-{tag_suffix}' for tag in tags]
+
+    # Per-arch marker for the Harbor cache ref. tag_suffix is the arch in CI
+    # (e.g. "amd64"/"arm64"); fall back to the host arch for local use.
+    cache_arch = tag_suffix or host_platform().rsplit('/', 1)[-1]
 
     # Collect all profiles from generated/profiles
     profiles_dir = repo_root / 'generated' / 'profiles'
@@ -94,7 +109,10 @@ def generate_bake(
                 normalized_platforms,
                 tags,
                 repo,
-                image_name
+                image_name,
+                harbor_cache,
+                no_cache_to,
+                cache_arch
             )
 
     return len(profiles)
@@ -121,7 +139,10 @@ def emit_bake_target(
     platforms: list[str],
     tags: list[str],
     repo: str,
-    image_name: str
+    image_name: str,
+    harbor_cache: str | None = None,
+    no_cache_to: bool = False,
+    cache_arch: str | None = None
 ) -> None:
     """Emit target block for a single profile.
 
@@ -132,6 +153,9 @@ def emit_bake_target(
         tags: List of tags to apply
         repo: Container repository URL
         image_name: Container image name
+        harbor_cache: Optional Harbor build-cache base ref (see generate_bake)
+        no_cache_to: Omit the cache-to export when harbor_cache is set
+        cache_arch: Arch marker for the per-target Harbor cache ref
     """
     # Compute profile slug (strip numeric prefixes like "20-00-")
     slug = compute_profile_slug(profile)
@@ -155,6 +179,19 @@ def emit_bake_target(
     for tag in tags:
         f.write(f'    "{repo}/{image_name}:{slug}-{tag}",\n')
     f.write('  ]\n')
+
+    # Harbor registry build cache (opt-in via harbor_cache). The ref uses the
+    # raw profile name + arch, matching the refs the CI build jobs used to pass
+    # via buildx --set, so existing Harbor cache entries stay reusable.
+    # cache-from (reading the cache) is always kept; cache-to (the upload) is
+    # best-effort and omitted when no_cache_to is set, because Harbor answers
+    # 499 on large layer uploads (e.g. quarto-containers).
+    if harbor_cache:
+        arch = cache_arch or 'amd64'
+        cache_entry = f'type=registry,ref={harbor_cache}:{profile}-{arch},mode=max'
+        f.write(f'  cache-from = ["{cache_entry}"]\n')
+        if not no_cache_to:
+            f.write(f'  cache-to = ["{cache_entry}"]\n')
 
     f.write('}\n\n')
 
