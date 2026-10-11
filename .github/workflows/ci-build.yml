@@ -113,7 +113,14 @@ jobs:
               fi
               pull_ref="${IMAGE_REPO}/${IMAGE_NAME}:$(compute_slug "$profile")-${SHORT_SHA}"
               echo "Pulling $pull_ref  ->  $target_tag"
-              docker pull "$pull_ref"
+              # Pull the published image. Prefer the runner's native arch; fall back to
+              # linux/amd64 if the image predates multi-arch (amd64-only) and the runner
+              # is arm64 ("no matching manifest for linux/arm64/v8"). amd64 is always
+              # published, so the pull cannot fail; SBOM/Trivy scans are arch-agnostic.
+              if ! docker pull "$pull_ref"; then
+                echo "WARN: native-arch pull failed for $pull_ref (pre-multi-arch image?); retrying with linux/amd64" >&2
+                docker pull --platform linux/amd64 "$pull_ref"
+              fi
               docker tag "$pull_ref" "$target_tag"
               echo "$profile" >> profiles-built.txt
             done
