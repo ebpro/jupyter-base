@@ -229,5 +229,19 @@
         }
       }
     }
+    ,
+    "kotlin-jupyter": {
+      "pinned_version": "0.19.0.944",
+      "archive_format": "whl",
+      "archive_url_template": "https://files.pythonhosted.org/packages/cf/bc/2cd20bddab3e790b1307379bd91a15a405f241646b4122329c59dd55d867/kotlin_jupyter_kernel-0.19.0.944-py3-none-any.whl",
+      "latest_version_cmd": "curl -fsSL https://pypi.org/pypi/kotlin-jupyter-kernel/json | jq -r '.info.version'",
+      "notes": "Kotlin Jupyter kernel (Kotlin/kotlin-jupyter), PyPI package 'kotlin-jupyter-kernel'. Upstream publishes NO GitHub Releases and NO sdist; PyPI is the only source. The wheel is py3-none-any (pure-Python launcher; arch-independent, so amd64/arm64 digests are identical by construction) but embeds ~80 MB of JVM jars including its OWN Kotlin compiler runtime (kotlin-script-runtime-2.4.0-dev-6891.jar) — the kernel version pins the kernel package release, NOT the Kotlin language level of notebooks, and is independent of the SDKMAN KOTLIN_VERSION. PyPI marks the package 'Development Status :: 4 - Beta'. requires_dist is null; upstream's own conda recipe installs it with --no-deps. pip install writes the kernelspec to <sys.prefix>/share/jupyter/kernels/kotlin via the wheel's *.data/data payload (verified against the 0.19.0.944 wheel: 9,548 B RECORD, kernel.json argv 'python -m run_kotlin_kernel {connection_file}').",
+      "checksums": {
+        "0.19.0.944": {
+          "amd64": "dc654a426a28e6621aeb0bd7772d268a9a877aabae4a17b73383752a416281a3",
+          "arm64": "dc654a426a28e6621aeb0bd7772d268a9a877aabae4a17b73383752a416281a3"
+        }
+      }
+    }
   }
 }

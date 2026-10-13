@@ -12,11 +12,12 @@ matrix:
       - kotlin
     options:
       INSTALL_KOTLIN: true
-      # features/kotlin/install.sh registers no kernel (the kernel branch
-      # only echoes a placeholder), so asserting true here was a metadata
-      # lie. Flip back to true only when a real kernelspec installer lands
-      # (precedents: features/java-kernel, features/jupyter-kernels).
-      INSTALL_KOTLIN_KERNEL: false
+      # features/kotlin/install.sh installs the pinned kotlin-jupyter-kernel
+      # wheel (checksums.json tools.kotlin-jupyter) behind this gate: build-time
+      # ~80 MB verified download, kernelspec at <prefix>/share/jupyter/kernels/
+      # kotlin. The language level follows the kernel release, not KOTLIN_VERSION.
+      # See features/kotlin/README.md before changing the pin.
+      INSTALL_KOTLIN_KERNEL: true
   lang-web-dev:
     features:
       - bundle-web-dev

@@ -18,11 +18,21 @@
     "install_kotlin_kernel": {
       "type": "boolean",
       "default": false
+    },
+    "KOTLIN_KERNEL_VERSION": {
+      "type": "string",
+      "description": "kotlin-jupyter KERNEL PACKAGE release (PyPI 'kotlin-jupyter-kernel', pinned in checksums.json tools.kotlin-jupyter). NOT the notebook Kotlin language level: the wheel bundles its own compiler runtime (2.4.0-dev-6891) and this value is independent of KOTLIN_VERSION (which only pins the SDKMAN CLI compiler). Package is marked 'Development Status :: 4 - Beta' on PyPI.",
+      "default": "0.19.0.944"
+    },
+    "KOTLIN_KERNEL_WHEEL_URL": {
+      "type": "string",
+      "description": "Direct wheel URL override (default empty: resolved from checksums.json tools.kotlin-jupyter.archive_url_template; PyPI path is content-hashed, so it cannot be templated from the version). Whatever the source, the sha256 in checksums.json is always enforced.",
+      "default": ""
     }
   },
   "postInstallCheck": {
-    "command": "kotlinc -version",
-    "description": "Verify Kotlin compiler is available"
+    "command": "bash -lc 'kotlinc -version 2>&1 | tail -n 1; v=\"${INSTALL_KOTLIN_KERNEL:-false}\"; case \"${v,,}\" in true) python - <<PY\nimport importlib.util\nimport json\nimport os\nfrom jupyter_client.kernelspec import KernelSpecManager\n\nksm = KernelSpecManager()\ntry:\n    spec = ksm.get_kernel_spec(\"kotlin\")\nexcept Exception as exc:\n    raise SystemExit(f\"kotlin kernelspec missing: {exc}\")\nif not os.path.isfile(os.path.join(spec.resource_dir, \"kernel.json\")):\n    raise SystemExit(f\"kotlin kernelspec incomplete: {spec.resource_dir}\")\nprint(f\"kotlin kernelspec OK: {spec.resource_dir}\")\n\nfound = importlib.util.find_spec(\"run_kotlin_kernel\")\nif found is None or not found.origin:\n    raise SystemExit(\"kotlin kernel module run_kotlin_kernel not importable\")\nmod = os.path.dirname(os.path.abspath(found.origin))\njars = os.path.join(mod, \"jars\")\ncfg = os.path.join(mod, \"config\", \"jar_args.json\")\nif not os.path.isdir(jars):\n    raise SystemExit(f\"kotlin kernel payload missing jars dir: {jars}\")\nif not os.path.isfile(cfg):\n    raise SystemExit(f\"kotlin kernel payload missing jar_args: {cfg}\")\nmain_jar = json.load(open(cfg))[\"mainJar\"]\nif not os.path.isfile(os.path.join(jars, main_jar)):\n    raise SystemExit(f\"kotlin kernel payload missing main jar: {main_jar}\")\nprint(f\"kotlin kernel payload OK: {main_jar}\")\nPY\n ;; *) echo \"kotlin postInstallCheck: kernel not requested (INSTALL_KOTLIN_KERNEL=$v); asserting compiler only\";; esac'",
+    "description": "Verify Kotlin compiler is available and, when INSTALL_KOTLIN_KERNEL=true, that the 'kotlin' kernelspec resolves and the run_kotlin_kernel payload (jars/, config/jar_args.json, main jar) is complete"
   },
   "vscode": {
     "extensions": [
