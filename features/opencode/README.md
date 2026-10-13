@@ -34,15 +34,13 @@ at container start and are **never** baked into the image.
 
 ## Usage
 
-Enable the feature in your `devcontainer.json` (see the manual base template at
-`devcontainer/template/devcontainer.json`):
+Enable the feature by adding `opencode` to a profile in the solen matrix
+(`profiles/matrix/*.yaml`); it is baked into the image at build time rather than
+installed as an OCI devcontainer feature:
 
-```json
-{
-  "features": {
-    "ghcr.io/ebpro/solen/opencode:1.0.0": {}
-  }
-}
+```yaml
+features:
+  - opencode
 ```
 
 To deploy the private configuration, provide a deploy key with read access to

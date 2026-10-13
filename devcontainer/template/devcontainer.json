@@ -39,8 +39,6 @@
     },
     "forwardPorts": [],
     "postCreateCommand": "echo 'unset DOCKER_HOST' >> ~/.zshrc && echo 'export DOCKER_HOST=tcp://docker:2375' >> ~/.zshrc && echo '✅ Dev container ready!'",
-    "features": {
-        "ghcr.io/ebpro/solen/opencode:1.0.0": {}
-    },
+    "features": {},
     "remoteEnv": {}
 }
