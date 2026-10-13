@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+#: Names that live inside a profile directory but are NOT generated profiles.
+#: ``base`` is a Dockerfile stage marker and ``README.md`` documentation; hidden
+#: entries (dotfiles such as ``.gitkeep``) are excluded separately by name prefix.
+NON_PROFILE_NAMES: frozenset[str] = frozenset({"README.md", "base"})
+
 
 @dataclass
 class ProfileData:
@@ -126,3 +131,30 @@ def find_profile(profile_name: str, repo_root: Path) -> Path:
         f"Profile not found: {profile_name}\n"
         f"Searched: {', '.join(str(p) for p in search_paths)}"
     )
+
+
+def is_profile_file(path: Path) -> bool:
+    """Decide whether a directory entry is a generated profile file.
+
+    This is the single source of truth shared by the bake and Dockerfile
+    generators. They MUST agree on the resulting profile set: if one generator
+    counts an entry the other ignores, the bake file references a ``final-<name>``
+    target whose Dockerfile stage was never emitted -- a dangling target that
+    only fails at build time in CI, far from the cause.
+
+    A profile is a regular, non-hidden file whose name is not one of the
+    reserved :data:`NON_PROFILE_NAMES` placeholders.
+
+    Args:
+        path: Candidate directory entry (file or otherwise).
+
+    Returns:
+        ``True`` when ``path`` should be treated as a profile.
+    """
+    if not path.is_file():
+        return False
+    if path.name.startswith('.'):
+        return False
+    if path.name in NON_PROFILE_NAMES:
+        return False
+    return True

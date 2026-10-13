@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
+from solen.core.profile import is_profile_file
 from solen.utils.git import get_git_sha, get_version_tags
 
 
@@ -82,10 +83,11 @@ def generate_bake(
     if not profiles_dir.exists():
         raise FileNotFoundError(f"Profiles directory not found: {profiles_dir}")
 
-    profiles = []
-    for profile_file in sorted(profiles_dir.iterdir()):
-        if profile_file.is_file() and not profile_file.name.startswith('.'):
-            profiles.append(profile_file.name)
+    profiles = [
+        profile_file.name
+        for profile_file in sorted(profiles_dir.iterdir())
+        if is_profile_file(profile_file)
+    ]
 
     if not profiles:
         raise ValueError(f"No profiles found in {profiles_dir}")
