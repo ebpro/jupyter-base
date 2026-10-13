@@ -12,7 +12,11 @@ matrix:
       - kotlin
     options:
       INSTALL_KOTLIN: true
-      INSTALL_KOTLIN_KERNEL: true
+      # features/kotlin/install.sh registers no kernel (the kernel branch
+      # only echoes a placeholder), so asserting true here was a metadata
+      # lie. Flip back to true only when a real kernelspec installer lands
+      # (precedents: features/java-kernel, features/jupyter-kernels).
+      INSTALL_KOTLIN_KERNEL: false
   lang-web-dev:
     features:
       - bundle-web-dev

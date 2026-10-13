@@ -45,10 +45,23 @@ if [ "$INSTALL_KOTLIN_LC" = "true" ]; then
     fi
 
     if command -v sdk >/dev/null 2>&1; then
+      # Compose the SDKMAN command once: pinned version when requested,
+      # otherwise the SDKMAN current candidate.
       if [ -n "${KOTLIN_VERSION}" ]; then
-        su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install kotlin ${KOTLIN_VERSION}" || true
+        KOTLIN_SDK_CMD="sdk install kotlin ${KOTLIN_VERSION}"
       else
-        su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk install kotlin" || true
+        KOTLIN_SDK_CMD="sdk install kotlin"
+      fi
+
+      # `sdk install` fetches candidate metadata and the distribution from
+      # the SDKMAN CDN and repo1.maven.apache.org, so this step is
+      # network-dependent. A failure used to be swallowed by `|| true`,
+      # yielding green builds whose images contained no kotlinc while
+      # feature.json advertised it via `kotlinc -version`. Fail loudly at
+      # the point of failure instead.
+      if ! su - "${NB_USER:-jovyan}" -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; ${KOTLIN_SDK_CMD}"; then
+        echo "kotlin: FAILED '${KOTLIN_SDK_CMD}' (version requested: ${KOTLIN_VERSION:-<sdkman current>}). This install performs a network fetch (SDKMAN CDN + repo1.maven); aborting the build at the point of failure rather than shipping an image without kotlinc." >&2
+        exit 1
       fi
     else
       echo "kotlin: please install Kotlin compiler in base image or enable sdk"
