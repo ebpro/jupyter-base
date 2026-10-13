@@ -38,7 +38,7 @@ jobs:
         run: solen versions sync --check
 
       - name: Run test suite
-        run: python -m pytest tests/ -q
+        run: python -m pytest tests/ solen-cli/tests -q
 
       - name: Lint
         run: ruff check solen-cli tests
