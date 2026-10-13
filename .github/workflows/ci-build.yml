@@ -22,9 +22,9 @@ on:
         required: false
         default: 'false'
       run-postinstall-checks:
-        description: 'Run feature postInstallCheck commands in built images'
+        description: 'Run feature postInstallCheck commands in built images (select false to skip)'
         required: false
-        default: 'false'
+        default: 'true'
         type: choice
         options:
           - 'true'
@@ -140,7 +140,12 @@ jobs:
 
       - name: Run post-install contract checks
         env:
-          RUN_POSTINSTALL_CHECKS: ${{ github.event.inputs['run-postinstall-checks'] || 'false' }}
+          # Armed on every trigger: workflow_run and pull_request carry no
+          # event.inputs, so the fallback ('true') arms them. A dispatch
+          # selecting 'false' still disables the step -- 'false' is a
+          # non-empty string, truthy under GitHub expression semantics, so
+          # it survives the || and the manual escape hatch is preserved.
+          RUN_POSTINSTALL_CHECKS: ${{ github.event.inputs['run-postinstall-checks'] || 'true' }}
         run: |
           set -uo pipefail
           if [ "$RUN_POSTINSTALL_CHECKS" != 'true' ]; then
