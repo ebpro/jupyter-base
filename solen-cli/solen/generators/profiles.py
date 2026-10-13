@@ -51,9 +51,29 @@ def validate_matrix_features(matrix_path: Path, repo_root: Path) -> list[str]:
     return missing
 
 
+def render_option_value(value: Any) -> str:
+    """Render one option value for the ``key=value`` profile line format.
+
+    Python ``bool`` values are rendered as lowercase ``true``/``false`` so
+    that matrix-declared booleans match both the feature-default
+    normalisation in ``solen.core.feature.collect_feature_options`` and the
+    case-sensitive lowercase gates (``[ "$X" = "true" ]``) used by every
+    installer. Plain ``f"{value}"`` would emit ``True``/``False`` and
+    silently keep those branches closed.
+
+    Every other type renders exactly as before -- values include
+    case-significant version strings (e.g. ``KERNEL_VERSION=v1.4.6-pr12``)
+    and identifiers, which must never be lowercased wholesale. ``bool`` is
+    checked first because it is an ``int`` subclass.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return f"{value}"
+
+
 def render_options(opts: dict[str, Any]) -> str:
     """Render options dictionary as key=value pairs."""
-    pairs = [f"{k}={v}" for k, v in opts.items()]
+    pairs = [f"{k}={render_option_value(v)}" for k, v in opts.items()]
     return ";".join(pairs)
 
 
