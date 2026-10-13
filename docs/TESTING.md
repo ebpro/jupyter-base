@@ -25,7 +25,7 @@ Solen testing is split into several layers:
 
 4. **CI build validation**
    - canonical builds run in GitHub Actions with Docker BuildKit
-   - post-install checks can be enabled per build run
+   - post-install checks are armed on every build run (a manual dispatch can select `false` to skip)
 
 ## Local setup
 
@@ -191,20 +191,24 @@ The build workflow:
 - generates `generated/Dockerfile`
 - generates `generated/docker-bake.hcl`
 - builds the selected profiles
-- optionally runs post-install checks in the built images
+- runs post-install checks in the built images
 
 The post-install check gate is controlled by the workflow input:
 
 ```yaml
 run-postinstall-checks:
-  description: 'Run feature postInstallCheck commands in built images'
+  description: 'Run feature postInstallCheck commands in built images (select false to skip)'
   required: false
-  default: 'false'
+  default: 'true'
   type: choice
   options:
     - 'true'
     - 'false'
 ```
+
+`workflow_run` and `pull_request` triggers carry no `event.inputs`, so the step's
+`${{ github.event.inputs['run-postinstall-checks'] || 'true' }}` fallback arms them too;
+only a manual dispatch that selects `'false'` skips the step.
 
 When enabled, CI runs:
 

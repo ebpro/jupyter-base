@@ -77,7 +77,7 @@ when `SSH_PRIVATE_KEY` is provided at build time, clones the private
 .venv/bin/solen analyze features
 ```
 Bake targets are `final-<profile>`; tags are `<registry>/<repo>:<profile>-<tag>`.
-CI passes the bake generator `--tag-suffix <arch> --no-build-tag` (all triggers).
+CI passes the bake generator `--tag-suffix <arch> --no-build-tag --platforms linux/<arch>` (all triggers).
 
 ## Validation (the local gate)
 ```bash
@@ -123,7 +123,7 @@ actionlint                                 # workflow lint (developer-provided; 
   (heavy/flagship amd64), `ebpro-org-arm` (arm64).
 
 ## Gotchas
-- `.venv/` at repo root is **untracked and not gitignored** — stage explicit paths,
+- `.venv/` at repo root is **untracked and gitignored** — stage explicit paths,
   never `git add -A`.
 - Feature bundles (`bundle-base-full`, `bundle-quarto-full`, ...) are meta-features;
   they appear in profiles, their `dependsOn` is the actual content.
