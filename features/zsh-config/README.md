@@ -1,10 +1,10 @@
 # zsh-config
 
-**Purpose:** Installs Prezto and configures Powerlevel10k for the dev user
+**Purpose:** Configures zsh with Starship prompt and user environment for the dev user
 
 ## Description
 
-Installs Prezto and configures Powerlevel10k for the dev user
+Installs Starship and configures `~/.zshrc` (PATH, `/etc/profile.d` sourcing) for the dev user.
 
 
 ## Dependencies

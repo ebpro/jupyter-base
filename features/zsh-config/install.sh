@@ -19,42 +19,25 @@ else
   chown -R ${NB_UID:-1001}:${NB_GID:-1001} "${HOME_DIR}/.local" "${HOME_DIR}/.cache" >/dev/null 2>&1 || true
 fi
 
-PREZTO_REPO="${DEVCONTAINER_ZSH_CONFIG_PREZTO_REPO:-https://github.com/sorin-ionescu/prezto.git}"
 NB_USER=${NB_USER:-jovyan}
 NB_UID=${NB_UID:-1001}
 NB_GID=${NB_GID:-1001}
 HOME_DIR="/home/${NB_USER}"
 
-echo "zsh-config: installing prezto for ${NB_USER}"
+echo "zsh-config: configuring zsh for ${NB_USER}"
 
 # Ensure git is available (feature runs as root during build)
 if ! command -v git >/dev/null 2>&1; then
   apt_install git || true
 fi
-# Perform the canonical prezto install as the non-root user during build.
-# Run the clone, runcom symlink creation, and zshrc updates as `NB_USER` so
-# that files are created with correct ownership and no post-build chown is
-# required. This follows the standard prezto instructions.
+# Run the zshrc updates as `NB_USER` so that files are created with correct
+# ownership and no post-build chown is required.
 if [ -d "${HOME_DIR}" ]; then
   # Write a temporary user-run script to avoid outer-shell expansion issues
   TMP_SCRIPT="/tmp/zsh-config-install-${NB_USER}.sh"
   cat > "${TMP_SCRIPT}" <<-'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
-if [ ! -d "$HOME/.zprezto" ]; then
-  git clone --depth=1 --recursive "${PREZTO_REPO}" "$HOME/.zprezto" || true
-fi
-if [ -d "$HOME/.zprezto/runcoms" ]; then
-  for rc in "$HOME/.zprezto/runcoms"/*; do
-    base=$(basename "$rc")
-    [ "$base" = "README.md" ] && continue
-    ln -sf "$rc" "$HOME/.${base}" || true
-  done
-fi
-# Ensure ~/.zshrc sources prezto init
-if ! grep -q '^source ~/.zprezto/init.zsh' ~/.zshrc 2>/dev/null; then
-  printf '%s\n' 'source ~/.zprezto/init.zsh' >> ~/.zshrc
-fi
 # Ensure ~/.local/bin exists and is on PATH in ~/.zshrc
 mkdir -p ~/.local/bin
 if ! grep -q "export PATH=\"$HOME/.local/bin:\$PATH\"" ~/.zshrc 2>/dev/null; then
@@ -69,8 +52,8 @@ if ! grep -q '/etc/profile.d/\*.sh' ~/.zshrc 2>/dev/null; then
 fi
 BASH
   chmod +x "${TMP_SCRIPT}" || true
-  # Run it as the target user, supplying PREZTO_REPO in the environment
-  su - ${NB_USER} -s /bin/bash -c "PREZTO_REPO='${PREZTO_REPO}' ${TMP_SCRIPT}" || true
+  # Run it as the target user
+  su - ${NB_USER} -s /bin/bash -c "${TMP_SCRIPT}" || true
 
   # Ensure user's cache dir exists and is owned by the user (prevents starship write errors)
   mkdir -p "${HOME_DIR}/.cache" || true
