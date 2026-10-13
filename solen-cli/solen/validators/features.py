@@ -44,6 +44,35 @@ class FeatureValidator:
 
     REQUIRED_FIELDS = ['id', 'name', 'version']
     RECOMMENDED_FIELDS = ['description', 'documentationURL']
+    # Every top-level feature.json key that a toolchain component parses or
+    # deliberately preserves (core/feature.py, this validator, the devcontainer
+    # generator, or standard devcontainer-spec metadata kept for upstream
+    # tools). Keys outside this set are silently ignored by everything — the
+    # former `caches` declaration showed such metadata is a design error, so
+    # unknown keys must fail loudly instead of rotting unnoticed.
+    ALLOWED_FIELDS = {
+        'conflicts',
+        'customizations',
+        'dependsOn',
+        'description',
+        'documentationURL',
+        'id',
+        'installsAfter',
+        'license',
+        'licenseURL',
+        'maintainer',
+        'name',
+        'options',
+        'platforms',
+        'postInstallCheck',
+        'prebake_preferred',
+        'provides',
+        'supported_archs',
+        'tags',
+        'title',
+        'version',
+        'vscode',
+    }
     VALID_CATEGORIES = [
         'language', 'tool', 'runtime', 'database', 'bundle', 'system', 'development'
     ]
@@ -109,6 +138,9 @@ class FeatureValidator:
         # Validate required fields
         results.extend(self._validate_required_fields(feature_data))
 
+        # Reject unknown fields (nothing in the toolchain would parse them)
+        results.extend(self._validate_unknown_fields(feature_data, feature_json_path))
+
         # Validate recommended fields
         results.extend(self._validate_recommended_fields(feature_data))
 
@@ -157,6 +189,28 @@ class FeatureValidator:
                     level='info',
                     message=f"Required field '{field}' present"
                 ))
+        return results
+
+    def _validate_unknown_fields(
+        self, data: dict[str, Any], feature_json_path: Path
+    ) -> list[ValidationResult]:
+        """Reject top-level keys no toolchain component parses.
+
+        Metadata that is declared but silently ignored (e.g. the former
+        `caches` declaration in zsh-config) hides design errors; failing
+        loudly is the correction.
+        """
+        results = []
+        accepted = ', '.join(sorted(self.ALLOWED_FIELDS))
+        for field in sorted(set(data) - self.ALLOWED_FIELDS):
+            results.append(ValidationResult(
+                passed=False,
+                level='error',
+                message=(
+                    f"Unknown field '{field}' in {feature_json_path} is not parsed by "
+                    f"any solen component (accepted fields: {accepted})"
+                )
+            ))
         return results
 
     def _validate_recommended_fields(self, data: dict[str, Any]) -> list[ValidationResult]:
