@@ -209,9 +209,12 @@ def generate_profiles(matrix_path: Path, out_dir: Path, prefix: str = "") -> int
 
             # Use the derived base as the profile base
             profile_base = base if base else label
+            # Per-variant parent overrides the top-level parent (layer
+            # chaining); absent variant parent falls back to the top-level.
+            variant_parent = spec.get("parent", parent) if isinstance(spec, dict) else parent
             profile_spec = {
                 "base": profile_base,
-                "parent": parent,
+                "parent": variant_parent,
                 "comment": comment,
                 "labels": {label: variant_spec},
                 "features": features

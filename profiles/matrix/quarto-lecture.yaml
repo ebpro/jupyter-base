@@ -18,6 +18,7 @@ matrix:
       - bundle-quarto-base
     options: {}
   quarto-full:
+    parent: quarto-java-25
     features:
       - bundle-quarto-full
       - homebrew
@@ -77,7 +78,7 @@ matrix:
       - java-gradle
       - java-kernel
     options:
-      KERNEL_VERSION: v1.4.5
+      KERNEL_VERSION: v1.4.6-pr12
       ARTIFACTS_BASE_URL: https://github.com/ebpro/IJava/releases
       JDK_VERSION: ea
 
@@ -89,6 +90,6 @@ matrix:
       - java-gradle
       - java-kernel
     options:
-      KERNEL_VERSION: v1.4.5
+      KERNEL_VERSION: v1.4.6-pr12
       ARTIFACTS_BASE_URL: https://github.com/ebpro/IJava/releases
       JDK_VERSION: 25

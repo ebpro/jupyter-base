@@ -84,7 +84,7 @@ RUN chmod -R a+rX /opt/toolcache || true
 
 {% for profile in profiles %}
 # --- Profile: {{ profile.name }} ---
-FROM base AS profile-{{ profile.name }}
+FROM {{ profile.from_stage }} AS profile-{{ profile.name }}
 
 LABEL org.solen.profile="{{ profile.name }}" \
       org.solen.features.added="{{ profile.features_str }}" \
@@ -155,7 +155,7 @@ SCRIPT
 RUN chmod +x /opt/solen/run-postinstall-checks.sh
 
 RUN \
-{% for feat in profile.features %}
+{% for feat in profile.install_features %}
   --mount=type=bind,source=features/{{ feat }},target=/tmp/features/{{ feat }},readonly \
 {% endfor %}
   --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \
@@ -168,7 +168,7 @@ RUN \
   --mount=type=cache,target=/home/jovyan/.cache,sharing=locked,uid=1001,gid=1001 \
   bash -eux -o pipefail <<'SCRIPT'
 
-feats=({% for feat in profile.features %}"{{ feat }}" {% endfor %})
+feats=({% for feat in profile.install_features %}"{{ feat }}" {% endfor %})
 source /opt/solen/_lib/helpers.sh || true
 
 echo "=== debug: list /opt/solen/_lib"; ls -la /opt/solen/_lib || true
