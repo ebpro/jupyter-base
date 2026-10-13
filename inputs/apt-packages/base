@@ -7,6 +7,7 @@ tmux
 neovim
 cmake
 pkg-config
+rsync
 
 # Runtime libraries required by XeTeX/XeLaTeX (installed by TinyTeX/TeXLive)
 # These provide `libfontconfig.so.1` and other font/image support so fmtutil

@@ -12,7 +12,7 @@
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "which jq fzf tmux nvim cmake",
+    "command": "which jq fzf tmux nvim cmake rsync",
     "description": "Verify core utilities from base apt packages are available"
   },
   "documentationURL": "./features/system-essentials/README.md"
