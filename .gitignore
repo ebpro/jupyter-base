@@ -15,6 +15,9 @@ build-logs
 # python packaging artifacts
 *.egg-info/
 
+# python virtualenv
+.venv/
+
 # jupyter caches
 .jupyter_cache/
 
