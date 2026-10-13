@@ -1,166 +1,114 @@
-# Scripts Directory
+# `scripts/`
 
-This directory contains all build, validation, and utility scripts for the solen project.
+Shell and Python helpers that support building, testing, and preparing the solen
+images. This directory holds **build/test helpers**, **shared shell libraries**
+(feature-install and build functions), and a few **standalone utilities**
+(artefact offload/fetch, checksums, prebake, and a Mermaid diagram generator).
 
-## Directory Structure
+Profile generation, Dockerfile/bake generation, feature validation, and version
+sync are **not** here — they live in the `solen` CLI (see `solen-cli/`). See the
+[Analysis tools now live in the CLI](#analysis-tools-now-live-in-the-cli) section
+below.
+
+> The repo-root `build.sh` is the top-level build entry point (`./build.sh [profile]`).
+> `scripts/lib/build.sh` is a *different* file: a shared helper library sourced by
+> build scripts. Do not confuse the two.
+
+## Directory layout
 
 ```
 scripts/
 ├── README.md                          # This file
-│
-├── Core Build Scripts (in root)
-├── generate-dockerfile.sh             # Generate multi-stage Dockerfile from profile
-├── generate-bake.sh                   # Generate docker buildx bake configuration
-├── generate-profiles-matrix.py        # Expand YAML matrices to profile files
-├── generate-all-matrix-profiles.sh    # Batch generate all profiles from YAML
-├── generate-all-devcontainers.sh      # Batch generate devcontainer.json files
-├── generate-devcontainer.sh           # Generate single devcontainer.json
-├── generate-devcontainer-json.py      # Python devcontainer.json generator
-├── prebake-toolcache.sh               # Pre-download tools for offline builds
-│
-├── validate/                          # Validation & checking
-│   ├── validate-feature-deps.py       # Check feature dependency graph
-│   ├── validate-feature-deps.sh       # Shell wrapper for feature deps
-│   ├── validate-generated-files.sh    # Verify generated files are current
-│   ├── validate-system-consistency.py # Check overall system consistency
-│   └── run-postinstall-checks.py      # Post-install validation
-│
-├── test/                              # Testing
-│   ├── test-all-features.sh           # Test all feature installers
-│   ├── test-feature.sh                # Test single feature installer
-│   └── test-profile.sh                # Test profile build
-│
-├── features/                          # Feature management
-│   ├── expand-feature-deps.py         # Recursively expand bundle dependencies
-│   └── sort-features-by-deps.py       # Topological sort by dependencies
-│
-├── utils/                             # Utilities & helpers
-│   ├── fetch-artefacts.sh             # Download pre-built artefacts
-│   ├── fetch-gitstatus-artifacts.sh   # Download gitstatus binaries
-│   ├── fetch-java-kernel-artifacts.sh # Download java-kernel artifacts
-│   ├── offload-artefacts.sh           # Upload artefacts to storage
-│   ├── update-checksums.sh            # Update artefact checksums
-│   ├── generate-checksums.sh          # Generate checksum files
-│   ├── inject_prebaked_helpers.sh     # Inject helper scripts into image
-│   ├── arch.sh                        # Detect system architecture
-│   └── generate_mermaid.py            # Generate dependency diagrams
-│
-├── analysis/                          # Analysis & development tools
-│   ├── analyze-build-patterns.py      # Analyze build patterns
-│   └── analyze-profile-features.py    # Analyze feature usage across profiles
-│
-└── lib/                               # Shared libraries
-    ├── helpers.sh                     # Common shell functions
-    ├── build.sh                       # Build workflow functions
-    └── features.sh                    # Feature-specific helpers
+├── arch.sh                            # Shim: exposes arch_map/arch_aliases (delegates to utils/arch.sh)
+├── feature_helpers.sh                 # Shim: exposes feature helper functions to install scripts
+├── fix_feature_helpers.py             # One-shot: rewrites install.sh helper-source paths
+├── prebake-toolcache.sh               # Pre-download & cache common tools to /opt/toolcache
+├── validate-artefacts.sh              # Verify integrity of the offloaded artefacts tree
+├── lib/
+│   ├── build.sh                       # Shared build helpers (buildx check, builder, platforms)
+│   ├── features.sh                    # Feature-install helper functions (+ compat shim)
+│   └── helpers.sh                     # Shared helper functions for feature install scripts
+├── utils/
+│   ├── arch.sh                        # arch_map / arch_aliases normalization
+│   ├── fetch-artefacts.sh             # Download & extract offloaded artefacts into ./artefacts
+│   ├── fetch-gitstatus-artifacts.sh   # Fetch gitstatusd tarballs, extract, update checksums
+│   ├── fetch-java-kernel-artifacts.sh # Fetch IJava/java-kernel tarballs, extract, write checksums
+│   ├── generate_mermaid.py            # Mermaid diagram: profiles → features (stdout / --out)
+│   ├── inject_prebaked_helpers.sh     # Inject helper-source snippet into feature install.sh files
+│   ├── offload-artefacts.sh           # Collect large artefacts, build tarball + manifest
+│   └── update-checksums.sh            # Download pinned binaries, compute SHA256, update checksums.json
+└── test/
+    ├── test-all-features.sh           # Test many features with reporting (parallel option)
+    ├── test-feature.sh                # Test a single feature in an isolated container
+    └── test-profile.sh                # Smoke-test a built profile image
 ```
 
-## Main Workflows
+Generated artefact (not source, safe to delete):
 
-### Build Workflow
+- `utils/__pycache__/generate_mermaid.cpython-312.pyc` — Python bytecode cache produced
+  when `generate_mermaid.py` is imported/run.
 
-1. **Profile Generation**: `generate-all-matrix-profiles.sh`
-   - Reads YAML matrices from `profiles/matrix/*.yaml`
-   - Generates text profiles in `generated/profiles/`
-   - Expands feature dependencies
+## File reference
 
-2. **Dockerfile Generation**: `generate-dockerfile.sh --profile <name>`
-   - Reads profile from `generated/profiles/`
-   - Generates `generated/Dockerfile` with all features
+### Top level
 
-3. **Build**: `../build.sh --profile <name>`
-   - Generates Dockerfile if needed
-   - Builds multi-arch image with buildx
-   - Generates bake configuration
+| Path | Purpose |
+|------|---------|
+| `arch.sh` | Lightweight shim that sources `utils/arch.sh` so `arch_map` / `arch_aliases` are available at the `scripts/arch.sh` path. |
+| `feature_helpers.sh` | Shim so feature `install.sh` scripts can source feature helper functions; loads `lib/features.sh` (falling back to `/opt/solen/_lib/helpers.sh` inside images). |
+| `fix_feature_helpers.py` | One-shot maintenance script: rewrites `../../../scripts/feature_helpers.sh` references in `features/**/install.sh` to `../../../scripts/lib/features.sh`. |
+| `prebake-toolcache.sh` | Pre-downloads and caches a set of common tools (default: `gh,kubectl,helm,k9s,kustomize,quarto,tilt,gitstatus,miniforge,node`) to `/opt/toolcache` for faster builds. Configurable via `--tools`, `--archs`, `--output`, `--versions`. |
+| `validate-artefacts.sh` | Verifies integrity of the offloaded artefacts tree: checks each `toolcache-manifest-*.json`, its referenced tarball, and the SHA256. Requires `jq`. |
 
-### Validation Workflow
+### `lib/` — shared shell libraries
 
-```bash
-# Validate feature dependencies
-./validate/validate-feature-deps.py
+| Path | Purpose |
+|------|---------|
+| `build.sh` | Shared build helpers: `check_buildx`, `create_builder_if_missing`, `normalize_platforms`. Sourced by build scripts (not the repo-root `build.sh`). |
+| `features.sh` | Feature-install helper functions (e.g. `fh_log`, `feature_marker`, `feature_is_installed`, `feature_mark_installed`), with a compatibility shim that also loads `helpers.sh` (or `/opt/solen/_lib/helpers.sh` in images). |
+| `helpers.sh` | Shared helper functions for feature install scripts (e.g. `apt_install`, feature markers, logging). |
 
-# Validate generated files are up-to-date
-./validate/validate-generated-files.sh
+### `utils/`
 
-# Run system-wide consistency checks
-./validate/validate-system-consistency.py
-```
+| Path | Purpose |
+|------|---------|
+| `arch.sh` | Normalizes architecture names: `arch_map <input>` → canonical arch; `arch_aliases <canon>` → asset-name variants. |
+| `fetch-artefacts.sh` | Downloads and extracts offloaded artefacts into `./artefacts`. Accepts a direct URL (`--url` / `ARTEFACT_URL`) or a manifest + base URL (`--manifest` + `ARTEFACTS_BASE_URL`); optional `--no-verify`. |
+| `fetch-gitstatus-artifacts.sh` | Fetches `gitstatusd` release tarballs per arch, extracts into `artefacts/`, and updates the per-feature checksums. Version from `versions.json` (`.tools.gitstatus`) or an argument. |
+| `fetch-java-kernel-artifacts.sh` | Fetches IJava / java-kernel release tarball(s), extracts into `artefacts/java-kernel/...`, and writes per-feature checksums. Version from `versions.json` (`.tools.java-kernel`) or an argument. |
+| `generate_mermaid.py` | Generates a Mermaid `flowchart LR` of profiles → (bundle-expanded) leaf features → parent. Writes the diagram to the `--out` file (default `docs/diagrams/features-profiles.mmd`) and also echoes it to stdout (status on stderr). Prefers the canonical source `solen.generators.readme.collect_profile_features`; falls back to a naive text scan if the `solen` package is not importable. |
+| `inject_prebaked_helpers.sh` | Scans `features/*/install.sh` and injects a helper-source snippet so builds use the prebaked `/opt/solen/_lib/helpers.sh` (falling back to the repo helper). |
+| `offload-artefacts.sh` | Collects large artefacts (toolcaches) under `artefacts/`, builds a tarball + manifest, and prints the git commands to publish them. `--dry-run` (default) / `--no-dry-run`, `--dest`. |
+| `update-checksums.sh` | Downloads binaries for pinned versions, computes SHA256, and updates the repo-root `checksums.json` (format `tools.<name>.checksums.<version>.<arch>`). |
 
-### Testing Workflow
+### `test/`
 
-```bash
-# Test single feature
-./test/test-feature.sh <feature-name>
+| Path | Purpose |
+|------|---------|
+| `test-all-features.sh` | Orchestrates testing of multiple features with reporting; supports parallelism and report output. |
+| `test-feature.sh` | Tests an individual feature in an isolated container (`FEATURE_ID [--build-first] [--verbose]`). |
+| `test-profile.sh` | Smoke-tests a built profile image (`<image> [profile-name]`). |
 
-# Test all features
-./test/test-all-features.sh
+## Analysis tools now live in the CLI
 
-# Test profile build
-./test/test-profile.sh <profile-name>
-```
+The analysis/diagnostic capabilities that older documentation attributed to a
+`scripts/analysis/` (and `scripts/validate/`, `scripts/features/`) script tree are
+**no longer shell scripts in this directory** — those trees are gone. That work now
+lives in the `solen` CLI (`solen-cli/`), run via the local entry point
+(`.venv/bin/solen <command>`):
 
-## CI/CD Usage
+| Command | What it does | Output |
+|---------|--------------|--------|
+| `solen analyze features` | Builds the feature × profile usage matrix (bundle expansion + `@parent` resolution). | Writes `generated/feature-matrix.md` (default). |
+| `solen analyze layer-sharing` | Builds the `FROM`-layer sharing DAG: direct bases via poset covers, transitive ancestor chains, and per-edge shared/delta/ratio metrics, rendered as Mermaid. | Writes `generated/layer-sharing.md` (default). |
 
-### GitHub Actions Workflows
+`scripts/utils/generate_mermaid.py` remains a **standalone** utility for the
+profile → feature Mermaid diagram (it does not replace the two `solen analyze`
+commands above).
 
-- **ci-fetch-and-build.yml**: Uses `utils/fetch-artefacts.sh`, `generate-dockerfile.sh`, `generate-bake.sh`
-- **validate-generated.yml**: Uses `generate-all-matrix-profiles.sh`, `validate/validate-feature-deps.py`
-- **publish-ghcr.yml**: Uses `generate-dockerfile.sh`, `generate-bake.sh`
+## Requirements
 
-### Local Development
-
-Core scripts used for local development:
-
-```bash
-# Generate all profiles
-./generate-all-matrix-profiles.sh
-
-# Generate and build specific profile
-./generate-dockerfile.sh --profile quarto-lecture-full
-../build.sh --profile quarto-lecture-full --load
-
-# Validate before committing
-./validate/validate-feature-deps.py
-./validate/validate-generated-files.sh
-```
-
-## Script Categories
-
-### Core Build Scripts (8 scripts)
-Essential scripts for building images. These remain in the scripts root for easy access.
-
-### Validation (5 scripts)
-Scripts that check consistency, dependencies, and validate generated content.
-
-### Testing (3 scripts)
-Scripts for testing features and profiles.
-
-### Features (2 scripts)
-Scripts for managing feature dependencies and ordering.
-
-### Utilities (9 scripts)
-Helper scripts for fetching artefacts, generating checksums, etc.
-
-### Analysis (2 scripts)
-Development tools for analyzing build patterns and feature usage.
-
-### Library (3 scripts)
-Shared shell functions used by other scripts.
-
-## Adding New Scripts
-
-When adding new scripts:
-
-1. Choose appropriate subdirectory based on purpose
-2. Follow naming convention: `verb-noun.{sh|py}`
-3. Add shebang and usage documentation
-4. Update this README if it's a core workflow script
-5. Update CI workflows if used in automation
-
-## Script Dependencies
-
-- **Python 3.8+**: Required for `.py` scripts
-- **bash 4+**: Required for associative arrays in shell scripts
-- **jq**: JSON parsing in shell scripts
-- **yq**: YAML parsing (optional, Python fallback available)
-- **docker buildx**: For multi-arch builds
+- **bash 4+** (associative arrays in shell scripts).
+- **jq** for `validate-artefacts.sh`, `update-checksums.sh`, and the fetch scripts.
+- **Python 3** for `fix_feature_helpers.py` and `utils/generate_mermaid.py`.
+- **docker buildx** for the build helpers in `lib/build.sh` when building.
