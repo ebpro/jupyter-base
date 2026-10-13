@@ -308,6 +308,11 @@ def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, ou
 @click.option('--image-name', default='solen', help='Container image name')
 @click.option('--tag-suffix', default=None,
               help='Append "-<suffix>" to every emitted tag (per-arch marker, e.g. amd64)')
+@click.option('--platforms', 'platforms', multiple=True,
+              help='Target platform(s) for the emitted targets, e.g. --platforms linux/amd64 '
+                   '(repeatable or comma-separated). Default: the host platform only. '
+                   'Multi-platform is rejected together with --tag-suffix: per-arch publish '
+                   'tags are folded by merge-index as single-architecture sources.')
 @click.option('--no-build-tag', is_flag=True,
               help='Omit the non-deterministic build-<UTC> tag')
 @click.option('--harbor-cache', default=None,
@@ -317,24 +322,39 @@ def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, ou
               help='Omit the registry cache-to export; use when the Harbor cache upload fails with 499 on large layers')
 @click.pass_context
 def bake(ctx: click.Context, output: Path, repo: str, image_name: str,
-         tag_suffix: str, no_build_tag: bool, harbor_cache: str | None,
-         no_cache_to: bool) -> None:
+         tag_suffix: str, platforms: tuple[str, ...], no_build_tag: bool,
+         harbor_cache: str | None, no_cache_to: bool) -> None:
     """Generate docker-bake.hcl for all profiles."""
     from solen.generators.bake import generate_bake
 
     repo_root = ctx.obj['repo_root']
     output_path = repo_root / output if not output.is_absolute() else output
 
-    count = generate_bake(
-        repo_root,
-        output_path,
-        repo=repo,
-        image_name=image_name,
-        include_build_tag=not no_build_tag,
-        tag_suffix=tag_suffix,
-        harbor_cache=harbor_cache,
-        no_cache_to=no_cache_to
-    )
+    plat_list: list[str] | None = None
+    if platforms:
+        plat_list = [tok.strip() for value in platforms
+                     for tok in value.split(',') if tok.strip()]
+        if not plat_list:
+            raise click.UsageError(
+                "--platforms was given but resolved to an empty list "
+                "(only whitespace/commas)."
+            )
+
+    try:
+        count = generate_bake(
+            repo_root,
+            output_path,
+            platforms=plat_list,
+            repo=repo,
+            image_name=image_name,
+            include_build_tag=not no_build_tag,
+            tag_suffix=tag_suffix,
+            harbor_cache=harbor_cache,
+            no_cache_to=no_cache_to
+        )
+    except ValueError as e:
+        click.echo(f"❌ {e}", err=True)
+        sys.exit(1)
     click.echo(f"✅ Generated docker-bake.hcl with {count} profile(s): {output_path}")
 
 

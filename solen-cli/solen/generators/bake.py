@@ -16,6 +16,93 @@ def host_platform() -> str:
     return "linux/arm64" if machine in ("arm64", "aarch64") else "linux/amd64"
 
 
+# Architectures for which ci-publish.yml's merge-index job folds the
+# per-arch tag "${T}-<arch>" as a SINGLE-architecture source image. A
+# --tag-suffix value in this set is an architecture declaration, so the
+# emitted build definition must declare the same architecture.
+FOLD_ARCH_SUFFIXES = ("amd64", "arm64")
+
+# Linux architectures Docker/BuildKit recognise (os/arch, with the
+# optional /variant suffix stripped before the check).
+VALID_LINUX_ARCHES = frozenset(
+    {"386", "amd64", "arm", "arm64", "mips64le", "ppc64le", "riscv64", "s390x"}
+)
+
+
+def validate_platforms(
+    platforms: list[str], tag_suffix: str | None, explicit: bool = True
+) -> None:
+    """Validate a normalized platform list against its emission context.
+
+    Enforces the invariants that make a declared target architecture
+    trustworthy in the published artefact:
+
+    1. Every platform must be ``linux/<arch>`` (optionally with a
+       ``/variant`` suffix, e.g. ``linux/arm/v7``). These images are
+       linux-only; a typo or foreign OS fails loudly at generation
+       instead of producing an unservable manifest entry.
+    2. A multi-platform list cannot be combined with ``tag_suffix``.
+       The suffix marks a per-arch publish tag that merge-index folds
+       as a single-architecture source (``imagetools create`` input);
+       pushing an index there would nest indexes and corrupt the fold.
+       Multi-platform remains legal without the suffix (local bakes).
+    3. When the platforms were EXPLICITLY declared (``explicit=True``)
+       and the suffix names a fold architecture (amd64/arm64), the
+       single declared platform must name the same architecture. A
+       mismatch (e.g. ``--tag-suffix amd64 --platforms linux/arm64``)
+       would emit an artefact whose content disagrees with its tag —
+       the exact class of defect behind the mis-tagged publish
+       incident — so it is refused before anything is written.
+       The host-derived DEFAULT is exempt from this rule: no
+       architecture was declared, so there is no contradiction to
+       catch, and rejecting it would change the pre-existing default
+       path (e.g. ``--tag-suffix amd64`` on an ARM dev box), breaking
+       backward compatibility. The fold-time assertion in merge-index
+       remains the backstop for undeclared builds.
+
+    Args:
+        platforms: Normalized (``linux/``-prefixed) platforms to emit.
+        tag_suffix: The per-arch tag marker passed to the generator, or None.
+        explicit: Whether the caller declared the platforms itself (True)
+            or they come from :func:`host_platform` (False).
+
+    Raises:
+        ValueError: On any invalid platform string or broken invariant.
+    """
+    if not platforms:
+        raise ValueError(
+            "platforms list is empty; omit the argument to use the host platform"
+        )
+
+    if explicit:
+        for plat in platforms:
+            os_name, _, arch = plat.partition('/')
+            if os_name != 'linux' or arch.split('/')[0] not in VALID_LINUX_ARCHES:
+                raise ValueError(
+                    f"Invalid platform {plat!r}: expected 'linux/<arch>' with arch in "
+                    f"{', '.join(sorted(VALID_LINUX_ARCHES))} (e.g. 'linux/amd64', "
+                    f"'linux/arm64')."
+                )
+
+    if len(platforms) > 1 and tag_suffix:
+        raise ValueError(
+            f"Multi-platform bake ({', '.join(platforms)}) cannot be combined with "
+            f"tag_suffix {tag_suffix!r}: a suffixed tag is folded by merge-index as "
+            "a single-architecture source image; emitting an index there would nest "
+            "indexes. Pass exactly one platform, or omit --tag-suffix."
+        )
+
+    if explicit and len(platforms) == 1 and tag_suffix in FOLD_ARCH_SUFFIXES:
+        declared_arch = platforms[0].rsplit('/', 1)[-1]
+        if declared_arch != tag_suffix:
+            raise ValueError(
+                f"Platform/tag-suffix mismatch: tag_suffix {tag_suffix!r} declares "
+                f"{tag_suffix} content, but the build platform is {platforms[0]!r}. "
+                "Refusing to emit tags whose architecture disagrees with their "
+                "build definition."
+            )
+
+
 def generate_bake(
     repo_root: Path,
     output_path: Path,
@@ -32,7 +119,13 @@ def generate_bake(
     Args:
         repo_root: Path to repository root
         output_path: Path to output docker-bake.hcl file
-        platforms: List of target platforms (e.g., ["linux/amd64", "linux/arm64"])
+        platforms: List of target platforms (e.g., ["linux/amd64", "linux/arm64"]).
+            When None, defaults to the host platform only (``[host_platform()]``),
+            preserving the historical behaviour. Declare the target explicitly in
+            CI so the emitted definition carries the intended architecture
+            instead of inheriting it from whichever runner claims the job
+            (see :func:`validate_platforms` for the invariants enforced on the
+            combination of platforms and ``tag_suffix``).
         repo: Container repository URL
         image_name: Container image name
         include_build_tag: Whether to include build-<timestamp> tag
@@ -52,6 +145,9 @@ def generate_bake(
     """
     if platforms is None:
         platforms = [host_platform()]
+        explicit = False
+    else:
+        explicit = True
 
     # Normalize platforms (ensure linux/ prefix)
     normalized_platforms = []
@@ -60,6 +156,8 @@ def generate_bake(
             normalized_platforms.append(f'linux/{plat}')
         else:
             normalized_platforms.append(plat)
+
+    validate_platforms(normalized_platforms, tag_suffix, explicit=explicit)
 
     # Get git-aware tags
     tag1, tag2 = get_version_tags(repo_root)
