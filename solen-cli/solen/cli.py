@@ -441,6 +441,35 @@ def analyze_features_cmd(ctx: click.Context, output: Path) -> None:
     click.echo(f"✅ Generated matrix: {output_path}")
 
 
+@analyze.command(name='layer-sharing')
+@click.option('--output', type=click.Path(path_type=Path),
+              default=Path('generated/layer-sharing.md'), help='Output report file')
+@click.pass_context
+def analyze_layer_sharing_cmd(ctx: click.Context, output: Path) -> None:
+    """Analyze FROM-layer sharing across profiles (subset/cover DAG)."""
+    from solen.generators.layersharing import (
+        analyze_layer_sharing,
+        render_markdown,
+    )
+    from solen.generators.readme import collect_profile_features
+
+    repo_root = ctx.obj['repo_root']
+    output_path = repo_root / output if not output.is_absolute() else output
+
+    profiles = collect_profile_features(repo_root)
+    if not profiles:
+        click.echo("❌ No profiles found (run `solen generate profiles` first)", err=True)
+        sys.exit(1)
+    feature_sets = {name: expanded for name, (_literal, expanded) in profiles.items()}
+    report = analyze_layer_sharing(feature_sets, features_dir=repo_root / 'features')
+    markdown = render_markdown(report)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(markdown, encoding='utf-8')
+    click.echo(f"✅ Analyzed {len(feature_sets)} profiles for FROM-layer sharing")
+    click.echo(f"✅ Generated layer-sharing report: {output_path}")
+
+
 def main() -> None:
     """Entry point for CLI."""
     cli(obj={})
