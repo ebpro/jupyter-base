@@ -14,9 +14,15 @@ set -euo pipefail
 INSTALL_KOTLIN=${INSTALL_KOTLIN:-true}
 INSTALL_KOTLIN_KERNEL=${INSTALL_KOTLIN_KERNEL:-false}
 
-echo "kotlin: install_compiler=$INSTALL_KOTLIN kernel=$INSTALL_KOTLIN_KERNEL"
+# Normalise once to lowercase: profile options declared as YAML booleans are
+# stringified as "True"/"False" by the generator (str(True)), which would fail
+# the case-sensitive lowercase comparisons below and silently skip installation.
+INSTALL_KOTLIN_LC="${INSTALL_KOTLIN,,}"
+INSTALL_KOTLIN_KERNEL_LC="${INSTALL_KOTLIN_KERNEL,,}"
 
-if [ "$INSTALL_KOTLIN" = "true" ]; then
+echo "kotlin: install_compiler=$INSTALL_KOTLIN_LC kernel=$INSTALL_KOTLIN_KERNEL_LC"
+
+if [ "$INSTALL_KOTLIN_LC" = "true" ]; then
   if command -v kotlinc >/dev/null 2>&1; then
     echo "kotlin: compiler already present"
   else
@@ -50,7 +56,7 @@ if [ "$INSTALL_KOTLIN" = "true" ]; then
   fi
 fi
 
-if [ "$INSTALL_KOTLIN_KERNEL" = "true" ]; then
+if [ "$INSTALL_KOTLIN_KERNEL_LC" = "true" ]; then
   echo "kotlin: installing kotlin-jupyter kernel (please provide ARTIFACTS or release URL)"
   # Placeholder: download kernel release or build from source
 fi
