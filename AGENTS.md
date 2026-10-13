@@ -1,7 +1,7 @@
 # solen — Agent Quick Reference
 
 ## What This Is
-Modular devcontainer base-image factory. ~65 features, ~33 profiles generated from
+Modular devcontainer base-image factory. ~65 features, ~31 profiles generated from
 8 YAML matrices, multi-arch (amd64/arm64) publishing to `ghcr.io/ebpro/solen`.
 The GitHub repo is `ebpro/jupyter-base`; the image and the CLI are both named
 `solen`.
@@ -51,15 +51,19 @@ when `SSH_PRIVATE_KEY` is provided at build time, clones the private
   - `VLLM_API_KEY` — API key for the vLLM-backed LLM endpoint.
   - `LIS_LAB_API_KEY` — API key for the LIS Lab LLM endpoint.
 - **CI wiring:** `ci-publish.yml` passes `SSH_PRIVATE_KEY` to every build job as a
-  `--build-arg`, so the private config is baked in whenever the repo/org secret is
-  set. If the secret is unset, only the binary is installed (the clone is skipped).
+  `--build-arg`, but `opencode` is in no profile or bundle today, so its installer
+  never runs in image builds: nothing is baked and the key plumbing is unused.
+  The previously-referenced `ghcr.io/ebpro/solen/opencode:1.0.0` devcontainer feature
+  image does not exist (`404 NAME_UNKNOWN` under an authenticated pull token, no
+  publisher found in this repo or in Gitea); the references were removed from
+  `devcontainer/template/devcontainer.json` and `features/opencode/README.md`.
 
 ## Build Commands
 ```bash
 # Local venv (never `python -m solen` — use the entry point)
 .venv/bin/solen <command>
 
-# Full build (generates profiles + Dockerfile + bake, then builds; default profile quarto-full)
+# Full build (always regenerates profiles + Dockerfile + bake via --chain; --push → buildx bake --push, else --load; default profile quarto-full)
 ./build.sh [profile] [--load] [--push] [--no-cache] [--multi-arch]
 
 # Generation only
@@ -73,42 +77,48 @@ when `SSH_PRIVATE_KEY` is provided at build time, clones the private
 .venv/bin/solen analyze features
 ```
 Bake targets are `final-<profile>`; tags are `<registry>/<repo>:<profile>-<tag>`.
+CI passes the bake generator `--tag-suffix <arch> --no-build-tag` (all triggers).
 
 ## Validation (the local gate)
 ```bash
 .venv/bin/solen validate features          # feature graph: deps, cycles, ordering
 .venv/bin/solen versions sync --check      # versions.json matches versions.yaml
-pytest tests/ -q                           # solen-cli test suite
+.venv/bin/python -m pytest tests/ solen-cli/tests -q   # full test suite (root tests/ + solen-cli/tests/)
 ruff check solen-cli tests                 # lint
-/tmp/opencode/actionlint                   # workflow lint (config .github/actionlint.yaml)
+actionlint                                 # workflow lint (developer-provided; no args → lints .github/workflows/; config .github/actionlint.yaml)
 ```
 
 ## CI / Release
 - `ci-validate.yml` — push to main/develop + PRs: full local gate.
-- `ci-build.yml` — push to develop + PR + dispatch: single-arch build on the
-  in-cluster ARC runner (`runs-on: ebpro-org`, docker:dind sidecar). Default
-  profile: **`quarto-full`** (MVP). Produces SBOM (syft) + Trivy scan per profile.
+- `ci-build.yml` — `workflow_run` (fires **after** "Publish to GHCR" completes on
+  develop) + PR to develop + dispatch — **not** a plain develop push. In-cluster
+  ARC runner (`runs-on: ebpro-org`, docker:dind sidecar). On the develop-promotion
+  path it PULLS the image `ci-publish.yml` already pushed (`<profile>-<short-sha>`,
+  native arch, amd64 fallback) instead of rebuilding; only PR/dispatch build.
+  Default profile: **`quarto-full`** (MVP). Produces SBOM (syft) + Trivy scan per
+  profile.
 - `ci-publish.yml` — push to develop / tag `v*` / dispatch: multi-arch publish to
-  GHCR, **5 jobs**:
-  1. `build-amd64-core` — `runs-on: ebpro-org`, standard (non-heavy) profiles,
+  GHCR, **5 jobs** (no per-trigger job gating — all three builds run on every
+  trigger):
+  1. `build-amd64-standard` — `runs-on: ebpro-org`, standard (non-heavy) profiles,
      native amd64.
-  2. `build-amd64` — `runs-on: ebpro-org-large`, heavy/flagship profiles
-     (`quarto-full`, `lang-java-*`, `quarto-java-*`), native amd64.
+  2. `build-amd64-heavy` — `runs-on: ebpro-org-large`, heavy/flagship profiles —
+     `is_heavy()` = `quarto-full|lang-java-*|quarto-java-*` — native amd64.
   3. `build-arm64` — `runs-on: ebpro-org-arm`, all profiles, native arm64.
-     `v*` / dispatch only (the develop fast path is amd64-only).
-  4. `merge-index` — folds the per-arch images into an OCI index (manifest list)
-     at the base tag via `docker buildx imagetools create`. `v*` / dispatch only.
-  5. `sign-release` — signs the merged `solen` indexes with cosign. `v*` only.
+  4. `merge-index` — `needs` all three builds; folds the per-arch images into an
+     OCI index (manifest list) at the base tag via `docker buildx imagetools
+     create`. Every trigger.
+  5. `sign-release` — signs the merged `solen` indexes with cosign. `v*` only —
+     the only job with an `if:` guard.
   Each build job bakes with the buildx `docker-container` driver and a Harbor
   registry cache (`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot
   `robot$arc-runner-ci`, pull+push). No QEMU/binfmt — each arch builds natively on
-  its own runner pool.
+  its own runner pool. Dispatch with empty `profiles` = every generated profile.
 - `validate-artefacts.yml` — `artefacts/**` changes: checksum validation.
 - `cleanup-ghcr.yml` — schedule: GC old GHCR tags.
-- **Per-arch tags:** on `v*` / dispatch every tag is suffixed per-arch
+- **Per-arch tags:** on every trigger each tag is suffixed per-arch
   (`<profile>-<tag>-amd64`, `<profile>-<tag>-arm64`) and `merge-index` folds them
-  into a multi-arch index at `<profile>-<tag>`. On a develop push the build is
-  amd64-only with unsuffixed tags.
+  into a multi-arch index at `<profile>-<tag>`.
 - **Runners:** 3 ARC pools — `ebpro-org` (standard amd64), `ebpro-org-large`
   (heavy/flagship amd64), `ebpro-org-arm` (arm64).
 
@@ -121,8 +131,8 @@ ruff check solen-cli tests                 # lint
   helper-source blocks so builds use `/opt/solen/_lib/helpers.sh`.
 - `artefacts/` + root `checksums.json` (`tools.<name>.checksums.<version>.<arch>`)
   feed `fh_verify_from_checksums` in install scripts.
-- Tag format: `ghcr.io/ebpro/solen:<profile>-<tag>`; on `v*`/dispatch each tag is
-  also suffixed per-arch (`-amd64`/`-arm64`) and folded into a manifest list at the
+- Tag format: `ghcr.io/ebpro/solen:<profile>-<tag>`; on every trigger each tag is
+  suffixed per-arch (`-amd64`/`-arm64`) and folded into a manifest list at the
   base tag by `merge-index`.
 
 ## No Package Manager for the Repo Shell
