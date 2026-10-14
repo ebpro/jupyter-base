@@ -6,7 +6,7 @@ Build and run the new profile:
 
 ```bash
 # Build the image
-./build.sh quarto-lecture-containers
+./build.sh quarto-containers
 
 # Run with Docker-in-Docker
 docker run --rm -it \
@@ -21,7 +21,7 @@ docker ps
 docker run hello-world
 ```
 
-> **Naming (UNVERIFIED):** `build.sh` takes the profile **positionally** (see `AGENTS.md`), not via a `--profile` flag. The generated profile/devcontainer label is **`quarto-containers`** (present in `generated/profiles/` and `generated/devcontainer/`), while **`quarto-lecture-containers`** is the name of the source matrix file (`profiles/matrix/quarto-lecture.yaml`) and the `devcontainer/quarto-lecture-containers/` template folder. Confirm which identifier `build.sh` expects before running.
+> **Naming:** `build.sh` takes the profile **positionally** — `build.sh:34` prints `Usage: $0 [profile] [--load] [--push] [--no-cache] [--multi-arch]`, and there is no `--profile` flag. The first non-flag argument is assigned to `PROFILE` unvalidated (`build.sh:38-39`), then used as the bake target `final-$PROFILE` (`build.sh:92`) and as `solen build --profile "$PROFILE"` (`build.sh:118`). It must therefore be a **generated profile label**: **`quarto-containers`**, which is what exists in `generated/profiles/`. **`quarto-lecture-containers`** is also a real repo identifier, but only as the source matrix file (`profiles/matrix/quarto-lecture.yaml`) and the `devcontainer/quarto-lecture-containers/` template folder — it is not a build target, so passing it to `build.sh` selects a bake target that does not exist.
 
 ## What Was Created
 
@@ -36,7 +36,7 @@ Combines:
 - ✅ **Docker-in-Docker** (isolated, version-pinned)
 
 ### 2. Enhanced `docker-dind` Feature
-> **[UNVERIFIED]** `.devcontainer/features/docker-dind/install.sh` is not in the current tree (no root `.devcontainer/`, no `features/docker-dind`). Docker-in-Docker is wired today via `@services:dind` in [profiles/matrix/quarto-lecture.yaml](profiles/matrix/quarto-lecture.yaml) (see `generated/profiles/quarto-containers`); the historical `install.sh` path could not be located.
+> **History:** `.devcontainer/features/docker-dind/install.sh` did exist and was **deleted** in `51fc8c5` (*refactor: clean obsolete features and enhance quarto-lecture-full profile*); it is absent from the current tree (there is no root `.devcontainer/`). Docker-in-Docker is wired today via `@services:dind`: the `- dind` entries under `services:` in [profiles/matrix/quarto-lecture.yaml](profiles/matrix/quarto-lecture.yaml) (lines 44 and 69) are emitted as `@services:dind` in `generated/profiles/quarto-containers` (line 19), backed by the compose template `devcontainer/service-templates/dind.yml`.
 
 New capabilities:
 - ✅ Version pinning from `versions/versions.yaml` (SoT) (Docker 27.5.1, Compose 2.39.3)
@@ -45,7 +45,7 @@ New capabilities:
 - ✅ BuildKit enabled by default
 
 ### 3. Improved `startup` Feature
-> **[UNVERIFIED]** `.devcontainer/features/startup/install.sh` is not in the current tree (no `features/startup`). The `/etc/startup.d` auto-start mechanism could not be located; the closest existing feature is `features/container-init/` (not confirmed to provide it).
+> **History:** the `startup` feature's installer did exist and was **deleted** in `9bc290f` (*refactor(features): standardize naming, remove duplicates, and generate docs*), which removed `features/startup/install.sh`; no `features/startup/` survives in the current tree. The `/etc/startup.d` auto-start mechanism described below is provided today by `features/container-init/install.sh`, which creates `/etc/startup.d` (line 51) and runs every executable `/etc/startup.d/*.sh` on container start (lines 35-38).
 
 Now:
 - ✅ Creates `/etc/startup.d` directory
@@ -164,7 +164,7 @@ Change in profile options:
 
 ## Next Steps
 
-1. Build the profile: `./build.sh quarto-lecture-containers`
+1. Build the profile: `./build.sh quarto-containers`
 2. Test Docker inside: `docker run --privileged ... solen:quarto-lecture-containers`
 3. For VS Code: copy devcontainer.json to `.devcontainer/` folder
 4. For production: consider Sysbox runtime for security
