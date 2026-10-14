@@ -261,7 +261,24 @@ jobs:
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
-            docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+            if docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile on the cache-to-less retry"
+              continue
+            fi
+            # Second escalation, for the shape a pre-flight probe cannot see:
+            # the cache registry dies or its token expires MID-build, after a
+            # healthy probe and login (attempt 2: login 01:38Z, importer and
+            # exporter 401 at 02:37Z). --no-cache-to still imports from Harbor
+            # so it cannot recover that case; --no-cache drops both
+            # directives. If the cache-less build also fails, the fault is the
+            # build or the GHCR push and the exit code propagates.
+            echo "WARN: cache-to-less retry also failed for $profile; Harbor cache appears unusable mid-build; retrying fully cache-less" >&2
+            echo "::warning::The Harbor build cache failed mid-build for profile $profile even though the pre-flight probe and login were healthy. That is a cache-registry availability or robot-token lifetime problem, NOT a bad secret; do not rotate HARBOR_ROBOT_SECRET. Retrying without any registry cache."
+            read -r -a cold_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${cold_bake_args[@]}"
+            docker buildx bake --file generated/docker-bake-nocache.hcl "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
@@ -476,7 +493,24 @@ jobs:
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
-            docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+            if docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile on the cache-to-less retry"
+              continue
+            fi
+            # Second escalation, for the shape a pre-flight probe cannot see:
+            # the cache registry dies or its token expires MID-build, after a
+            # healthy probe and login (attempt 2: login 01:38Z, importer and
+            # exporter 401 at 02:37Z). --no-cache-to still imports from Harbor
+            # so it cannot recover that case; --no-cache drops both
+            # directives. If the cache-less build also fails, the fault is the
+            # build or the GHCR push and the exit code propagates.
+            echo "WARN: cache-to-less retry also failed for $profile; Harbor cache appears unusable mid-build; retrying fully cache-less" >&2
+            echo "::warning::The Harbor build cache failed mid-build for profile $profile even though the pre-flight probe and login were healthy. That is a cache-registry availability or robot-token lifetime problem, NOT a bad secret; do not rotate HARBOR_ROBOT_SECRET. Retrying without any registry cache."
+            read -r -a cold_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${cold_bake_args[@]}"
+            docker buildx bake --file generated/docker-bake-nocache.hcl "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
@@ -691,7 +725,24 @@ jobs:
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
-            docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+            if docker buildx bake --file generated/docker-bake-retry.hcl "final-$profile" \
+              --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
+              --push; then
+              echo "Build/push succeeded for $profile on the cache-to-less retry"
+              continue
+            fi
+            # Second escalation, for the shape a pre-flight probe cannot see:
+            # the cache registry dies or its token expires MID-build, after a
+            # healthy probe and login (attempt 2: login 01:38Z, importer and
+            # exporter 401 at 02:37Z). --no-cache-to still imports from Harbor
+            # so it cannot recover that case; --no-cache drops both
+            # directives. If the cache-less build also fails, the fault is the
+            # build or the GHCR push and the exit code propagates.
+            echo "WARN: cache-to-less retry also failed for $profile; Harbor cache appears unusable mid-build; retrying fully cache-less" >&2
+            echo "::warning::The Harbor build cache failed mid-build for profile $profile even though the pre-flight probe and login were healthy. That is a cache-registry availability or robot-token lifetime problem, NOT a bad secret; do not rotate HARBOR_ROBOT_SECRET. Retrying without any registry cache."
+            read -r -a cold_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${cold_bake_args[@]}"
+            docker buildx bake --file generated/docker-bake-nocache.hcl "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push
           done
