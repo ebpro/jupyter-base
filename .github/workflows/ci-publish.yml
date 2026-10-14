@@ -57,6 +57,11 @@ jobs:
     runs-on: [self-hosted, linux, x64, ebpro-org]
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Job-level so a step-level `if:` can express the secret-absent case as
+      # `env.HARBOR_USERNAME != ''`: the `secrets` context in a step `if:` is
+      # evaluated unreliably by Actions. A username, not a credential value —
+      # and still never echoed anywhere.
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
       ARCH: amd64
       SUBSET: standard
       BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag --platforms linux/amd64"
@@ -115,7 +120,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Harbor is a SOFT dependency: the registry build cache only makes builds
+      # faster, the GHCR push is the product. Probe it BEFORE logging in so an
+      # outage is classified as such and never mistaken for a bad credential.
+      # No secret is referenced, printed or passed by this step: it is an
+      # unauthenticated GET /v2/ only.
+      - name: Pre-flight Harbor probe (cache availability, no credentials)
+        id: harbor
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          url="https://harbor.ebruno.fr/v2/"
+          if [ -z "${HARBOR_USERNAME:-}" ]; then
+            echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+            echo "Harbor credentials are not configured for this runner scope; building without the registry cache."
+            echo "::warning::HARBOR_USERNAME/HARBOR_ROBOT_SECRET are absent in this scope, so the Harbor build cache is skipped. This is a cache-availability issue, NOT a credential failure, and is NOT a reason to rotate HARBOR_ROBOT_SECRET."
+            exit 0
+          fi
+          body="$(mktemp)"
+          # No -f: a 401 must be readable as a status code, not swallowed as an
+          # error. Registry v2 answers 401 (Bearer challenge) when HEALTHY, so
+          # 200/401 => alive; timeout/000/5xx/DNS error => outage.
+          code="$(curl -sS -o "$body" -m 10 -w '%{http_code}' "$url" 2>/dev/null || true)"
+          [ -n "$code" ] || code="000"
+          echo "Probe: GET $url (unauthenticated) -> HTTP $code"
+          echo "Response body (first 400 bytes):"
+          head -c 400 "$body"
+          echo ""
+          rm -f "$body"
+          case "$code" in
+            200|401)
+              echo "harbor_ready=true" >> "$GITHUB_OUTPUT"
+              echo "Harbor answered HTTP $code: the registry is alive ($code is the healthy Registry v2 challenge) and the cache stays enabled."
+              ;;
+            *)
+              echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+              echo "Harbor unreachable (HTTP $code); falling back to a cache-less build."
+              echo "::warning::Harbor ($url) is UNREACHABLE (HTTP $code) — this is a cache-registry AVAILABILITY problem (outage, disk full, DNS or timeout), NOT a credential problem. Do NOT rotate HARBOR_ROBOT_SECRET. The build proceeds without the registry cache, so it is slower but the GHCR push is unaffected."
+              ;;
+          esac
+
+      # Skipped when the probe saw an outage, and non-fatal when it fails: a
+      # login-stage token death (attempt 2's shape) must not fail the job. Its
+      # outcome feeds HARBOR_READY in the build step, which drops BOTH cache
+      # directives on the floor when the cache cannot be trusted.
       - name: Login to Harbor (build cache)
+        id: harbor-login
+        if: steps.harbor.outputs.harbor_ready == 'true'
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           registry: harbor.ebruno.fr
@@ -126,6 +178,10 @@ jobs:
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Harbor is ready only when the unauthenticated probe saw it alive
+          # AND the login step did not fail. Derived from step outputs (never
+          # the `secrets` context) so Actions evaluates it reliably.
+          HARBOR_READY: ${{ steps.harbor.outputs.harbor_ready == 'true' && steps.harbor-login.outcome != 'failure' }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -158,6 +214,24 @@ jobs:
             echo "Nothing to build for this job; skipping."
             exit 0
           fi
+          # Cache posture, decided once per job and never fatal. With Harbor
+          # trusted, use the bake produced by the validated Generate step,
+          # untouched. Otherwise generate a SEPARATE cache-less bake with
+          # --no-cache, which omits BOTH cache-from and cache-to: --no-cache-to
+          # deliberately keeps cache-from and therefore cannot recover an
+          # importer-side 401/connection failure. Cost of the fallback is a
+          # cold build, never a failed publish.
+          if [ "$HARBOR_READY" = "true" ]; then
+            BAKE_FILE=generated/docker-bake.hcl
+          else
+            echo "Harbor unavailable; building without any registry cache (slower, by design)." >&2
+            # Word-split the flag string through a quoted herestring read rather
+            # than an unquoted expansion, so no new shellcheck/SC2086 finding is
+            # added to the actionlint baseline.
+            read -r -a nocache_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${nocache_bake_args[@]}"
+            BAKE_FILE=generated/docker-bake-nocache.hcl
+          fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
             # The Harbor registry cache (cache-from + cache-to) is carried by
@@ -170,11 +244,20 @@ jobs:
             # retry once; the retry's exit code is propagated, so a GHCR push
             # failure still fails the build. The main bake file is never
             # rewritten, so remaining profiles keep the cache-to export.
-            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+            if docker buildx bake --file "$BAKE_FILE" "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push; then
               echo "Build/push succeeded for $profile"
               continue
+            fi
+            # The retry below exists only for the Harbor 499-on-large-layer
+            # cache-to case and still reads the Harbor cache (cache-from).
+            # When Harbor was already excluded there is nothing left to drop,
+            # so fail with an accurate reason instead of retrying against a
+            # registry known to be unreachable.
+            if [ "$HARBOR_READY" != "true" ]; then
+              echo "ERROR: build failed for $profile on the cache-less bake; the Harbor cache is already excluded, so there is no further retry to make" >&2
+              exit 1
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
@@ -189,6 +272,11 @@ jobs:
     runs-on: ebpro-org-large
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Job-level so a step-level `if:` can express the secret-absent case as
+      # `env.HARBOR_USERNAME != ''`: the `secrets` context in a step `if:` is
+      # evaluated unreliably by Actions. A username, not a credential value —
+      # and still never echoed anywhere.
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
       ARCH: amd64
       SUBSET: heavy
       BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag --platforms linux/amd64"
@@ -247,7 +335,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Harbor is a SOFT dependency: the registry build cache only makes builds
+      # faster, the GHCR push is the product. Probe it BEFORE logging in so an
+      # outage is classified as such and never mistaken for a bad credential.
+      # No secret is referenced, printed or passed by this step: it is an
+      # unauthenticated GET /v2/ only.
+      - name: Pre-flight Harbor probe (cache availability, no credentials)
+        id: harbor
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          url="https://harbor.ebruno.fr/v2/"
+          if [ -z "${HARBOR_USERNAME:-}" ]; then
+            echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+            echo "Harbor credentials are not configured for this runner scope; building without the registry cache."
+            echo "::warning::HARBOR_USERNAME/HARBOR_ROBOT_SECRET are absent in this scope, so the Harbor build cache is skipped. This is a cache-availability issue, NOT a credential failure, and is NOT a reason to rotate HARBOR_ROBOT_SECRET."
+            exit 0
+          fi
+          body="$(mktemp)"
+          # No -f: a 401 must be readable as a status code, not swallowed as an
+          # error. Registry v2 answers 401 (Bearer challenge) when HEALTHY, so
+          # 200/401 => alive; timeout/000/5xx/DNS error => outage.
+          code="$(curl -sS -o "$body" -m 10 -w '%{http_code}' "$url" 2>/dev/null || true)"
+          [ -n "$code" ] || code="000"
+          echo "Probe: GET $url (unauthenticated) -> HTTP $code"
+          echo "Response body (first 400 bytes):"
+          head -c 400 "$body"
+          echo ""
+          rm -f "$body"
+          case "$code" in
+            200|401)
+              echo "harbor_ready=true" >> "$GITHUB_OUTPUT"
+              echo "Harbor answered HTTP $code: the registry is alive ($code is the healthy Registry v2 challenge) and the cache stays enabled."
+              ;;
+            *)
+              echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+              echo "Harbor unreachable (HTTP $code); falling back to a cache-less build."
+              echo "::warning::Harbor ($url) is UNREACHABLE (HTTP $code) — this is a cache-registry AVAILABILITY problem (outage, disk full, DNS or timeout), NOT a credential problem. Do NOT rotate HARBOR_ROBOT_SECRET. The build proceeds without the registry cache, so it is slower but the GHCR push is unaffected."
+              ;;
+          esac
+
+      # Skipped when the probe saw an outage, and non-fatal when it fails: a
+      # login-stage token death (attempt 2's shape) must not fail the job. Its
+      # outcome feeds HARBOR_READY in the build step, which drops BOTH cache
+      # directives on the floor when the cache cannot be trusted.
       - name: Login to Harbor (build cache)
+        id: harbor-login
+        if: steps.harbor.outputs.harbor_ready == 'true'
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           registry: harbor.ebruno.fr
@@ -258,6 +393,10 @@ jobs:
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Harbor is ready only when the unauthenticated probe saw it alive
+          # AND the login step did not fail. Derived from step outputs (never
+          # the `secrets` context) so Actions evaluates it reliably.
+          HARBOR_READY: ${{ steps.harbor.outputs.harbor_ready == 'true' && steps.harbor-login.outcome != 'failure' }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -290,6 +429,24 @@ jobs:
             echo "Nothing to build for this job; skipping."
             exit 0
           fi
+          # Cache posture, decided once per job and never fatal. With Harbor
+          # trusted, use the bake produced by the validated Generate step,
+          # untouched. Otherwise generate a SEPARATE cache-less bake with
+          # --no-cache, which omits BOTH cache-from and cache-to: --no-cache-to
+          # deliberately keeps cache-from and therefore cannot recover an
+          # importer-side 401/connection failure. Cost of the fallback is a
+          # cold build, never a failed publish.
+          if [ "$HARBOR_READY" = "true" ]; then
+            BAKE_FILE=generated/docker-bake.hcl
+          else
+            echo "Harbor unavailable; building without any registry cache (slower, by design)." >&2
+            # Word-split the flag string through a quoted herestring read rather
+            # than an unquoted expansion, so no new shellcheck/SC2086 finding is
+            # added to the actionlint baseline.
+            read -r -a nocache_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${nocache_bake_args[@]}"
+            BAKE_FILE=generated/docker-bake-nocache.hcl
+          fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
             # The Harbor registry cache (cache-from + cache-to) is carried by
@@ -302,11 +459,20 @@ jobs:
             # retry once; the retry's exit code is propagated, so a GHCR push
             # failure still fails the build. The main bake file is never
             # rewritten, so remaining profiles keep the cache-to export.
-            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+            if docker buildx bake --file "$BAKE_FILE" "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push; then
               echo "Build/push succeeded for $profile"
               continue
+            fi
+            # The retry below exists only for the Harbor 499-on-large-layer
+            # cache-to case and still reads the Harbor cache (cache-from).
+            # When Harbor was already excluded there is nothing left to drop,
+            # so fail with an accurate reason instead of retrying against a
+            # registry known to be unreachable.
+            if [ "$HARBOR_READY" != "true" ]; then
+              echo "ERROR: build failed for $profile on the cache-less bake; the Harbor cache is already excluded, so there is no further retry to make" >&2
+              exit 1
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache
@@ -321,6 +487,11 @@ jobs:
     runs-on: ebpro-org-arm
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Job-level so a step-level `if:` can express the secret-absent case as
+      # `env.HARBOR_USERNAME != ''`: the `secrets` context in a step `if:` is
+      # evaluated unreliably by Actions. A username, not a credential value —
+      # and still never echoed anywhere.
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
       ARCH: arm64
       SUBSET: all
       BAKE_FLAGS: "--tag-suffix arm64 --no-build-tag --platforms linux/arm64"
@@ -379,7 +550,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Harbor is a SOFT dependency: the registry build cache only makes builds
+      # faster, the GHCR push is the product. Probe it BEFORE logging in so an
+      # outage is classified as such and never mistaken for a bad credential.
+      # No secret is referenced, printed or passed by this step: it is an
+      # unauthenticated GET /v2/ only.
+      - name: Pre-flight Harbor probe (cache availability, no credentials)
+        id: harbor
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          url="https://harbor.ebruno.fr/v2/"
+          if [ -z "${HARBOR_USERNAME:-}" ]; then
+            echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+            echo "Harbor credentials are not configured for this runner scope; building without the registry cache."
+            echo "::warning::HARBOR_USERNAME/HARBOR_ROBOT_SECRET are absent in this scope, so the Harbor build cache is skipped. This is a cache-availability issue, NOT a credential failure, and is NOT a reason to rotate HARBOR_ROBOT_SECRET."
+            exit 0
+          fi
+          body="$(mktemp)"
+          # No -f: a 401 must be readable as a status code, not swallowed as an
+          # error. Registry v2 answers 401 (Bearer challenge) when HEALTHY, so
+          # 200/401 => alive; timeout/000/5xx/DNS error => outage.
+          code="$(curl -sS -o "$body" -m 10 -w '%{http_code}' "$url" 2>/dev/null || true)"
+          [ -n "$code" ] || code="000"
+          echo "Probe: GET $url (unauthenticated) -> HTTP $code"
+          echo "Response body (first 400 bytes):"
+          head -c 400 "$body"
+          echo ""
+          rm -f "$body"
+          case "$code" in
+            200|401)
+              echo "harbor_ready=true" >> "$GITHUB_OUTPUT"
+              echo "Harbor answered HTTP $code: the registry is alive ($code is the healthy Registry v2 challenge) and the cache stays enabled."
+              ;;
+            *)
+              echo "harbor_ready=false" >> "$GITHUB_OUTPUT"
+              echo "Harbor unreachable (HTTP $code); falling back to a cache-less build."
+              echo "::warning::Harbor ($url) is UNREACHABLE (HTTP $code) — this is a cache-registry AVAILABILITY problem (outage, disk full, DNS or timeout), NOT a credential problem. Do NOT rotate HARBOR_ROBOT_SECRET. The build proceeds without the registry cache, so it is slower but the GHCR push is unaffected."
+              ;;
+          esac
+
+      # Skipped when the probe saw an outage, and non-fatal when it fails: a
+      # login-stage token death (attempt 2's shape) must not fail the job. Its
+      # outcome feeds HARBOR_READY in the build step, which drops BOTH cache
+      # directives on the floor when the cache cannot be trusted.
       - name: Login to Harbor (build cache)
+        id: harbor-login
+        if: steps.harbor.outputs.harbor_ready == 'true'
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           registry: harbor.ebruno.fr
@@ -390,6 +608,10 @@ jobs:
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Harbor is ready only when the unauthenticated probe saw it alive
+          # AND the login step did not fail. Derived from step outputs (never
+          # the `secrets` context) so Actions evaluates it reliably.
+          HARBOR_READY: ${{ steps.harbor.outputs.harbor_ready == 'true' && steps.harbor-login.outcome != 'failure' }}
         run: |
           set -euo pipefail
           # Heavy = quarto-full + every lang-java-* / quarto-java-* profile.
@@ -422,6 +644,24 @@ jobs:
             echo "Nothing to build for this job; skipping."
             exit 0
           fi
+          # Cache posture, decided once per job and never fatal. With Harbor
+          # trusted, use the bake produced by the validated Generate step,
+          # untouched. Otherwise generate a SEPARATE cache-less bake with
+          # --no-cache, which omits BOTH cache-from and cache-to: --no-cache-to
+          # deliberately keeps cache-from and therefore cannot recover an
+          # importer-side 401/connection failure. Cost of the fallback is a
+          # cold build, never a failed publish.
+          if [ "$HARBOR_READY" = "true" ]; then
+            BAKE_FILE=generated/docker-bake.hcl
+          else
+            echo "Harbor unavailable; building without any registry cache (slower, by design)." >&2
+            # Word-split the flag string through a quoted herestring read rather
+            # than an unquoted expansion, so no new shellcheck/SC2086 finding is
+            # added to the actionlint baseline.
+            read -r -a nocache_bake_args <<< "$BAKE_FLAGS"
+            solen generate bake --no-cache --output generated/docker-bake-nocache.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" "${nocache_bake_args[@]}"
+            BAKE_FILE=generated/docker-bake-nocache.hcl
+          fi
           for profile in "${filtered[@]}"; do
             echo "Publishing profile: $profile (arch: $ARCH)"
             # The Harbor registry cache (cache-from + cache-to) is carried by
@@ -434,11 +674,20 @@ jobs:
             # retry once; the retry's exit code is propagated, so a GHCR push
             # failure still fails the build. The main bake file is never
             # rewritten, so remaining profiles keep the cache-to export.
-            if docker buildx bake --file generated/docker-bake.hcl "final-$profile" \
+            if docker buildx bake --file "$BAKE_FILE" "final-$profile" \
               --set "*.args.SSH_PRIVATE_KEY=${SSH_PRIVATE_KEY}" \
               --push; then
               echo "Build/push succeeded for $profile"
               continue
+            fi
+            # The retry below exists only for the Harbor 499-on-large-layer
+            # cache-to case and still reads the Harbor cache (cache-from).
+            # When Harbor was already excluded there is nothing left to drop,
+            # so fail with an accurate reason instead of retrying against a
+            # registry known to be unreachable.
+            if [ "$HARBOR_READY" != "true" ]; then
+              echo "ERROR: build failed for $profile on the cache-less bake; the Harbor cache is already excluded, so there is no further retry to make" >&2
+              exit 1
             fi
             echo "WARN: build failed for $profile (likely 499 on the Harbor cache-to export for a large layer); regenerating bake WITHOUT cache-to and retrying" >&2
             solen generate bake --no-cache-to --output generated/docker-bake-retry.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" $BAKE_FLAGS --harbor-cache harbor.ebruno.fr/solen/build-cache

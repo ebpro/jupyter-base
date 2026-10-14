@@ -112,7 +112,8 @@ def generate_bake(
     include_build_tag: bool = True,
     tag_suffix: str | None = None,
     harbor_cache: str | None = None,
-    no_cache_to: bool = False
+    no_cache_to: bool = False,
+    no_cache: bool = False
 ) -> int:
     """Generate docker-bake.hcl for all profiles.
 
@@ -139,6 +140,15 @@ def generate_bake(
             (Client Closed Request) on large layer uploads (e.g. quarto-containers),
             which must not fail the build. ``cache-from`` (reading the Harbor
             cache) is always kept.
+        no_cache: Omit **both** ``cache-from`` and ``cache-to`` registry cache
+            directives, making the emitted bake independent of the cache
+            registry. Distinct from ``no_cache_to`` on purpose: when the cache
+            registry is unreachable or unauthenticated the *importer* also
+            fails (BuildKit cannot resolve the cache reference), so
+            ``no_cache_to`` — which deliberately keeps ``cache-from`` — cannot
+            recover that case. ``no_cache`` is what CI selects when the Harbor
+            pre-flight probe classifies an outage, so the cache degrades to a
+            slower cold build instead of a hard failure.
 
     Returns:
         Number of profiles processed
@@ -212,7 +222,8 @@ def generate_bake(
                 image_name,
                 harbor_cache,
                 no_cache_to,
-                cache_arch
+                cache_arch,
+                no_cache
             )
 
     return len(profiles)
@@ -242,7 +253,8 @@ def emit_bake_target(
     image_name: str,
     harbor_cache: str | None = None,
     no_cache_to: bool = False,
-    cache_arch: str | None = None
+    cache_arch: str | None = None,
+    no_cache: bool = False
 ) -> None:
     """Emit target block for a single profile.
 
@@ -256,6 +268,8 @@ def emit_bake_target(
         harbor_cache: Optional Harbor build-cache base ref (see generate_bake)
         no_cache_to: Omit the cache-to export when harbor_cache is set
         cache_arch: Arch marker for the per-target Harbor cache ref
+        no_cache: Omit both cache-from and cache-to (cache-less bake); see
+            generate_bake
     """
     # Compute profile slug (strip numeric prefixes like "20-00-")
     slug = compute_profile_slug(profile)
@@ -286,7 +300,12 @@ def emit_bake_target(
     # cache-from (reading the cache) is always kept; cache-to (the upload) is
     # best-effort and omitted when no_cache_to is set, because Harbor answers
     # 499 on large layer uploads (e.g. quarto-containers).
-    if harbor_cache:
+    #
+    # no_cache suppresses both directives: it is the cache-less bake CI emits
+    # when the Harbor pre-flight probe classifies an outage, because BuildKit
+    # fails to even configure the cache *importer* when the registry answers
+    # 401/refuses connections — a case no_cache_to cannot recover from.
+    if harbor_cache and not no_cache:
         arch = cache_arch or 'amd64'
         cache_entry = f'type=registry,ref={harbor_cache}:{profile}-{arch},mode=max'
         f.write(f'  cache-from = ["{cache_entry}"]\n')

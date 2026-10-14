@@ -82,3 +82,87 @@ def test_no_cache_to_alone_is_a_noop(tmp_path):
 
     assert 'cache-from' not in hcl
     assert 'cache-to' not in hcl
+
+
+# ---------------------------------------------------------------------------
+# --no-cache: the cache-registry-outage primitive.
+#
+# Motivation (incident, run 38436645327): when Harbor is unreachable or its
+# robot token is rejected, BuildKit fails at *importer* setup
+# ("failed to configure registry cache importer: ... 401 Unauthorized") and
+# again on cache-to blobs. --no-cache-to cannot recover that case because it
+# deliberately keeps cache-from, so the bake still references the dead
+# registry as an import source. --no-cache omits both directives, degrading
+# the build to a cold one instead of a hard failure.
+# ---------------------------------------------------------------------------
+
+
+def test_no_cache_omits_both_directives(tmp_path):
+    """--harbor-cache --no-cache: neither cache-from nor cache-to is emitted."""
+    hcl = _run_generate(tmp_path, harbor_cache=HARBOR_CACHE,
+                        tag_suffix='amd64', include_build_tag=False,
+                        no_cache=True)
+
+    assert 'cache-from' not in hcl
+    assert 'cache-to' not in hcl
+    # The rest of the target must still be a valid, complete definition.
+    assert HARBOR_CACHE not in hcl
+    assert 'target = "final-20-00-base"' in hcl
+    assert 'tags = [' in hcl
+
+
+def test_no_cache_suppresses_cache_to_even_with_no_cache_to_false(tmp_path):
+    """--no-cache dominates: the flag pair must never emit a partial cache ref."""
+    hcl = _run_generate(tmp_path, harbor_cache=HARBOR_CACHE,
+                        tag_suffix='arm64', include_build_tag=False,
+                        no_cache=True, no_cache_to=False)
+
+    assert 'cache-from' not in hcl
+    assert 'cache-to' not in hcl
+
+
+def test_no_cache_alone_is_a_noop(tmp_path):
+    """--no-cache without --harbor-cache: nothing changes (no cache attributes)."""
+    hcl = _run_generate(tmp_path, no_cache=True)
+
+    assert 'cache-from' not in hcl
+    assert 'cache-to' not in hcl
+
+
+def test_no_cache_and_no_cache_to_are_not_interchangeable(tmp_path):
+    """Regression guard: --no-cache-to must KEEP cache-from.
+
+    The two flags cover different failure modes and must never be conflated:
+    the 499-on-large-layer retry relies on still reading the Harbor cache,
+    while the outage path must stop referencing it entirely. Generated from
+    the same arguments, the two outputs differ only by cache-from.
+    """
+    common = dict(harbor_cache=HARBOR_CACHE, tag_suffix='amd64',
+                  include_build_tag=False)
+    entry = f'type=registry,ref={HARBOR_CACHE}:{PROFILE}-amd64,mode=max'
+
+    retry = _run_generate(tmp_path / 'retry', **common, no_cache_to=True)
+    nocache = _run_generate(tmp_path / 'nocache', **common, no_cache=True)
+
+    # --no-cache-to: import source survives, export is dropped.
+    assert f'cache-from = ["{entry}"]' in retry
+    assert 'cache-to' not in retry
+    # --no-cache: both gone.
+    assert 'cache-from' not in nocache
+    assert 'cache-to' not in nocache
+    # The outage bake is strictly a subset of the retry bake.
+    assert retry != nocache
+
+
+def test_no_cache_default_is_byte_identical_to_omitting_it(tmp_path):
+    """no_cache defaults to False: existing output must not change at all."""
+    common = dict(harbor_cache=HARBOR_CACHE, tag_suffix='amd64',
+                  include_build_tag=False)
+
+    implicit = _run_generate(tmp_path / 'implicit', **common)
+    explicit = _run_generate(tmp_path / 'explicit', no_cache=False, **common)
+    plain = _run_generate(tmp_path / 'plain')
+    plain_with_flag_false = _run_generate(tmp_path / 'plainf', no_cache=False)
+
+    assert implicit == explicit
+    assert plain == plain_with_flag_false

@@ -320,10 +320,12 @@ def devcontainer(ctx: click.Context, profile: str | None, all_profiles: bool, ou
                    'emits per-target cache-from/cache-to registry cache entries')
 @click.option('--no-cache-to', is_flag=True,
               help='Omit the registry cache-to export; use when the Harbor cache upload fails with 499 on large layers')
+@click.option('--no-cache', is_flag=True,
+              help='Omit all registry cache directives (cache-from and cache-to); use when the cache registry is unreachable or unauthenticated')
 @click.pass_context
 def bake(ctx: click.Context, output: Path, repo: str, image_name: str,
          tag_suffix: str, platforms: tuple[str, ...], no_build_tag: bool,
-         harbor_cache: str | None, no_cache_to: bool) -> None:
+         harbor_cache: str | None, no_cache_to: bool, no_cache: bool) -> None:
     """Generate docker-bake.hcl for all profiles."""
     from solen.generators.bake import generate_bake
 
@@ -350,7 +352,8 @@ def bake(ctx: click.Context, output: Path, repo: str, image_name: str,
             include_build_tag=not no_build_tag,
             tag_suffix=tag_suffix,
             harbor_cache=harbor_cache,
-            no_cache_to=no_cache_to
+            no_cache_to=no_cache_to,
+            no_cache=no_cache
         )
     except ValueError as e:
         click.echo(f"❌ {e}", err=True)
