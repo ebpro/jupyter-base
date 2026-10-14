@@ -237,6 +237,8 @@ fi
 echo "<name>: done"
 ```
 
+> **noble t64 gotcha — pick the real package name:** on Ubuntu 24.04, `apt-get install` *succeeds* for virtual names that the time_t64 migration renamed (`libpng16-16` really installs `libpng16-16t64`), yet `dpkg-query -W -f='${Status}' libpng16-16` then answers `unknown ok not-installed` — so a dpkg presence check (like the required-package assertion in `features/system-essentials/install.sh`, see `inputs/apt-packages/base.required`) fails on a correctly installed image. **Use the real installed name in apt lists and any `dpkg-query` checks.** Canonical statement: `AGENTS.md` → Gotchas; full guidance: `features/INSTALL_BEST_PRACTICES.md` → Template for New Features. (`libx11-6` is a real noble name — do not rename it.)
+
 **Template for library (_lib/):**
 ```bash
 #!/usr/bin/env bash

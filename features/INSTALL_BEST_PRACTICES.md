@@ -421,6 +421,8 @@ feature_mark_installed
 fh_log "done"
 ```
 
+> **noble t64 gotcha (canonical feature-authoring statement):** on Ubuntu 24.04, `apt-get install <pkg>` can succeed even when `<pkg>` is a *virtual* name silently replaced by the real time_t64-migrated package (`libpng16-16` → `libpng16-16t64`). The install looks entirely healthy, but a dpkg presence check against the virtual name — such as the `dpkg-query -W -f='${Status}'` required-package assertion in `features/system-essentials/install.sh` — answers `unknown ok not-installed` and fails the build. Therefore: **use the real installed package name in apt lists and in any `dpkg-query` presence checks** (currently `libpng16-16t64`; `libx11-6` is a real noble name — do not "fix" it). Repo-wide source of truth: `AGENTS.md` → Gotchas.
+
 ---
 
 ## ✅ Success Metrics
