@@ -6,14 +6,14 @@
     "name": "Emmanuel BRUNO",
     "email": "emmanuel.bruno@univ-tln.fr"
   },
-  "description": "Installs minimal OS utility packages from artefacts/apt_packages/base",
+  "description": "Installs minimal OS utility packages from inputs/apt-packages/base, asserting the required subset",
   "dependsOn": [
     "container-user"
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "which jq fzf tmux nvim cmake rsync",
-    "description": "Verify core utilities from base apt packages are available"
+    "command": "which jq cmake rsync",
+    "description": "Verify the executable REQUIRED apt packages are available. Kept in sync with inputs/apt-packages/base.required: optional packages (fzf, tmux, neovim) are deliberately NOT asserted here, because their absence must not fail a build."
   },
   "documentationURL": "./features/system-essentials/README.md"
 }

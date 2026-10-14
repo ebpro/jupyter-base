@@ -1,0 +1,33 @@
+# REQUIRED subset of `inputs/apt-packages/base`.
+#
+# Every package named here MUST be present after system-essentials runs;
+# features/system-essentials/install.sh asserts them with dpkg-query and
+# fails the build if any is missing. Absence used to be invisible: the apt
+# transaction is tolerated (`|| true`) so that one arch-unavailable optional
+# package cannot abort every profile, and without this assertion a genuinely
+# required package could vanish from every published image with a green build.
+#
+# A package belongs here only if some build step or published image behaviour
+# depends on it. If one is unavailable on an arch, DEMOTE it: move its name to
+# base.optional. tests/test_apt_packages_required.py enforces
+#     set(required) | set(optional) == set(base)   and   required & optional == {}
+#
+# Keep this list in sync with the postInstallCheck in
+# features/system-essentials/feature.json, which asserts the executable ones.
+jq
+cmake
+pkg-config
+rsync
+
+# Runtime libraries required by XeTeX/XeLaTeX (installed by TinyTeX/TeXLive):
+# `libfontconfig.so.1` and friends, so fmtutil can build xetex/xelatex.
+libfontconfig1
+libfreetype6
+libx11-6
+libxrender1
+libxext6
+libxft2
+libpng16-16
+libxcb1
+# Basic fonts so TeX can use system fonts if needed
+fonts-dejavu-core

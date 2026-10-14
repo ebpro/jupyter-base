@@ -1,0 +1,17 @@
+# OPTIONAL subset of `inputs/apt-packages/base`.
+#
+# Interactive conveniences that no build step and no profile behaviour depends
+# on. They are installed in the SAME single apt transaction as the required
+# packages (the union list is unchanged, so layer bytes and dependency
+# resolution stay identical for all 67 profiles), but their absence must NOT
+# fail a build: if one becomes unavailable on an arch, it belongs here and
+# nothing asserts it.
+#
+# Deliberately absent from features/system-essentials/feature.json's
+# postInstallCheck for the same reason.
+#
+# Promotion rule: move a name to base.required only when something actually
+# depends on it, and extend the postInstallCheck with its binary then.
+fzf
+tmux
+neovim
