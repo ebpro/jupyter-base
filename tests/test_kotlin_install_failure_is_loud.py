@@ -77,7 +77,10 @@ if not BASH:
 
 
 def _write_stub(path: Path, body: str) -> None:
-    path.write_text("#!/usr/bin/env bash\n" + body + "\n", encoding="utf-8")
+    # Absolute interpreter, NOT `#!/usr/bin/env bash`: `env` resolves `bash`
+    # through PATH, and the sandbox PATH is scrubbed to the stub directory
+    # alone, so an env-shebang stub would die before reaching its body.
+    path.write_text(f"#!{BASH}\n" + body + "\n", encoding="utf-8")
     path.chmod(0o755)
 
 
@@ -107,7 +110,24 @@ def _run_installer(
     installer: Path, tmp_path: Path, sdk_exit: int, env_extra: dict[str, str], tag: str = "run"
 ):
     bin_dir, home = _make_sandbox(tmp_path, sdk_exit, tag)
-    env = {"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(home), "INSTALL_KOTLIN": "true"}
+    # HERMETIC: PATH is the stub directory ALONE. Never append /usr/bin or /bin.
+    #
+    # `features/kotlin/install.sh` skips the compiler install when
+    # `command -v kotlinc` succeeds ("compiler already present"). The self-hosted
+    # runners have a real kotlinc in /usr/bin, so the previous
+    # `PATH=<stub>:/usr/bin:/bin` satisfied that skip branch: the installer
+    # exited 0, the `sdk` stub was never invoked, and this file's "failure is
+    # loud" assertions tested nothing -- green on macOS (no /usr/bin/kotlinc),
+    # red on the runner (CI run 38436645475). That is the whole point of the
+    # scrub, so do not "helpfully" restore system directories here.
+    #
+    # The failure path needs zero system binaries: `command`, `test`/`[`, `echo`
+    # are bash builtins, `su` and `sdk` are stubbed in bin_dir, and the stubs
+    # carry an absolute `#!` interpreter (see _write_stub). If a future change
+    # makes the installer genuinely need a system binary on that path, satisfy
+    # that one dependency by absolute path or add a minimal controlled dir --
+    # not /usr/bin wholesale, which re-arms the skip branch.
+    env = {"PATH": str(bin_dir), "HOME": str(home), "INSTALL_KOTLIN": "true"}
     env.update(env_extra)
     return subprocess.run(
         [BASH, str(installer)],
