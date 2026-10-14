@@ -901,6 +901,153 @@ jobs:
             docker buildx imagetools create -t "$T" "${T}-amd64" "${T}-arm64"
           done
 
+  # Content verification of the PUBLISHED artifact. A 200 manifest proves
+  # existence, not content: nothing in the publish path ever asserted what
+  # the pushed image actually contains. Each image already carries its own
+  # content contract at /opt/solen/run-postinstall-checks.sh (written
+  # UNCONDITIONALLY by the Dockerfile template, with the per-feature checks
+  # baked in) — it has simply never been executed against a published image.
+  # This job pulls the folded -amd64 members and runs that script, plus an
+  # independent binary floor (rsync/jq/cmake, a strict subset of the
+  # executables in inputs/apt-packages/base.required).
+  # Deliberately does NOT arm the post-install-checks build ARG at publish
+  # build time: it is promoted to ENV and consumed by the install RUN layer,
+  # so flipping it
+  # invalidates that layer and turns the heavy job's cached path into a
+  # guaranteed ~60-min cold re-execution (or, if the cache key ignored the
+  # ARG, false assurance). Executing the baked script here verifies the
+  # artifact exactly as shipped, with zero cache impact.
+  # Leaf job: NOTHING needs it — sign-release must not be blocked by a
+  # verification-harness hiccup.
+  verify-published:
+    name: Verify published artifact content
+    needs: [merge-index]
+    # amd64 pool, same label list as build-amd64-standard (see the comment
+    # there): the arm pool's runners also carry the bare `ebpro-org` label,
+    # so `runs-on: ebpro-org` alone could route this job to arm64, where
+    # -amd64 images cannot be docker-run (no binfmt by design). `x64` pins
+    # native execution.
+    runs-on: [self-hosted, linux, x64, ebpro-org]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install solen-cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e solen-cli
+
+      - name: Generate profiles
+        run: |
+          solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate base bake (no suffix, no build tag)
+        run: |
+          solen generate bake --output generated/docker-bake.hcl --repo "$IMAGE_REPO" --image-name "$IMAGE_NAME" --no-build-tag
+
+      - name: Verify published images
+        env:
+          PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
+        run: |
+          set -uo pipefail
+          # Same slug/ownership filter idiom as merge-index: on a subset
+          # dispatch, verify only the tags OWNED by requested profiles
+          # (this run pushed them); empty PROFILE_LIST = verify all.
+          compute_slug() {
+            local p="$1"
+            if [[ "$p" =~ ^[0-9]+- ]]; then p="${p#*-}"; fi
+            if [[ "$p" =~ ^[0-9]+- ]]; then p="${p#*-}"; fi
+            echo "$p"
+          }
+          req_slugs=()
+          if [ -n "$PROFILE_LIST" ]; then
+            IFS=',' read -r -a _req <<< "$PROFILE_LIST"
+            for p in "${_req[@]}"; do
+              p=$(echo "$p" | xargs)
+              if [ -z "$p" ]; then continue; fi
+              req_slugs+=("$(compute_slug "$p")")
+            done
+          fi
+          all_slugs=()
+          while IFS= read -r sline; do
+            [ -n "$sline" ] && all_slugs+=("$sline")
+          done < <(
+            for f in generated/profiles/*; do
+              [ -f "$f" ] && compute_slug "$(basename "$f")"
+            done | sort -u
+          )
+          # Enumerate the base refs exactly as merge-index does, then aim at
+          # the amd64 member it folded (arm64 content is the arm builder's
+          # contract-check job's problem; this pool cannot run it natively).
+          tags=()
+          # while-read over the grep output (not `for T in $(grep …)`):
+          # one ref per line, and it keeps the step shellcheck-clean.
+          while IFS= read -r T; do
+            # Skip the bare repo ref from the generated header comment (no tag).
+            if [[ "$T" != *:* ]]; then continue; fi
+            if [ "${#req_slugs[@]}" -gt 0 ]; then
+              tag=${T#*:}
+              owner=""
+              for s in "${all_slugs[@]}"; do
+                if [[ "$tag" == "$s" || "$tag" == "$s"-* ]] && [ "${#s}" -gt "${#owner}" ]; then
+                  owner="$s"
+                fi
+              done
+              if [ -z "$owner" ]; then continue; fi
+              match=0
+              for s in "${req_slugs[@]}"; do
+                if [ "$s" = "$owner" ]; then match=1; break; fi
+              done
+              if [ "$match" -ne 1 ]; then continue; fi
+            fi
+            tags+=("${T}-amd64")
+          done < <(grep -oE 'ghcr.io/[^"]+' generated/docker-bake.hcl | sort -u)
+          # Vacuous-pass guard: zero enumerated tags means the harness is
+          # broken (bake generation, grep idiom, profiles). Passing
+          # verification over an empty list is precisely the silent-skip
+          # defect class this job exists to eliminate — fail loudly.
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "::error:: verify-published: enumerated ZERO amd64 tags from generated/docker-bake.hcl — refusing to pass vacuously; check the bake generation above" >&2
+            exit 1
+          fi
+          echo "Verifying ${#tags[@]} published amd64 image(s)"
+          failed=0
+          for TAG in "${tags[@]}"; do
+            echo "::group::verify $TAG"
+            # 1. The per-feature content contract already baked into the
+            #    image, executed on the published artifact.
+            if ! docker run --rm --pull always --entrypoint /opt/solen/run-postinstall-checks.sh "$TAG"; then
+              echo "::error:: Post-install contract checks FAILED on $TAG" >&2
+              failed=1
+            fi
+            # 2. Independent binary floor: does not trust the baked script
+            #    or the feature graph. TAG is passed in so the in-container
+            #    bash can name the offending image in the annotation.
+            if ! docker run --rm --pull always -e TAG="$TAG" --entrypoint bash "$TAG" -lc 'for b in rsync jq cmake; do command -v "$b" >/dev/null || { echo "::error::${TAG} missing ${b}"; exit 1; }; done'; then
+              echo "::error:: Binary floor (rsync/jq/cmake) FAILED on $TAG" >&2
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          # Accumulate, never fail-fast: one bad image must fail the job,
+          # but every image still gets tested so one report shows the blast
+          # radius instead of hiding behind the first failure.
+          exit "$failed"
+
   # Post-merge signing: consume the native `solen` OCI index produced by
   # `merge-index` and sign the release tag with cosign. Release-only (v* tags):
   # no QEMU/binfmt, no buildx builder, no imagetools promotion — the index
