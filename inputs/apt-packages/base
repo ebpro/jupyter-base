@@ -18,7 +18,7 @@ libx11-6
 libxrender1
 libxext6
 libxft2
-libpng16-16
+libpng16-16t64
 libxcb1
 # Basic fonts so TeX can use system fonts if needed
 fonts-dejavu-core

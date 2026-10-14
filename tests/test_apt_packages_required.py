@@ -98,7 +98,7 @@ def test_tex_runtime_libraries_are_required():
         "libxrender1",
         "libxext6",
         "libxft2",
-        "libpng16-16",
+        "libpng16-16t64",
         "libxcb1",
         "fonts-dejavu-core",
     ):
