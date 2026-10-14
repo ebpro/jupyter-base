@@ -218,6 +218,43 @@ docker run --rm --entrypoint /opt/solen/run-postinstall-checks.sh <image>
 
 for each built profile.
 
+### `ci-publish.yml` — `verify-published`
+
+Publishing re-runs the same contract **against the published artifact**. A `200` on a
+registry manifest proves a tag exists, not that its content is correct; this job is what
+closes that gap.
+
+- `needs: [merge-index]` and **unguarded**, so it runs on every publish trigger
+  (`develop` push, `v*` tag, dispatch) — unlike `sign-release`, which is gated by
+  `if: startsWith(github.ref, 'refs/tags/v')`.
+- For each enumerated `<tag>-amd64` image it asserts two independent things:
+  1. `/opt/solen/run-postinstall-checks.sh` exits `0` — the per-feature contract already
+     baked into the image, and
+  2. a binary floor — `rsync`, `jq`, `cmake` all resolvable on `PATH` — which trusts
+     neither the baked script nor the feature graph.
+- amd64 only. The arm pool's runners also carry the bare `ebpro-org` label, so the job
+  pins `[self-hosted, linux, x64, ebpro-org]`; with no binfmt by design, an `-amd64`
+  image cannot be `docker run` on arm64.
+- It refuses to pass vacuously: enumerating zero tags fails the job (a silent-skip is the
+  exact defect class it exists to remove), and it accumulates failures instead of
+  failing fast so one run reports the whole blast radius.
+- It is a **leaf** job — nothing `needs` it, so a verification-harness hiccup cannot
+  block signing.
+
+#### Why publish does not just set `RUN_POSTINSTALL_CHECKS=true`
+
+Setting the build arg at publish time looks like the cheaper way to get item 1 above, and
+it was **rejected**. The template promotes the ARG straight to `ENV`
+(`solen-cli/solen/generators/dockerfile_template.j2:97-98`), and that variable is consumed
+by the feature-install `RUN` blocks (`:179`, `:193`, `:214`). Because the value lands in
+the layer key, flipping it invalidates the heavy install layer and re-executes every
+installer cold — an order-of-an-hour penalty on **every** publish, to check content that
+`docker run` can check for free after the fact.
+
+`tests/test_verify_published_contract.py` pins this decision (`RUN_POSTINSTALL_CHECKS`
+must never appear in `ci-publish.yml`). If you are about to arm checks at publish time,
+read that test first.
+
 ## Local limitations
 
 Some validations are easier or only possible in CI:
@@ -236,6 +273,6 @@ Future testing work should extend the current slice with:
 - E2E/BDD scenarios for full profile builds
 - automated smoke tests for `quarto-full`
 - optional SonarQube quality gates
-- Harbor image admission checks
-- public registry validation
+- Harbor image admission checks (published-GHCR-artifact validation already exists as
+  `verify-published`; registry-side admission policy does not)
 - richer test reporting for CI artifacts

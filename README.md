@@ -107,21 +107,23 @@ runner (actions-runner-controller runner set `ebpro-org`, with a `docker:dind` s
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci-validate.yml` | PR / push | `solen validate features`, profile + devcontainer generation, `solen versions sync --check`, `pytest`, `ruff` |
-| `ci-build.yml` | PR / push to `develop` / dispatch | Single-arch build of selected profiles (default `quarto-full`), Syft SBOM + Trivy scan |
-| `ci-publish.yml` | push to `develop` / tag `v*` / dispatch | Multi-arch publish to GHCR (5 jobs: native per-arch builds on `ebpro-org`/`ebpro-org-large`/`ebpro-org-arm`, Harbor registry cache, OCI-index merge, cosign sign) |
+| `ci-build.yml` | `workflow_run` (after "Publish to GHCR" on `develop`) / PR / dispatch | Single-arch build of selected profiles (default `quarto-full`), Syft SBOM + Trivy scan |
+| `ci-publish.yml` | push to `develop` / tag `v*` / dispatch | Multi-arch publish to GHCR (6 jobs: native per-arch builds on `ebpro-org`/`ebpro-org-large`/`ebpro-org-arm`, Harbor registry cache, OCI-index merge, published-artifact verification, cosign sign on `v*` only) |
 | `validate-artefacts.yml` | `artefacts/**` changes | Run `scripts/validate-artefacts.sh` |
 | `cleanup-ghcr.yml` | schedule | GC old GHCR tags |
 
-`ci-publish.yml` runs **5 jobs** across 3 in-cluster ARC pools — `ebpro-org` (standard
+`ci-publish.yml` runs **6 jobs** across 3 in-cluster ARC pools — `ebpro-org` (standard
 amd64), `ebpro-org-large` (heavy/flagship amd64: `quarto-full`, `lang-java-*`,
 `quarto-java-*`), and `ebpro-org-arm` (all profiles, arm64). The three build jobs
-(`build-amd64-core`, `build-amd64`, `build-arm64`) each bake natively on a host of their
+(`build-amd64-standard`, `build-amd64-heavy`, `build-arm64`) each bake natively on a host of their
 own architecture (no QEMU/binfmt) against a shared Harbor registry cache
-(`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot `robot$arc-runner-ci`). On
-a `v*` tag or manual dispatch every tag is suffixed per-arch (`-amd64`/`-arm64`), then
-`merge-index` folds them into a multi-arch manifest list at the base tag and
-`sign-release` cosign-signs the merged indexes (release only). On a `develop` push the
-fast path is amd64-only with unsuffixed tags.
+(`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot `robot$arc-runner-ci`). That cache is
+a **soft dependency**: a pre-flight probe and a non-fatal login decide whether the job bakes with
+cache directives or with a cache-less bake file, so a Harbor outage costs build time and never a
+publish. On **every** trigger each tag is suffixed per-arch (`-amd64`/`-arm64`), then
+`merge-index` folds them into a multi-arch manifest list at the base tag, and
+`verify-published` re-checks the published content of the `-amd64` tags (see
+`docs/TESTING.md`). `sign-release` cosign-signs the merged indexes on `v*` tags only.
 
 ## Contributor guide
 

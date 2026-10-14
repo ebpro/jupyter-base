@@ -77,7 +77,23 @@ when `SSH_PRIVATE_KEY` is provided at build time, clones the private
 .venv/bin/solen analyze features
 ```
 Bake targets are `final-<profile>`; tags are `<registry>/<repo>:<profile>-<tag>`.
-CI passes the bake generator `--tag-suffix <arch> --no-build-tag --platforms linux/<arch>` (all triggers).
+CI passes the bake generator `--harbor-cache harbor.ebruno.fr/solen/build-cache
+--tag-suffix <arch> --no-build-tag --platforms linux/<arch>` (all triggers —
+per-arch suffixes are unconditional, so every trigger publishes `-amd64`/`-arm64`
+tags before `merge-index` folds them).
+
+**Registry-cache flags for `solen generate bake` (only meaningful with
+`--harbor-cache`, and NOT interchangeable):**
+- `--no-cache-to` — omits `cache-to` (the export) and **deliberately keeps
+  `cache-from`** (the import). Correct for Harbor's `499` on a large-layer
+  upload, where reading the cache still works.
+- `--no-cache` — omits **both** `cache-from` and `cache-to`. Correct when the
+  cache registry is unreachable or unauthenticated. Using `--no-cache-to` for
+  that case leaves a dead registry as the import source and is *not* a
+  fallback: the bake keeps referencing the unavailable cache.
+- Different flag, same words: `--no-cache` on `./build.sh` and on `solen build`
+  sets buildx `*.no-cache=true`; it has nothing to do with bake cache
+  directives.
 
 ## Validation (the local gate)
 ```bash
@@ -98,8 +114,8 @@ actionlint                                 # workflow lint (developer-provided; 
   Default profile: **`quarto-full`** (MVP). Produces SBOM (syft) + Trivy scan per
   profile.
 - `ci-publish.yml` — push to develop / tag `v*` / dispatch: multi-arch publish to
-  GHCR, **5 jobs** (no per-trigger job gating — all three builds run on every
-  trigger):
+  GHCR, **6 jobs** (the three build jobs carry no per-trigger gate — all run on
+  every trigger):
   1. `build-amd64-standard` — `runs-on: ebpro-org`, standard (non-heavy) profiles,
      native amd64.
   2. `build-amd64-heavy` — `runs-on: ebpro-org-large`, heavy/flagship profiles —
@@ -108,12 +124,24 @@ actionlint                                 # workflow lint (developer-provided; 
   4. `merge-index` — `needs` all three builds; folds the per-arch images into an
      OCI index (manifest list) at the base tag via `docker buildx imagetools
      create`. Every trigger.
-  5. `sign-release` — signs the merged `solen` indexes with cosign. `v*` only —
-     the only job with an `if:` guard.
+  5. `verify-published` — `needs: [merge-index]`, **unguarded (every trigger)**,
+     amd64 pool. Re-runs the baked post-install contract plus an independent
+     binary floor against the published `-amd64` tags. Leaf job: nothing needs
+     it. See `docs/TESTING.md`.
+  6. `sign-release` — signs the merged `solen` indexes with cosign. Guarded by
+     `if: startsWith(github.ref, 'refs/tags/v')` — **the only job with an `if:`
+     guard, so it skips by design on a `develop` push and on dispatch.**
   Each build job bakes with the buildx `docker-container` driver and a Harbor
   registry cache (`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot
-  `robot$arc-runner-ci`, pull+push). No QEMU/binfmt — each arch builds natively on
-  its own runner pool. Dispatch with empty `profiles` = every generated profile.
+  `robot$arc-runner-ci`, pull+push). **Harbor is a soft dependency, not a
+  publish requirement:** an unauthenticated `GET /v2/` probe treats `200|401` as
+  alive (`401` is the healthy registry challenge), the login step is
+  `continue-on-error`, and `HARBOR_READY` selects `generated/docker-bake.hcl`
+  vs a cache-less `generated/docker-bake-nocache.hcl`. A failed build then
+  retries cache-to-less and finally fully cache-less. Cost of a Harbor outage is
+  a cold build, never a failed publish. No QEMU/binfmt — each arch builds
+  natively on its own runner pool. Dispatch with empty `profiles` = every
+  generated profile.
 - `validate-artefacts.yml` — `artefacts/**` changes: checksum validation.
 - `cleanup-ghcr.yml` — schedule: GC old GHCR tags.
 - **Per-arch tags:** on every trigger each tag is suffixed per-arch
@@ -131,6 +159,12 @@ actionlint                                 # workflow lint (developer-provided; 
   helper-source blocks so builds use `/opt/solen/_lib/helpers.sh`.
 - `artefacts/` + root `checksums.json` (`tools.<name>.checksums.<version>.<arch>`)
   feed `fh_verify_from_checksums` in install scripts.
+- **apt presence checks on Ubuntu 24.04 (time_t64):** `libpng16-16` is a *virtual*
+  provider there. `apt-get install libpng16-16` succeeds but installs
+  `libpng16-16t64`, while `dpkg-query -W -f='${Status}' libpng16-16` answers
+  `unknown ok not-installed` — so a check written against the bare name fails on a
+  correctly installed image. Verify the `t64` name (`tests/test_apt_packages_required.py`).
+  `libx11-6` is a real package name, not a `t64` alias — do not "fix" it.
 - Tag format: `ghcr.io/ebpro/solen:<profile>-<tag>`; on every trigger each tag is
   suffixed per-arch (`-amd64`/`-arm64`) and folded into a manifest list at the
   base tag by `merge-index`.
