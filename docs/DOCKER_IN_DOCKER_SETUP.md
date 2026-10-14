@@ -6,7 +6,7 @@ Build and run the new profile:
 
 ```bash
 # Build the image
-./build.sh --profile quarto-lecture-containers
+./build.sh quarto-lecture-containers
 
 # Run with Docker-in-Docker
 docker run --rm -it \
@@ -21,10 +21,12 @@ docker ps
 docker run hello-world
 ```
 
+> **Naming (UNVERIFIED):** `build.sh` takes the profile **positionally** (see `AGENTS.md`), not via a `--profile` flag. The generated profile/devcontainer label is **`quarto-containers`** (present in `generated/profiles/` and `generated/devcontainer/`), while **`quarto-lecture-containers`** is the name of the source matrix file (`profiles/matrix/quarto-lecture.yaml`) and the `devcontainer/quarto-lecture-containers/` template folder. Confirm which identifier `build.sh` expects before running.
+
 ## What Was Created
 
 ### 1. New Profile: `quarto-lecture-containers`
-[profiles/quarto-lecture-containers](profiles/quarto-lecture-containers)
+Source matrix: [profiles/matrix/quarto-lecture.yaml](profiles/matrix/quarto-lecture.yaml) (profiles are matrix-only; this generates the `quarto-containers` label)
 
 Combines:
 - ✅ Quarto with TeX (PDF output)
@@ -34,16 +36,16 @@ Combines:
 - ✅ **Docker-in-Docker** (isolated, version-pinned)
 
 ### 2. Enhanced `docker-dind` Feature
-[.devcontainer/features/docker-dind/install.sh](.devcontainer/features/docker-dind/install.sh)
+> **[UNVERIFIED]** `.devcontainer/features/docker-dind/install.sh` is not in the current tree (no root `.devcontainer/`, no `features/docker-dind`). Docker-in-Docker is wired today via `@services:dind` in [profiles/matrix/quarto-lecture.yaml](profiles/matrix/quarto-lecture.yaml) (see `generated/profiles/quarto-containers`); the historical `install.sh` path could not be located.
 
 New capabilities:
-- ✅ Version pinning from `Artefacts/versions.json` (Docker 27.5.1, Compose 2.39.3)
+- ✅ Version pinning from `versions/versions.yaml` (SoT) (Docker 27.5.1, Compose 2.39.3)
 - ✅ Auto-start via `/etc/startup.d/10-dockerd.sh`
 - ✅ Health check: `docker-health` command
 - ✅ BuildKit enabled by default
 
 ### 3. Improved `startup` Feature
-[.devcontainer/features/startup/install.sh](.devcontainer/features/startup/install.sh)
+> **[UNVERIFIED]** `.devcontainer/features/startup/install.sh` is not in the current tree (no `features/startup`). The `/etc/startup.d` auto-start mechanism could not be located; the closest existing feature is `features/container-init/` (not confirmed to provide it).
 
 Now:
 - ✅ Creates `/etc/startup.d` directory
@@ -51,7 +53,7 @@ Now:
 - ✅ Auto-generated if not present in repo
 
 ### 4. DevContainer Template
-[generated/profiles/quarto-lecture-containers.devcontainer.json](generated/profiles/quarto-lecture-containers.devcontainer.json)
+[generated/devcontainer/quarto-containers/devcontainer.json](generated/devcontainer/quarto-containers/devcontainer.json) — untracked build output; regenerate with `.venv/bin/solen generate profiles --matrix profiles/matrix --out generated/profiles --chain` before use
 
 VS Code devcontainer configuration with:
 - Privileged mode for DinD
@@ -128,7 +130,7 @@ Use the existing `bundle-container-runtimes` profile for rootless containers wit
 
 ## Version Management
 
-Pinned versions in [Artefacts/versions.json](Artefacts/versions.json):
+Pinned versions in [versions/versions.yaml](versions/versions.yaml) (SoT; synced to the root `versions.json` via `solen versions sync`):
 - `docker-ce: 27.5.1`
 - `docker-compose: 2.39.3`
 
@@ -162,7 +164,7 @@ Change in profile options:
 
 ## Next Steps
 
-1. Build the profile: `./build.sh --profile quarto-lecture-containers`
+1. Build the profile: `./build.sh quarto-lecture-containers`
 2. Test Docker inside: `docker run --privileged ... solen:quarto-lecture-containers`
 3. For VS Code: copy devcontainer.json to `.devcontainer/` folder
 4. For production: consider Sysbox runtime for security
