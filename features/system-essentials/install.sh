@@ -92,11 +92,11 @@ fi
 # --- begin required-package assertion ---
 # Why the install above stays tolerant (`|| true`) and this check exists:
 #
-#   The apt install is deliberately ONE transaction over the *union* list
-#   ${APT_LIST}, unchanged, so that layer bytes and dependency resolution stay
-#   identical for every profile. A single unavailable package aborts that whole
-#   transaction (the partial-transaction hazard), so making the install itself
-#   fatal would let one arch-unavailable OPTIONAL package break every profile.
+#   Required and optional packages are installed as TWO separate tolerant
+#   (`|| true`) apt transactions, so the total set and the layer bytes stay
+#   identical to the old union install. A single unavailable package aborts
+#   only its own transaction, so one arch-unavailable OPTIONAL package can no
+#   longer take the whole REQUIRED set down with it.
 #
 #   But `apt_install` retries 3x and `return 1` (scripts/lib/features.sh), and
 #   the caller discards it -- so before this assertion a missing REQUIRED
@@ -125,11 +125,11 @@ if [ "$(uname -s 2>/dev/null || true)" = "Linux" ] && command -v dpkg-query >/de
       done
     done < "${REQUIRED_LIST}"
     if [ -n "${MISSING}" ]; then
-      echo "system-essentials: FAILED - required apt package(s) not installed after the apt transaction:${MISSING}" >&2
+      echo "system-essentials: FAILED - required apt package(s) not installed after the required apt transaction:${MISSING}" >&2
       echo "system-essentials:   required list: ${REQUIRED_LIST}" >&2
       echo "system-essentials:   union list   : ${APT_LIST} (packages attempted: $(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "${APT_LIST}" | tr '\n' ' '))" >&2
       echo "system-essentials:   optional list : ${OPTIONAL_LIST}" >&2
-      echo "system-essentials: The union list is installed as ONE apt transaction, so any single unavailable package -- including an optional one -- makes every required package above vanish together; that is why the install is tolerant and this assertion is not." >&2
+      echo "system-essentials: Required and optional packages are installed as separate apt transactions, so a missing REQUIRED package fails this build while a missing OPTIONAL one does not." >&2
       echo "system-essentials: Remedy: if a package above is genuinely unavailable on this architecture, demote it by moving its name from ${REQUIRED_LIST} to ${OPTIONAL_LIST}; otherwise fix ${APT_LIST} or the apt source. Do not silence this check." >&2
       exit 1
     fi

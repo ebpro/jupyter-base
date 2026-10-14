@@ -249,7 +249,7 @@ def test_assertion_fails_loudly_for_a_missing_required_package(tmp_path):
     assert "solen-definitely-not-a-real-package" in proc.stderr, "must name the missing package"
     assert "base.required" in proc.stderr, "must name the file to edit"
     assert "base.optional" in proc.stderr and "demote" in proc.stderr.lower(), "must give the remedy"
-    assert "ONE apt transaction" in proc.stderr, "must state the partial-transaction hazard"
+    assert "separate apt transactions" in proc.stderr, "must state the split-transaction semantics"
     # Both misses are reported together (not fail-fast on the first one).
     assert proc.stderr.count("solen-definitely-not-a-real-package") >= 1
     assert "SURVIVED-PAST-ASSERTION" not in proc.stdout
