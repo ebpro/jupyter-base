@@ -28,8 +28,55 @@ echo "system-essentials: installing packages listed in ${APT_LIST} (if present)"
 if [ -f "${APT_LIST}" ]; then
   PKGS=$(grep -v -e "^#" -e "^$" "${APT_LIST}" | tr '\n' ' ' || true)
   PKGS=$(echo "$PKGS" | xargs || true)
-  if [ -n "$PKGS" ]; then
-    # Use helper apt_install where available for consistent, non-interactive installs
+  REQUIRED_SRC="${APT_LIST}.required"
+  if [ -n "$PKGS" ] && [ -f "$REQUIRED_SRC" ]; then
+    # Required and optional are installed as TWO independent, tolerant (`|| true`)
+    # apt transactions -- NOT one union transaction. Reason: a single
+    # unresolvable package aborts the whole apt transaction, so under the old
+    # union install one arch-unavailable OPTIONAL package took every REQUIRED
+    # package down with it, and the assertion below then hard-failed every
+    # profile. Installing the required set first, in its own transaction, means
+    # an optional-only failure can never starve the required set.
+    #
+    # `${APT_LIST}` (base) stays the single source of truth for WHAT is
+    # installed: the optional set is *derived* as union-minus-required, so the
+    # total set installed is identical to the old union install and required
+    # + optional == base by construction.
+    REQ_PKGS=$(grep -v -e "^#" -e "^$" "$REQUIRED_SRC" | tr '\n' ' ' || true)
+    REQ_PKGS=$(echo "$REQ_PKGS" | xargs || true)
+    OPT_PKGS=""
+    for name in $PKGS; do
+      hit=0
+      for r in $REQ_PKGS; do
+        if [ "$name" = "$r" ]; then hit=1; break; fi
+      done
+      if [ "$hit" -eq 0 ]; then OPT_PKGS="${OPT_PKGS} ${name}"; fi
+    done
+    OPT_PKGS=$(echo "$OPT_PKGS" | xargs || true)
+    if [ -n "$REQ_PKGS" ]; then
+      echo "system-essentials: installing REQUIRED apt packages: ${REQ_PKGS}"
+      if command -v apt_install >/dev/null 2>&1; then
+        apt_install $REQ_PKGS || true
+      else
+        apt-get update
+        apt-get install -y --no-install-recommends $REQ_PKGS || true
+      fi
+    fi
+    if [ -n "$OPT_PKGS" ]; then
+      echo "system-essentials: installing optional apt packages: ${OPT_PKGS}"
+      if command -v apt_install >/dev/null 2>&1; then
+        apt_install $OPT_PKGS || true
+      else
+        apt-get install -y --no-install-recommends $OPT_PKGS || true
+      fi
+    fi
+    if ! command -v apt_install >/dev/null 2>&1; then
+      rm -rf /var/lib/apt/lists/* || true
+    fi
+  elif [ -n "$PKGS" ]; then
+    # Legacy path: no ${APT_LIST}.required present (e.g. the apt-packages_base
+    # variant). Preserve today's single tolerant union install, unchanged, so
+    # legacy consumers keep identical behaviour.
     if command -v apt_install >/dev/null 2>&1; then
       apt_install $PKGS || true
     else

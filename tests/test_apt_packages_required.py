@@ -1,23 +1,35 @@
 """Guards for the apt required/optional split in system-essentials.
 
 Background (the defect this pins down): ``features/system-essentials/install.sh``
-installs ``inputs/apt-packages/base`` as ONE tolerant apt transaction
-(``|| true``), because a single unavailable package aborts the whole
-transaction -- so making the install fatal would let one arch-unavailable
-*optional* package break every profile. ``apt_install`` retries 3x and
-``return``s 1 (scripts/lib/features.sh:207-216) and the caller discarded it,
-which meant a missing **required** package vanished from every published image
-with a green build. The fix bounds the tolerance with a post-install assertion
-over ``base.required`` only.
+originally installed ``inputs/apt-packages/base`` as ONE tolerant apt
+transaction (``|| true``), because a single unavailable package aborts the whole
+transaction. That tolerance was necessary (one arch-unavailable *optional*
+package must not break every profile) but blunt: it also meant a missing
+**required** package vanished from every published image with a green build,
+because ``apt_install`` retries 3x and ``return``s 1
+(scripts/lib/features.sh:207-216) and the caller discarded it.
 
-These tests therefore enforce three things:
+The fix is two-fold:
+
+  * the **required** and **optional** sets are now installed as two independent
+    ``|| true``-guarded transactions, so an unresolvable *optional* package can
+    no longer abort the shared transaction and starve the required set;
+  * a post-install assertion over ``base.required`` bounds the tolerance -- if a
+    genuinely required package is still missing after its own transaction, the
+    build fails loudly.
+
+These tests therefore enforce:
 
   * the three list files cannot drift (a partition, no overlap, no phantom);
   * the reconciliation between ``base.required`` and the baked
     ``postInstallCheck`` in feature.json (optional tools must not be asserted);
+  * the installer really splits required/optional into two transactions and
+    keeps a single union install only on the legacy (no ``base.required``) path;
   * the assertion block itself really fails on a missing required package and
     really passes otherwise -- executed as bash against a stubbed ``dpkg-query``
-    and ``uname`` (macOS has neither dpkg tool, so both are stubbed here).
+    and ``uname`` (macOS has neither dpkg tool, so both are stubbed here);
+  * an optional-only failure does NOT abort the required transaction (the whole
+    point of the split), exercised end-to-end against a stubbed ``apt_install``.
 """
 
 from __future__ import annotations
@@ -117,15 +129,37 @@ def test_interactive_tools_are_optional_only():
 # --------------------------------------------------------------------------- #
 def test_installer_stays_tolerant_but_asserts_required():
     text = INSTALL_SH.read_text(encoding="utf-8")
-    # Anti-goal: the single apt transaction over the unchanged union list stays
-    # non-fatal, and the apt contract in scripts/lib/features.sh is untouched.
-    assert "apt_install $PKGS || true" in text, "the union install must remain one tolerant transaction"
+    # Anti-goal: the legacy (no base.required) path keeps the single tolerant
+    # union install verbatim, and the apt contract in scripts/lib/features.sh is
+    # untouched -- so a missing base.required must NOT change behaviour.
+    assert "apt_install $PKGS || true" in text, "the legacy union install must remain one tolerant transaction"
     assert "apt-get install -y --no-install-recommends $PKGS || true" in text
     # The loud part is the post-condition over the required subset.
     assert BEGIN in text and END in text, "assertion block missing"
     assert 'REQUIRED_LIST="${APT_LIST}.required"' in text
     assert "dpkg-query" in text and "install ok installed" in text
     assert "base.optional" in text, "failure message must name the demotion remedy"
+
+
+def test_installer_splits_required_and_optional_transactions():
+    """Change B: required and optional are two independent `|| true` transactions.
+
+    The union install must NOT be the primary path when base.required is
+    present; instead required is installed first (its own transaction) so an
+    optional-only failure cannot abort it. `base` remains the source of truth:
+    the optional set is derived as union-minus-required, not read from
+    base.optional.
+    """
+    text = INSTALL_SH.read_text(encoding="utf-8")
+    assert "REQ_PKGS" in text and "OPT_PKGS" in text, "required/optional sets must be derived"
+    assert 'REQUIRED_SRC="${APT_LIST}.required"' in text, "required must be read from the .required list"
+    # Each set is installed in its own guarded transaction (tolerance preserved).
+    assert "apt_install $REQ_PKGS || true" in text, "required must be its own tolerant transaction"
+    assert "apt_install $OPT_PKGS || true" in text, "optional must be a separate tolerant transaction"
+    # Optional is derived from the union, so base stays the single source of truth.
+    assert "for name in $PKGS" in text, "optional set must be derived as union-minus-required"
+    # The split is gated on the required list existing, so legacy is unaffected.
+    assert '[ -f "$REQUIRED_SRC" ]' in text, "split must be conditional on base.required existing"
 
 
 def test_assertion_block_avoids_bash4_constructs():
@@ -257,3 +291,119 @@ def test_assertion_is_skipped_off_linux(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     assert "SKIPPED-OK" in proc.stdout
+
+
+# --------------------------------------------------------------------------- #
+# End-to-end proof of the required/optional transaction SPLIT (Change B).
+# apt_install is stubbed with real apt's all-or-nothing semantics: a single
+# unresolvable package aborts the whole invocation. This is what makes the
+# split observable -- under one union transaction an optional-only failure
+# takes the required set down with it; under two transactions it cannot.
+# --------------------------------------------------------------------------- #
+def _run_install_and_assert(tmp_path: Path, *, union_line: str, required_lines: str, unresolvable: str):
+    """Run install.sh's install+assert region against a stub apt.
+
+    Returns (CompletedProcess, set_of_packages_actually_installed).
+    """
+    stub = tmp_path / "stub"
+    stub.mkdir(exist_ok=True)
+    installed = tmp_path / "installed.txt"
+    installed.write_text("", encoding="utf-8")
+    stubs = {
+        "uname": "#!/bin/bash\necho Linux\n",
+        "apt_install": (
+            "#!/bin/bash\n"
+            'for a in "$@"; do\n'
+            "  for u in $SOL_TEST_UNRESOLVABLE; do\n"
+            '    [ "$a" = "$u" ] && { echo "apt_install: E: Unable to locate package $a" >&2; exit 100; }\n'
+            "  done\n"
+            "done\n"
+            'for a in "$@"; do echo "$a" >> "$SOL_TEST_INSTALLED_FILE"; done\n'
+        ),
+        "dpkg-query": (
+            "#!/bin/bash\n"
+            'pkg="${@: -1}"\n'
+            '[ -f "$SOL_TEST_INSTALLED_FILE" ] && grep -qx "$pkg" "$SOL_TEST_INSTALLED_FILE" '
+            '&& { echo "install ok installed"; exit 0; }\n'
+            'echo "unknown ok not-installed"\n'
+        ),
+    }
+    for name, body in stubs.items():
+        p = stub / name
+        p.write_text(body, encoding="utf-8")
+        p.chmod(0o755)
+
+    (tmp_path / "base").write_text(union_line + "\n", encoding="utf-8")
+    (tmp_path / "base.required").write_text(required_lines + "\n", encoding="utf-8")
+    (tmp_path / "base.optional").write_text("# derived at runtime from union-minus-required\n", encoding="utf-8")
+
+    text = INSTALL_SH.read_text(encoding="utf-8")
+    start = 'echo "system-essentials: installing packages listed in ${APT_LIST} (if present)"'
+    region = text.split(start, 1)[1].split(END, 1)[0]
+    script = tmp_path / "region.sh"
+    script.write_text(
+        "set -euo pipefail\n"
+        f'APT_LIST="{tmp_path}/base"\n'
+        f"{region}\n"
+        'echo "SURVIVED-PAST-ASSERTION"\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["/bin/bash", str(script)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+        env={
+            "PATH": f"{stub}:/usr/bin:/bin",
+            "SOL_TEST_UNRESOLVABLE": unresolvable,
+            "SOL_TEST_INSTALLED_FILE": str(installed),
+        },
+    )
+    return proc, set(installed.read_text(encoding="utf-8").split())
+
+
+def test_optional_only_failure_does_not_abort_required_transaction(tmp_path):
+    """The point of Change B.
+
+    ``solen-bogus-optional`` sits in the union list (``base``) but NOT in
+    ``base.required``. It is unresolvable, so the *optional* transaction aborts
+    -- yet because the required set is installed in its OWN prior transaction,
+    jq/rsync still land and the required assertion still passes (rc == 0).
+    Under the old single union install this exact input aborted everything and
+    the assertion exited 1, failing every profile.
+    """
+    proc, got = _run_install_and_assert(
+        tmp_path,
+        union_line="jq rsync solen-bogus-optional",
+        required_lines="jq\nrsync\n",
+        unresolvable="solen-bogus-optional",
+    )
+    assert proc.returncode == 0, (
+        f"an optional-only failure must NOT abort the required transaction: "
+        f"rc={proc.returncode} err={proc.stderr!r}"
+    )
+    assert {"jq", "rsync"} <= got, f"required packages must still be installed, got {sorted(got)}"
+    assert "solen-bogus-optional" not in got, "the unresolvable optional must not be recorded as installed"
+    assert "required packages verified present" in proc.stdout
+    assert "SURVIVED-PAST-ASSERTION" in proc.stdout
+
+
+def test_missing_required_package_still_fails_after_the_split(tmp_path):
+    """Regression guard: the split must not weaken the assertion.
+
+    When a genuinely required package is unresolvable, its own transaction
+    aborts, it stays missing, and the assertion still exits 1.
+    """
+    proc, got = _run_install_and_assert(
+        tmp_path,
+        union_line="jq rsync tmux",
+        required_lines="jq\nsolen-bogus-required\n",
+        unresolvable="solen-bogus-required",
+    )
+    assert proc.returncode == 1, f"a missing required package must still fail: rc={proc.returncode} out={proc.stdout!r}"
+    assert "solen-bogus-required" in proc.stderr, "must name the missing required package"
+    assert "SURVIVED-PAST-ASSERTION" not in proc.stdout
+    # The optional transaction is independent: `rsync`/`tmux` are not required
+    # here, so they install fine even though the required transaction aborted.
+    assert {"rsync", "tmux"} <= got, f"optional transaction must proceed independently, got {sorted(got)}"
