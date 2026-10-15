@@ -38,6 +38,7 @@ matrix:
       - hadolint
       - skopeo
       - ctop
+      - poppler-utils
     options:
       JDK_VERSION: 25
     services:

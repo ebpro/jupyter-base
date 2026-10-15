@@ -1,0 +1,26 @@
+{
+  "name": "poppler-utils",
+  "version": "0.1.0",
+  "maintainer": {
+    "name": "Emmanuel BRUNO",
+    "email": "emmanuel.bruno@univ-tln.fr"
+  },
+  "id": "poppler-utils",
+  "description": "Installs the Poppler PDF command-line tools (pdftotext, pdftoppm, pdfinfo, ...) from apt. Primary rationale is test parity: Quarto's optional PDF-text verification tests skip gracefully when pdftotext is absent, so carrying the package keeps that test path executing instead of silently skipping (upstream quarto-cli PR #13939 documents it as an optional test-only dependency, worded \"pdftotext (poppler)\"). Secondary rationale: general availability of the Poppler CLI suite to image users. Not a Quarto runtime component: Quarto vendors every binary it runs (DENO, DENO_DOM, PANDOC, DARTSASS, ESBUILD, TYPST, TYPST_GATHER, VERAPDF) and renders PDF preview with vendored pdf.js.",
+  "dependsOn": [
+    "system-essentials"
+  ],
+  "provides": [
+    "/usr/bin/pdftoppm",
+    "/usr/bin/pdftotext"
+  ],
+  "postInstallCheck": {
+    "command": "marker=\"POPCHECK7X\"\nfixture_b64=\"JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggNDEgPj4Kc3RyZWFtCkJUIC9GMSAyNCBUZiA3MiA3MDAgVGQgKFBPUENIRUNLN1gpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMTEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0MDIKJSVFT0YK\"\nwork=\"$(mktemp -d)\" || { echo \"poppler-utils: CHECK FAIL - mktemp failed\" >&2; exit 1; }\ntrap 'rm -rf \"$work\"' EXIT\nif ! printf '%s' \"$fixture_b64\" | base64 -d > \"$work/fixture.pdf\" 2>/dev/null; then\n  echo \"poppler-utils: CHECK FAIL - embedded fixture failed to decode\" >&2\n  exit 1\nfi\nif [ ! -s \"$work/fixture.pdf\" ]; then\n  echo \"poppler-utils: CHECK FAIL - embedded fixture decoded to zero bytes\" >&2\n  exit 1\nfi\nfor b in /usr/bin/pdftoppm /usr/bin/pdftotext; do\n  if [ ! -x \"$b\" ]; then\n    echo \"poppler-utils: CHECK FAIL - $b missing or not executable\" >&2\n    exit 1\n  fi\ndone\nif ! /usr/bin/pdftoppm -png -singlefile \"$work/fixture.pdf\" \"$work/out\" 2>/dev/null; then\n  echo \"poppler-utils: CHECK FAIL - pdftoppm exited non-zero\" >&2\n  exit 1\nfi\nif [ ! -s \"$work/out.png\" ]; then\n  echo \"poppler-utils: CHECK FAIL - pdftoppm produced no PNG\" >&2\n  exit 1\nfi\nmagic=\"$(od -An -tx1 -N8 \"$work/out.png\" | tr -d ' \\n')\"\nif [ \"$magic\" != \"89504e470d0a1a0a\" ]; then\n  echo \"poppler-utils: CHECK FAIL - bad PNG magic bytes: $magic\" >&2\n  exit 1\nfi\ntext=\"$(/usr/bin/pdftotext \"$work/fixture.pdf\" - 2>/dev/null)\"\ncase \"$text\" in\n  *\"$marker\"*) ;;\n  *)\n    echo \"poppler-utils: CHECK FAIL - pdftotext did not extract marker from fixture\" >&2\n    exit 1\n    ;;\nesac\npng_size=\"$(wc -c < \"$work/out.png\" | tr -d ' ')\"\necho \"poppler-utils: check OK (pdftoppm rendered a valid ${png_size}-byte PNG and pdftotext extracted marker POPCHECK7X from the embedded one-page fixture)\"\n",
+    "description": "Functionally verify the apt Poppler tools by rasterising an embedded one-page PDF fixture with /usr/bin/pdftoppm (PNG magic bytes validated) and extracting the marker POPCHECK7X from the same fixture with /usr/bin/pdftotext - not merely that the binaries exist"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "documentationURL": "./features/poppler-utils/README.md"
+}
