@@ -18,7 +18,7 @@
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "sh -c 'case \"$(uname -m)\" in x86_64|amd64) exit 0;; *) buildah --version;; esac'",
+    "command": "sh -c 'buildah --version'",
     "description": "Verify buildah is installed"
   },
   "documentationURL": "./features/buildah/README.md"
