@@ -9,6 +9,7 @@ matrix:
   lang-kotlin:
     features:
       - bundle-java-build
+      - java-jdk
       - kotlin
     options:
       INSTALL_KOTLIN: true
@@ -18,6 +19,11 @@ matrix:
       # kotlin. The language level follows the kernel release, not KOTLIN_VERSION.
       # See features/kotlin/README.md before changing the pin.
       INSTALL_KOTLIN_KERNEL: true
+      # java-jdk supplies the JVM the kotlin kernel launches and that
+      # java-maven/java-gradle need; java-sdkman alone installs only the
+      # SDKMAN shell (no candidates/java). JDK_VERSION mirrors the java-jdk
+      # feature default and lang-java-db-jdk25 (the non-self-named sibling).
+      JDK_VERSION: 25
   lang-web-dev:
     features:
       - bundle-web-dev
@@ -61,7 +67,11 @@ matrix:
   lang-java-sdk:
     features:
       - bundle-java-build
-    options: {}
+      # java-jdk is required for a real JDK: bundle-java-build's java-sdkman
+      # installs only the SDKMAN shell, leaving mvn/gradle without a JVM.
+      - java-jdk
+    options:
+      JDK_VERSION: 25
 
   lang-java-db-jdk25:
     features:
