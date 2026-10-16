@@ -12,7 +12,7 @@
   ],
   "options": {},
   "postInstallCheck": {
-    "command": "python -m pip --version",
+    "command": "python3 -m pip --version",
     "description": "Verify pip is available"
   },
   "documentationURL": "./features/pip-requirements/README.md"
