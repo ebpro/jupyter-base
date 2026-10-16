@@ -169,6 +169,70 @@ echo "INTERPRETER $0 :: UNEXPECTED $*" >> "${PIP_LOG:?}"
 exit 4
 """
 
+# Stub `python3` on PATH for the no-conda fallback branch. Emulates a Debian
+# (PEP 668) system interpreter: the EXTERNALLY-MANAGED probe succeeds, the
+# sysconfig data path resolves to ${FALLBACK_PREFIX}, and `pip install`
+# materialises the kernelspec + run_kotlin_kernel payload under that prefix.
+# JSON-reading invocations (KQ_* env set, script on stdin) are forwarded to
+# the real interpreter because this stub is a shell script.
+_FALLBACK_PYTHON3_STUB = r"""
+prefix="${FALLBACK_PREFIX:?}"
+site="$prefix/lib/python3.12/site-packages"
+spec="$prefix/share/jupyter/kernels/kotlin"
+case "$1" in
+  -c)
+    case "$2" in
+      *EXTERNALLY-MANAGED*)
+        exit 0                          # marker present: installer must add --break-system-packages
+        ;;
+      *sysconfig.get_path*data*)
+        echo "$prefix"                  # spec_dir derivation source
+        exit 0
+        ;;
+      *)
+        # idempotency probe: import run_kotlin_kernel
+        if [ -f "$spec/kernel.json" ] && [ -f "$site/run_kotlin_kernel/__init__.py" ]; then
+          exit 0
+        fi
+        exit 1
+        ;;
+    esac
+    ;;
+  -m)
+    echo "INTERPRETER $0 :: $*" >> "${PIP_LOG:?}"
+    if printf '%s\n' "$*" | grep -q -- "-m pip install --no-index --no-deps "; then
+      wheel="$(printf '%s\n' "$*" | awk '{print $NF}')"
+      [ -f "$wheel" ] || exit 2         # must install the verified local wheel
+      printf '%s\n' "$*" | grep -q -- "--break-system-packages" || exit 5
+      mkdir -p "$spec" "$site/run_kotlin_kernel/jars" "$site/run_kotlin_kernel/config"
+      printf '%s\n' '{"argv":["python","-m","run_kotlin_kernel","{connection_file}"],"display_name":"Kotlin","language":"kotlin"}' > "$spec/kernel.json"
+      printf '%s\n' '{"mainJar": "kotlin-jupyter-kernel-all.jar"}' > "$site/run_kotlin_kernel/config/jar_args.json"
+      : > "$site/run_kotlin_kernel/jars/kotlin-jupyter-kernel-all.jar"
+      : > "$site/run_kotlin_kernel/__init__.py"
+      exit 0
+    fi
+    exit 3
+    ;;
+  -)
+    if [ -n "${KQ_FILE:-}" ]; then
+      exec "${REAL_PYTHON3:?}" -        # checksums.json reader needs a real interpreter
+    fi
+    # post-install payload assertion (heredoc on stdin, spec dir as $2)
+    cat > /dev/null
+    echo "INTERPRETER $0 :: payload-check $2" >> "${PIP_LOG:?}"
+    main="$(sed -n 's/.*"mainJar"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+      "$site/run_kotlin_kernel/config/jar_args.json" 2>/dev/null)"
+    if [ -f "$2/kernel.json" ] && [ -d "$site/run_kotlin_kernel/jars" ] \
+      && [ -n "$main" ] && [ -f "$site/run_kotlin_kernel/jars/$main" ]; then
+      exit 0
+    fi
+    exit 1
+    ;;
+esac
+echo "INTERPRETER $0 :: UNEXPECTED $*" >> "${PIP_LOG:?}"
+exit 4
+"""
+
 
 class Sandbox:
     """tmp_path tree: bin/{curl,python3}, conda/bin/python, home/, checksums.json."""
@@ -342,17 +406,63 @@ def test_happy_path_uses_no_index_no_deps_and_exact_interpreter(tmp_path):
     assert "kotlin: done" in proc.stdout
 
 
-def test_missing_interpreter_refuses_to_fall_back(tmp_path):
+def test_no_interpreter_at_all_fails_closed(tmp_path):
+    """Replacement for test_missing_interpreter_refuses_to_fall_back: the
+    fail-closed guard is preserved, narrowed to the case where NEITHER the
+    conda python NOR a python3 on PATH exists. Non-zero exit, before any
+    download, naming both attempted interpreters — the silent-skip class of
+    failure (a kernel gate that passes while shipping no kernel) remains
+    impossible."""
     sb = Sandbox(tmp_path, "nopython")
     shutil.rmtree(sb.conda)
-    proc = sb.run()
+    (sb.root / "bin" / "python3").unlink()
+    # Strip /usr/bin and /bin so the host's python3 is not on the PATH the
+    # installer resolves; the sandbox bin carries only the curl stub.
+    proc = sb.run(PATH=str(sb.root / "bin"))
 
     assert proc.returncode == 1
     err = proc.stderr
-    assert "is missing or not executable" in err
-    assert "refusing to fall back" in err
-    assert str(sb.conda / "bin" / "python") in err
+    assert str(sb.conda / "bin" / "python") in err, "must name the conda path it tried"
+    assert "python3" in err, "must name the PATH fallback it tried"
+    assert "refusing to proceed without one" in err
     assert not sb.curl_attempts(), "must refuse before any download"
+
+
+def test_conda_absent_installs_with_python3_from_path(tmp_path):
+    """The python3 fallback branch (lang-kotlin's closure has no
+    python-conda). The stub python3 emulates a Debian PEP 668 interpreter:
+    the EXTERNALLY-MANAGED probe succeeds, so the install must carry
+    --break-system-packages, and the kernelspec must be verified under the
+    interpreter's sysconfig data prefix, not CONDA_DIR."""
+    sb = Sandbox(tmp_path, "fallback")
+    shutil.rmtree(sb.conda)  # no miniforge in this closure
+    prefix = sb.root / "usr-local"
+    prefix.mkdir(parents=True)
+    stub = sb.root / "bin" / "python3"
+    stub.unlink()  # replace the real-python symlink with the prefix-aware stub
+    _write_exec(stub, _FALLBACK_PYTHON3_STUB)
+
+    proc = sb.run(FALLBACK_PREFIX=str(prefix), REAL_PYTHON3=sys.executable)
+
+    assert proc.returncode == 0, proc.stderr
+    assert "python3 from PATH" in proc.stdout, "fallback must be announced, not silent"
+    assert len(sb.curl_attempts()) == 1
+
+    pip_log = sb.pip_invocations()
+    installs = [ln for ln in pip_log if "pip install" in ln]
+    assert len(installs) == 1, pip_log
+    # The fallback interpreter performed the registration ($0 names it).
+    assert installs[0].startswith(f"INTERPRETER {stub} ::"), installs[0]
+    assert "--no-index --no-deps --break-system-packages" in installs[0], (
+        "a PEP 668 interpreter must receive --break-system-packages; the "
+        f"pip line was: {installs[0]}"
+    )
+    spec = prefix / "share" / "jupyter" / "kernels" / "kotlin" / "kernel.json"
+    assert spec.is_file(), "kernelspec must be asserted where this interpreter writes it"
+    assert not sb.conda.exists()
+    assert any("payload-check" in ln for ln in pip_log)
+    assert "kotlin: kernel installed" in proc.stdout
+    assert "kotlin: done" in proc.stdout
 
 
 # ---------------------------------------------------------------------------

@@ -12,9 +12,16 @@ Two largely independent pieces:
    rather than shipping an image without `kotlinc`.
 2. **Jupyter kernel** (`INSTALL_KOTLIN_KERNEL=true`) — installs the PyPI
    package **`kotlin-jupyter-kernel`**, pinned to **`0.19.0.944`** in the repo
-   root `checksums.json` under `tools.kotlin-jupyter`, into the notebook
-   stack's own interpreter (`${CONDA_DIR:-${HOME_DIR:-/home/$NB_USER}/miniforge3}/bin/python`)
-   with `pip install --no-index --no-deps`. The wheel's bundled
+   root `checksums.json` under `tools.kotlin-jupyter`, into the *resolved*
+   kernel interpreter: the notebook stack's own miniforge python
+   (`${CONDA_DIR:-${HOME_DIR:-/home/$NB_USER}/miniforge3}/bin/python`) when
+   executable, otherwise `python3` on `PATH` (profiles without `python-conda`
+   in their closure, e.g. `lang-kotlin`); if neither exists the installer
+   fails closed. On the `python3` fallback the kernelspec location is derived
+   from that interpreter's `sysconfig` data prefix and pip gains
+   `--break-system-packages` only when its stdlib carries the PEP 668
+   `EXTERNALLY-MANAGED` marker. Both paths install with
+   `pip install --no-index --no-deps`. The wheel's bundled
    `share/jupyter/kernels/kotlin` payload is what registers the kernelspec;
    its argv is `python -m run_kotlin_kernel {connection_file}` (verified
    against the actual wheel).
@@ -66,7 +73,10 @@ These facts were accepted deliberately; do not treat them as surprises:
 ## Dependencies
 
 - `java-sdkman` (compiler + `JAVA_HOME` candidate link)
-- the notebook stack (conda/miniforge base at `CONDA_DIR`) for kernel installs
+- for kernel installs: the notebook stack (conda/miniforge base at
+  `CONDA_DIR`) when present, otherwise any executable `python3` on `PATH`
+  (provided by `python-base`'s `python3`/`python3-pip`). Miniforge is not
+  the sole supported interpreter.
 
 ## Usage
 

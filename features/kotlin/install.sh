@@ -156,26 +156,58 @@ kotlin_install_kernel() {
   consumer="$(kotlin_kernel_consumer_note)"
 
   # Interpreter convention shared with features/jupyter-kernels and
-  # features/java-kernel: the kernelspec MUST be registered by the same
-  # interpreter whose prefix the notebook server serves (miniforge base).
-  # Installing with any other python registers a spec whose module import
-  # fails at runtime.
+  # features/java-kernel: when present, the kernelspec MUST be registered by
+  # the same interpreter whose prefix the notebook server serves (miniforge
+  # base). Profiles whose closure carries no python-conda (lang-kotlin) have
+  # no miniforge python; for those the installer resolves `python3` on PATH
+  # (installed by python-base) and derives the kernelspec location from that
+  # interpreter's own sysconfig data prefix, so the post-install assertion
+  # tracks the interpreter that actually performed the registration.
+  # Neither available -> hard fail: a silently skipped kernel is the
+  # silent-skip failure class this gate exists to prevent.
   local nb_user="${NB_USER:-jovyan}"
   local nb_uid="${NB_UID:-1001}"
   local nb_gid="${NB_GID:-1001}"
   local home_dir="${HOME_DIR:-/home/${nb_user}}"
   local conda_dir="${CONDA_DIR:-${home_dir}/miniforge3}"
   local python_exec="${conda_dir}/bin/python"
+  local interpreter_is_fallback="false"
 
   if [ ! -x "$python_exec" ]; then
-    echo "kotlin: FAILED to install ${KOTLIN_KERNEL_PYPI_PACKAGE} ${version}: interpreter ${python_exec} is missing or not executable. The kernelspec must be registered by the notebook stack's own interpreter; refusing to fall back to an unrelated python. ${consumer}" >&2
-    exit 1
+    local system_python
+    system_python="$(command -v python3 2>/dev/null || true)"
+    if [ -n "$system_python" ] && [ -x "$system_python" ]; then
+      echo "kotlin: ${python_exec} unavailable; registering the kernel with python3 from PATH (${system_python})"
+      python_exec="$system_python"
+      interpreter_is_fallback="true"
+    else
+      echo "kotlin: FAILED to install ${KOTLIN_KERNEL_PYPI_PACKAGE} ${version}: neither the notebook stack interpreter ${conda_dir}/bin/python nor an executable python3 on PATH is available. The kernelspec must be registered by an interpreter whose jupyter prefix the notebook server resolves; refusing to proceed without one. ${consumer}" >&2
+      exit 1
+    fi
+  fi
+
+  # Kernelspec location. Conda branch: the historical fixed path, unchanged.
+  # Fallback branch: the resolved interpreter's sysconfig data path -- Debian
+  # system pip lands the wheel's DATA_FILES under /usr/local/share/jupyter,
+  # not under ${conda_dir} -- so the idempotency probe and the post-install
+  # assertion look where this interpreter actually wrote the spec.
+  local spec_dir
+  if [ "$interpreter_is_fallback" = "true" ]; then
+    local data_prefix
+    data_prefix="$("$python_exec" -c 'import sysconfig; print(sysconfig.get_path("data"))' 2>/dev/null)" || data_prefix=""
+    if [ -z "$data_prefix" ]; then
+      echo "kotlin: FAILED to install ${KOTLIN_KERNEL_PYPI_PACKAGE} ${version}: could not derive the sysconfig data path from the fallback interpreter ${python_exec}; the kernelspec location would be unverifiable. ${consumer}" >&2
+      exit 1
+    fi
+    spec_dir="${data_prefix}/share/jupyter/kernels/kotlin"
+  else
+    spec_dir="${conda_dir}/share/jupyter/kernels/kotlin"
   fi
 
   # Idempotency: module importable and kernelspec already written -> skip the
   # ~80 MB fetch entirely (mirrors the 'compiler already present' branch).
   if "$python_exec" -c "import run_kotlin_kernel" >/dev/null 2>&1 \
-    && [ -f "${conda_dir}/share/jupyter/kernels/kotlin/kernel.json" ]; then
+    && [ -f "${spec_dir}/kernel.json" ]; then
     echo "kotlin: kernel already present (module importable, kernelspec registered)"
     return 0
   fi
@@ -239,9 +271,17 @@ kotlin_install_kernel() {
   # --no-deps: upstream semantics (its conda recipe does the same; the
   # package declares no requires_dist and the runtime deps ship inside the
   # wheel/kernel spec).
-  if ! "$python_exec" -m pip install --no-index --no-deps "$wheel_path"; then
+  # --break-system-packages: ONLY when the resolved interpreter's stdlib
+  # carries the PEP 668 EXTERNALLY-MANAGED marker (Ubuntu 24.04 system
+  # python3; conda's python does not, so the conda path stays exactly as
+  # before). Same in-repo precedent as features/postgresql-client/install.sh.
+  local pip_flags=(--no-index --no-deps)
+  if "$python_exec" -c 'import os, sysconfig, sys; sys.exit(0 if os.path.isfile(os.path.join(sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED")) else 1)' 2>/dev/null; then
+    pip_flags+=(--break-system-packages)
+  fi
+  if ! "$python_exec" -m pip install "${pip_flags[@]}" "$wheel_path"; then
     rm -rf "$tmpdir"
-    echo "kotlin: FAILED 'pip install --no-index --no-deps ${wheel}' with interpreter ${python_exec}; aborting rather than shipping an image that advertises a kotlin kernel it does not have. ${consumer}" >&2
+    echo "kotlin: FAILED 'pip install ${pip_flags[*]} ${wheel}' with interpreter ${python_exec}; aborting rather than shipping an image that advertises a kotlin kernel it does not have. ${consumer}" >&2
     exit 1
   fi
   rm -rf "$tmpdir"
@@ -251,8 +291,7 @@ kotlin_install_kernel() {
   # hand-write one, and do NOT run 'fix-kernelspec-location' (copies to the
   # user data dir -> /root/.local/share/jupyter under a root build, invisible
   # to ${nb_user}) or 'add-kernel' (registers 'kotlin_<name>', never plain
-  # 'kotlin').
-  local spec_dir="${conda_dir}/share/jupyter/kernels/kotlin"
+  # 'kotlin'). spec_dir was derived from the resolved interpreter above.
   if [ ! -f "${spec_dir}/kernel.json" ]; then
     echo "kotlin: FAILED: pip install succeeded but no kernelspec at ${spec_dir}/kernel.json; a notebook server could not resolve the 'kotlin' kernel. ${consumer}" >&2
     exit 1

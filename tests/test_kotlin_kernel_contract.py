@@ -161,17 +161,29 @@ def test_installer_prefers_shared_helper_and_knows_the_baked_checksums_path():
     assert baked in source, "fallback must search the baked central location"
 
 
-def test_installer_uses_the_shared_interpreter_convention():
-    """Kernelspec registration must go through the notebook stack's own
-    interpreter, same convention as features/java-kernel and
-    features/jupyter-kernels."""
+def test_installer_resolves_a_kernel_interpreter_and_fails_closed():
+    """Kernelspec registration must go through an interpreter whose jupyter
+    prefix the notebook server resolves: the notebook stack's own miniforge
+    python first (convention shared with features/java-kernel and
+    features/jupyter-kernels), else `python3` on PATH (closures without
+    python-conda, e.g. lang-kotlin), else a hard fail — never a silent skip."""
     source = INSTALL_SH.read_text(encoding="utf-8")
     # Stepwise but equivalent to ${CONDA_DIR:-${HOME_DIR:-/home/$NB_USER}/miniforge3}/bin/python
     assert 'home_dir="${HOME_DIR:-/home/${nb_user}}"' in source
     assert 'conda_dir="${CONDA_DIR:-${home_dir}/miniforge3}"' in source
     assert 'python_exec="${conda_dir}/bin/python"' in source
+    # Fallback branch: python3 from PATH, and spec_dir derived from that
+    # interpreter's sysconfig data prefix (not the conda prefix).
+    assert 'command -v python3' in source
+    assert 'sysconfig.get_path("data")' in source
+    # Fail-closed: with neither interpreter available the installer refuses
+    # to proceed (replaces the pre-fallback "refusing to fall back" guard).
+    assert "refusing to proceed without one" in source
+    # --no-index --no-deps stay contiguous and unconditional; the only
+    # conditional flag is --break-system-packages, gated on the PEP 668
+    # EXTERNALLY-MANAGED marker of the resolved interpreter.
     assert "--no-index --no-deps" in source
-    assert "refusing to fall back" in source
+    assert "EXTERNALLY-MANAGED" in source
     assert "share/jupyter/kernels/kotlin" in source
 
 
