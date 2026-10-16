@@ -45,7 +45,15 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     # In-cluster ARC runner (actions-runner-controller) with a privileged
     # docker:dind sidecar, so buildx works exactly as in a plain docker env.
-    runs-on: ebpro-org
+    # Pin to the native amd64 pool with an explicit label list (AND over
+    # labels): bare `ebpro-org` is also carried by the ARM pool
+    # (ebpro-org-arm: ebpro-org, linux, self-hosted, arm64 — no `x64`), so a
+    # bare label lets the host-arch PR smoke build route to arm64 and pass
+    # while testing nothing. Adding `x64` makes the ARM pool architecturally
+    # ineligible and forces a native amd64 host (matches ci-publish build-amd64).
+    # Trade-off: PRs stop opportunistically exercising arm64; multi-arch is
+    # still covered by ci-publish's separate build-arm64 jobs.
+    runs-on: [self-hosted, linux, x64, ebpro-org]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
