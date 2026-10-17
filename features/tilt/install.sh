@@ -33,8 +33,15 @@ resolve_version(){
 
 TILT_VER=$(resolve_version "tilt")
 if [ -z "$TILT_VER" ]; then
-  echo "⚠️  tilt: Version not found in artefacts, using latest"
-  TILT_VER="latest"
+  # Fail closed: tilt is checksum-pinned (checksums.json tools.tilt) and the
+  # mirror (scripts/stage-toolcache.sh) serves exactly the version pinned in
+  # versions.json. The repo's designed "latest" mechanism is a per-feature
+  # check_version.py hook (features/_lib/fh_helpers.sh), and tilt ships none,
+  # so a GitHub-API "latest" here could only ever produce a hard failure at
+  # the download_direct integrity gate (no digest for an unpinned version) or
+  # depend on digest coincidence between upstream latest and the pin.
+  echo "❌ tilt: FH_VERSION_UNRESOLVED — pinned version for 'tilt' not found via fh_resolve_version/artefacts; refusing to fall back to upstream 'latest' (checksum-pinned tool)" >&2
+  exit 1
 fi
 
 echo "📦 Installing Tilt CLI version: ${TILT_VER}"
@@ -47,18 +54,13 @@ case "$ARCH" in
   *) TILT_ARCH="x86_64" ;;
 esac
 
-# Build URL manually since Tilt uses non-standard naming
-if [ "$TILT_VER" = "latest" ]; then
-  # For latest, use the GitHub API to get the actual version tag first
-  LATEST_TAG=$(curl -sL https://api.github.com/repos/tilt-dev/tilt/releases/latest | jq -r '.tag_name // "v0.33.20"' | sed 's/^v//')
-  TILT_RESOLVED_VER="$LATEST_TAG"
-  URL="https://github.com/tilt-dev/tilt/releases/download/v${LATEST_TAG}/tilt.${LATEST_TAG}.linux.${TILT_ARCH}.tar.gz"
-else
-  # Strip leading 'v' from version if present to avoid 'vv' in the URL/filename
-  TILT_TAG=${TILT_VER#v}
-  TILT_RESOLVED_VER="$TILT_TAG"
-  URL="https://github.com/tilt-dev/tilt/releases/download/v${TILT_TAG}/tilt.${TILT_TAG}.linux.${TILT_ARCH}.tar.gz"
-fi
+# Build URL manually since Tilt uses non-standard naming.
+# TILT_VER is guaranteed pinned here: the fail-closed check above aborts on
+# unresolvable versions, so there is no "latest" path (and no upstream chase).
+# Strip leading 'v' from version if present to avoid 'vv' in the URL/filename
+TILT_TAG=${TILT_VER#v}
+TILT_RESOLVED_VER="$TILT_TAG"
+URL="https://github.com/tilt-dev/tilt/releases/download/v${TILT_TAG}/tilt.${TILT_TAG}.linux.${TILT_ARCH}.tar.gz"
 
 download_direct "$URL" "tilt" "$TILT_RESOLVED_VER" "/usr/local/bin"
 echo "✅ Tilt installed successfully"

@@ -270,4 +270,10 @@ fh_resolve_arch() {
   echo "$prefer"
 }
 
-export -f fh_log fh_resolve_version fh_resolve_checksum fh_write_history fh_resolve_arch
+# `_fh_find_versions_json` MUST stay in this list: fh_resolve_version (exported)
+# calls it as its first statement, and feature installers run in CHILD shells
+# (bash /tmp/features/<f>/install.sh from the generated Dockerfile) that inherit
+# only what is exported here. Without it, resolution silently fails there
+# ("could not resolve version") while working in any shell that re-sources this
+# library — see tests/test_fh_export_inheritance.py.
+export -f fh_log fh_resolve_version fh_resolve_checksum fh_write_history fh_resolve_arch _fh_find_versions_json

@@ -95,8 +95,15 @@ resolve_version() {
 
 GH_VERSION=$(resolve_version "gh")
 if [ -z "${GH_VERSION}" ]; then
-  echo "⚠️  gh: Version not found in artefacts, using latest"
-  GH_VERSION="latest"
+  # Fail closed: gh is checksum-pinned (checksums.json tools.gh) and the
+  # mirror (scripts/stage-toolcache.sh) serves exactly the version pinned in
+  # versions.json. The repo's designed "latest" mechanism is a per-feature
+  # check_version.py hook (features/_lib/fh_helpers.sh), and gh ships none,
+  # so an unpinned "latest" could only ever produce a hard failure at the
+  # download-time integrity gate (no digest for an unpinned version) or
+  # depend on digest coincidence between upstream latest and the pin.
+  echo "❌ gh: FH_VERSION_UNRESOLVED — pinned version for 'gh' not found via artefacts/fh_resolve_version; refusing to fall back to upstream 'latest' (checksum-pinned tool)" >&2
+  exit 1
 fi
 
 echo "📦 Installing GitHub CLI version: ${GH_VERSION}"
