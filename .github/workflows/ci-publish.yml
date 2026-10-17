@@ -174,6 +174,33 @@ jobs:
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
+      # Toolcache mirror — consume side. Stage publisher-digest-pinned
+      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
+      # the build context) so the seed RUN immediately before the install RUN
+      # primes /opt/toolcache and download_direct cache-hits instead of
+      # touching origins that have never worked from this runner pool. Every
+      # digest is read from the in-repo checksums.json — never from Harbor —
+      # and objects are fetched by blob digest, so the mirror cannot
+      # substitute bytes. STRICTLY best-effort: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); any script
+      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
+      # upstream download and must NEVER fail a build leg.
+      - name: Stage toolcache mirror (pull, best-effort)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
+            echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
+            exit 0
+          fi
+          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
+            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          fi
+          exit 0
+
       - name: Build and push (amd64, standard)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
@@ -406,6 +433,33 @@ jobs:
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
+      # Toolcache mirror — consume side. Stage publisher-digest-pinned
+      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
+      # the build context) so the seed RUN immediately before the install RUN
+      # primes /opt/toolcache and download_direct cache-hits instead of
+      # touching origins that have never worked from this runner pool. Every
+      # digest is read from the in-repo checksums.json — never from Harbor —
+      # and objects are fetched by blob digest, so the mirror cannot
+      # substitute bytes. STRICTLY best-effort: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); any script
+      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
+      # upstream download and must NEVER fail a build leg.
+      - name: Stage toolcache mirror (pull, best-effort)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
+            echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
+            exit 0
+          fi
+          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
+            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          fi
+          exit 0
+
       - name: Build and push (amd64, heavy/flagship)
         env:
           PROFILE_LIST: ${{ github.event.inputs.profiles || '' }}
@@ -637,6 +691,33 @@ jobs:
           registry: harbor.ebruno.fr
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      # Toolcache mirror — consume side. Stage publisher-digest-pinned
+      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
+      # the build context) so the seed RUN immediately before the install RUN
+      # primes /opt/toolcache and download_direct cache-hits instead of
+      # touching origins that have never worked from this runner pool. Every
+      # digest is read from the in-repo checksums.json — never from Harbor —
+      # and objects are fetched by blob digest, so the mirror cannot
+      # substitute bytes. STRICTLY best-effort: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); any script
+      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
+      # upstream download and must NEVER fail a build leg.
+      - name: Stage toolcache mirror (pull, best-effort)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
+            echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
+            exit 0
+          fi
+          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
+            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          fi
+          exit 0
 
       - name: Build and push (arm64, all)
         env:
@@ -1101,3 +1182,84 @@ jobs:
               echo "No cosign key present, skipping signing for ${ref}"
             fi
           done
+
+  # Toolcache mirror — publish side. The mirror's digest SoT is the in-repo
+  # checksums.json, so a change to that file is the refresh trigger: this
+  # gate lives in the `changes` job, which mirror-artefacts needs.
+  # Fail-open by construction: an unresolvable before-SHA range (force-push,
+  # branch creation, tag, workflow_dispatch payload) defaults to changed=true
+  # so a rewritten history can NEVER silently skip publishing. A needless
+  # push is harmless (the mirror is content-addressed and idempotent); a
+  # skipped one is the failure mode. Pure git diff — no registry access — so
+  # it runs on the hosted pool already used by ci-validate.yml and
+  # validate-artefacts.yml, keeping the self-hosted pools for the builds.
+  changes:
+    name: Detect checksums.json change
+    runs-on: ubuntu-latest
+    outputs:
+      checksums: ${{ steps.detect.outputs.checksums }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect checksums.json change
+        id: detect
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -uo pipefail
+          BEFORE="${BEFORE:-}"
+          # No `set -e`: every branch below ends in an explicit output and
+          # exit 0. This step must not be able to fail the run — a red
+          # `changes` job would block ci-build.yml's promotion gate exactly
+          # like a failed mirror push.
+          if [ -z "$BEFORE" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "before-SHA '${BEFORE:-<empty>}' is unresolvable in this history (force-push, branch creation, tag or dispatch) — defaulting to changed=true"
+            echo "checksums=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "$BEFORE" "$GITHUB_SHA" -- checksums.json; then
+            echo "checksums.json unchanged between ${BEFORE:0:12} and ${GITHUB_SHA:0:12}"
+            echo "checksums=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "checksums.json changed between ${BEFORE:0:12} and ${GITHUB_SHA:0:12}"
+            echo "checksums=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Publishes the six download_direct tool archives (both arches) as
+  # content-addressed OCI objects under Harbor solen/toolcache/<tool>-<arch>
+  # (scripts/stage-toolcache.sh --mode push: upstream fetch -> verify against
+  # in-repo checksums.json -> push missing blobs; already-published objects
+  # are skipped). Runs only when checksums.json changed. The push step is
+  # continue-on-error ON PURPOSE: ci-build.yml gates develop promotion on the
+  # conclusion of this whole run ("Publish to GHCR"), so a Harbor outage or a
+  # flaky origin during a MIRROR push must never block a release — the mirror
+  # is an availability hedge, not a publish requirement. Missing credentials
+  # (the expected state until an operator provisions the robot account) are a
+  # clean skip inside the script itself.
+  mirror-artefacts:
+    name: Mirror toolcache archives to Harbor
+    needs: changes
+    if: needs.changes.outputs.checksums == 'true'
+    # Same amd64 self-hosted pool as the standard builds (the push fetches
+    # amd64+arm64 ARCHIVES over HTTPS — no container execution, so host arch
+    # is irrelevant; x64 pins it to the pool that reliably egresses).
+    runs-on: [self-hosted, linux, x64, ebpro-org]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Push toolcache mirror (advisory)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
+            echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Nothing published — the expected state until the Harbor robot account exists. Releases are unaffected."
+            exit 0
+          fi
+          scripts/stage-toolcache.sh --mode push --arch amd64,arm64
