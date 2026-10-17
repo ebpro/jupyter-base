@@ -76,12 +76,6 @@ run_check_as_user() {
 }
 SCRIPT
 
-{% if toolcache_exists %}
-# Inject prebaked toolcache from repository
-COPY generated/toolcache /opt/toolcache
-RUN chmod -R a+rX /opt/toolcache || true
-{% endif %}
-
 {% for profile in profiles %}
 # --- Profile: {{ profile.name }} ---
 FROM {{ profile.from_stage }} AS profile-{{ profile.name }}
@@ -153,6 +147,32 @@ echo "Solen post-install checks complete: $((total - failed))/$total passed"
 exit "$failed"
 SCRIPT
 RUN chmod +x /opt/solen/run-postinstall-checks.sh
+
+# Seed the shared BuildKit toolcache volume from artefacts staged in the build
+# context. scripts/stage-toolcache.sh (ci-publish build legs) pulls archives
+# pinned by the in-repo checksums.json digests from the Harbor toolcache
+# mirror into artefacts/toolcache/<tool>/<basename-of-URL>, which the
+# `COPY artefacts /opt/solen/artefacts` above lands at
+# /opt/solen/artefacts/toolcache. The layout matches the only reader,
+# download_direct (features/_lib/download-release/install.sh):
+# $TOOLCACHE_DIR/$tool/$(basename "$url") — no version, no arch.
+#
+# The mount string below MUST stay byte-identical to the toolcache mount of
+# the install RUN that follows: BuildKit resolves a cache mount's volume from
+# its explicit `id` or, when no id is given, from the target path — two
+# mounts share a volume only when that resolved key matches. Neither mount
+# carries an explicit id today, so both resolve to the target path and the
+# seed is visible to the install RUN. Do not add an id to only one of them.
+#
+# Inert when nothing is staged: an absent or empty artefacts/toolcache (Docker
+# COPY prunes empty directories, so a staged tree is what materialises it)
+# skips the copy silently. download_direct re-verifies every archive it reads
+# against /opt/solen/artefacts/checksums.json before use, so seeded bytes are
+# held to the same integrity gate as network-fetched ones.
+RUN --mount=type=cache,target=/opt/toolcache,sharing=locked \
+    if [ -d /opt/solen/artefacts/toolcache ] && [ -n "$(ls -A /opt/solen/artefacts/toolcache 2>/dev/null)" ]; then \
+      cp -a /opt/solen/artefacts/toolcache/. /opt/toolcache/ ; \
+    fi
 
 RUN \
 {% for feat in profile.install_features %}

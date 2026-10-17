@@ -29,12 +29,7 @@ def render_template(repo_root: Path, profiles: list[dict[str, Any]]) -> str:
     )
     template = env.get_template("dockerfile_template.j2")
 
-    toolcache_exists = (repo_root / "generated" / "toolcache").exists()
-
-    return template.render(
-        profiles=profiles,
-        toolcache_exists=toolcache_exists,
-    )
+    return template.render(profiles=profiles)
 
 
 def read_parent_name(profile_path: Path) -> str | None:
