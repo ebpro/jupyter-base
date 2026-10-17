@@ -50,11 +50,18 @@ set -euo pipefail
 # documented in .env.example). THE CREDENTIAL EXISTS AND WORKS: the same robot
 # account authenticates the solen/build-cache pushes on the very same runners,
 # in the very same workflow. The earlier claim that none was provisioned is
-# RETRACTED — the 12/12 push failures of CI run 39018544362 were the nested
-# repository-name shape (502 on the config-blob POST), not auth. Absence of
-# the secret in a step's scope is nonetheless a clean skip, never a failure:
-# pull exits 0 with a skip message so each leg behaves exactly as before the
-# mirror.
+# RETRACTED — and so is the follow-up claim in ddcedd6 that CI run
+# 39018544362's 12/12 push failures were a repository-name shape problem.
+# The healthy pre-flight (GET /v2/ -> 200, a scoped pull,push token issued,
+# HEAD manifest -> 404) EXCLUDES both auth and naming. The real cause: the
+# blob-upload PUT arrived at the registry with a Content-Length but NO body —
+# Harbor core logged `http: proxy error: net/http: HTTP/1.x transport
+# connection broken: http: ContentLength=2 with Body length 0` once per repo
+# (the 2 bytes are the '{}' config blob, printf at the cfg mktemp below) and
+# answered 502. Fixed by the -T upload form in push_blob/push_manifest.
+# Absence of the secret in a step's scope is nonetheless a clean skip, never
+# a failure: pull exits 0 with a skip message so each leg behaves exactly as
+# before the mirror.
 #
 # TOOLING. curl only — no oras, no skopeo, no docker, and no solen invocation
 # (solen lives in a host venv at /usr/local/lib/python3.12/dist-packages/solen
@@ -84,12 +91,15 @@ CHECKSUMS_FILE="${CHECKSUMS_FILE:-$ROOT_DIR/checksums.json}"
 
 HARBOR_BASE="${HARBOR_BASE_URL:-https://harbor.ebruno.fr}"
 TOKEN_SERVICE="harbor-registry"   # from the measured 401 Bearer challenge
-# SINGLE-LEVEL repository names ONLY: solen/toolcache-<tool>-<arch>. Harbor
-# parses registry paths as <project>/<rest-of-repository>; the nested form
-# (project solen, repository toolcache/<tool>-<arch>) made Harbor core answer
-# 502 on EVERY config-blob POST (CI run 39018544362: 12/12 pushes failed)
-# while the single-level solen/build-cache pushed fine from the same runners
-# with the same robot credential. Do not reintroduce nesting.
+# SINGLE-LEVEL repository names: solen/toolcache-<tool>-<arch>. This shape is
+# KEPT (it is deployed and matches solen/build-cache), but the 502 attribution
+# made in ddcedd6 is RETRACTED: CI run 39018544362's 12/12 push failures were
+# NOT a name-shape problem. Harbor core logged `http: ContentLength=2 with
+# Body length 0` — the config-blob PUT arrived with an empty body — while the
+# healthy pre-flight (GET /v2/ 200, scoped token issued, HEAD manifest 404)
+# excluded auth and naming. The real fix is the -T upload form in push_blob.
+# Do not reintroduce nesting without re-validating (it would be an
+# undeployed rename of already-published single-level repos).
 REPO_PREFIX="solen/toolcache"
 
 # Mirror repository name for one (tool, arch) — the SINGLE-LEVEL form above,
@@ -257,7 +267,7 @@ mode_pull() {
 # advisory CI job can annotate it (the job itself stays green by design).
 # ---------------------------------------------------------------------------
 push_blob() { # repo token file digest
-  local repo="$1" tok="$2" file="$3" digest="$4" loc sep
+  local repo="$1" tok="$2" file="$3" digest="$4" loc sep resp
   loc="$(curl -fsSL -X POST -D - -o /dev/null \
     -H "Authorization: Bearer $tok" \
     -H 'Content-Type: application/octet-stream' \
@@ -270,9 +280,48 @@ push_blob() { # repo token file digest
     *)     loc="$HARBOR_BASE/$loc" ;;
   esac
   sep='?'; case "$loc" in *\?*) sep='&' ;; esac
-  curl -fsSL -X PUT --data-binary "@$file" \
-    -H "Authorization: Bearer $tok" \
-    "${loc}${sep}digest=${digest}" >/dev/null
+  # Monolithic PUT upload via -T — the canonical registry upload form: the
+  # FILE is the request body with an exact Content-Length, and curl RE-READS
+  # it if a hop redirects (registries answer 307 to bounce PUTs to storage).
+  # The previous `-X PUT --data-binary "@$file"` form could cross a redirect
+  # with the body dropped while the method stayed PUT — Harbor core logged
+  # `http: ContentLength=2 with Body length 0` for every config-blob PUT of
+  # CI run 39018544362 (2 bytes = the '{}' config) and answered 502.
+  # -H 'Expect:' suppresses 100-continue, which proxy hops in Harbor's chain
+  # are known to mishandle. --fail-with-body + captured -o: on non-2xx we
+  # print the registry's OWN error document; the old `-f` + >/dev/null hid it
+  # behind a bare `curl: (22) The requested URL returned error: 502`.
+  resp="$(mktemp)"
+  if ! curl -sSL --fail-with-body -T "$file" -H 'Expect:' \
+      -H "Authorization: Bearer $tok" \
+      -o "$resp" \
+      "${loc}${sep}digest=${digest}"; then
+    err "$repo: PUT blob $digest failed; registry response:"
+    cat "$resp" >&2
+    rm -f "$resp"
+    return 1
+  fi
+  rm -f "$resp"
+}
+
+push_manifest() { # repo token manifest-file tag
+  local repo="$1" tok="$2" file="$3" tag="$4" resp
+  # Same -T upload form and diagnosability treatment as push_blob (the old
+  # `--data-binary "@$man"` PUT carried the identical latent body-loss
+  # defect). Content-Type is REQUIRED for a manifest PUT: the OCI media type
+  # the registry parses the body against.
+  resp="$(mktemp)"
+  if ! curl -sSL --fail-with-body -T "$file" -H 'Expect:' \
+      -H "Authorization: Bearer $tok" \
+      -H 'Content-Type: application/vnd.oci.image.manifest.v1+json' \
+      -o "$resp" \
+      "$HARBOR_BASE/v2/$repo/manifests/$tag"; then
+    err "$repo: PUT manifest $tag failed; registry response:"
+    cat "$resp" >&2
+    rm -f "$resp"
+    return 1
+  fi
+  rm -f "$resp"
 }
 
 mode_push() {
@@ -321,10 +370,7 @@ mode_push() {
     }' > "$man"
     # The tag is sha256-<digest> for BROWSING ONLY; consumers fetch the blob
     # by digest and never resolve a tag.
-    if ! curl -fsSL -X PUT --data-binary "@$man" \
-        -H "Authorization: Bearer $tok" \
-        -H 'Content-Type: application/vnd.oci.image.manifest.v1+json' \
-        "$HARBOR_BASE/v2/$repo/manifests/sha256-$digest" >/dev/null; then
+    if ! push_manifest "$repo" "$tok" "$man" "sha256-$digest"; then
       err "$repo: manifest push failed"; rm -f "$tmp" "$cfg" "$man"; fail=1; continue
     fi
     rm -f "$tmp" "$cfg" "$man"
