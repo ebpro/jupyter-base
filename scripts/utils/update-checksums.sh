@@ -88,7 +88,7 @@ find_github_asset() {
   api="https://api.github.com/repos/${owner}/${repo}/releases/tags/v${tag}"
   # Try tag endpoint first
   if curl -fsSL "$api" >/tmp/release.json 2>/dev/null; then
-    url=$(jq -r --arg p "$pattern" '.assets[] | select(.name|test($p; "i")) | .browser_download_url' /tmp/release.json 2>/dev/null | head -n1 || true)
+    url=$(jq -r --arg p "$pattern" '.assets[] | select((.name|test($p; "i")) and (.name | endswith(".asc") | not)) | .browser_download_url' /tmp/release.json 2>/dev/null | head -n1 || true)
     if [ -n "$url" ]; then
       echo "$url"
       rm -f /tmp/release.json
@@ -99,7 +99,7 @@ find_github_asset() {
   # Fallback to latest
   api="https://api.github.com/repos/${owner}/${repo}/releases/latest"
   if curl -fsSL "$api" >/tmp/release.json 2>/dev/null; then
-    url=$(jq -r --arg p "$pattern" '.assets[] | select(.name|test($p; "i")) | .browser_download_url' /tmp/release.json 2>/dev/null | head -n1 || true)
+    url=$(jq -r --arg p "$pattern" '.assets[] | select((.name|test($p; "i")) and (.name | endswith(".asc") | not)) | .browser_download_url' /tmp/release.json 2>/dev/null | head -n1 || true)
     if [ -n "$url" ]; then
       echo "$url"
       rm -f /tmp/release.json
@@ -131,38 +131,35 @@ if [ -n "$KUBECTL_VER" ] && [ "$KUBECTL_VER" != "null" ]; then
 fi
 
 HELM_VER=$(get_version helm)
+# Root versions.json carries helm as "v4.0.4"; the get.helm.sh artefacts are
+# named with a single v, so strip it to avoid building dead 'helm-vv...' URLs.
+HELM_VER=${HELM_VER#v}
 if [ -n "$HELM_VER" ] && [ "$HELM_VER" != "null" ]; then
-  candidates=(
-    "https://get.helm.sh/helm-v${HELM_VER}-linux-{arch}.tar.gz"
-    "https://github.com/helm/helm/releases/download/v${HELM_VER}/helm-v${HELM_VER}-linux-{arch}.tar.gz"
-  )
   for ARCH in "${ARCHS_ARR[@]}"; do
     read -r -a ALIASES <<< "$(arch_aliases "$ARCH")"
-    for url in "${candidates[@]}"; do
-      for a in "${ALIASES[@]}"; do
-        dest="$TMPDIR/helm-${ARCH}.tar.gz"
-        url_arch=${url//\{arch\}/$a}
-        if sha=$(download_and_hash "$url_arch" "$dest"); then
-          echo "helm $HELM_VER $a -> $sha"
-          update_checksums helm "$HELM_VER" "$ARCH" "$sha"
-          continue 3
-        fi
-      done
-    done
-    # fallback: try GitHub assets via API (match any alias)
-    alias_regex=$(IFS='|'; echo "${ALIASES[*]}")
-    gh_url=$(find_github_asset "helm" "helm" "$HELM_VER" "linux.*(${alias_regex})|(${alias_regex}).*linux") || true
-    if [ -n "$gh_url" ]; then
+    for a in "${ALIASES[@]}"; do
+      url="https://get.helm.sh/helm-v${HELM_VER}-linux-${a}.tar.gz"
       dest="$TMPDIR/helm-${ARCH}.tar.gz"
-      if sha=$(download_and_hash "$gh_url" "$dest"); then
-        echo "helm $HELM_VER $ARCH -> $sha (from GitHub assets)"
+      # get.helm.sh publishes a .sha256sum companion for every archive; prefer
+      # the publisher digest, falling back to hashing the downloaded tarball.
+      sha=$(curl -fsSL "${url}.sha256sum" 2>/dev/null | awk '{print $1; exit}' || true)
+      if [ -n "$sha" ]; then
+        echo "helm $HELM_VER $a -> $sha (from get.helm.sh .sha256sum)"
         update_checksums helm "$HELM_VER" "$ARCH" "$sha"
+        break
       fi
-    fi
+      if sha=$(download_and_hash "$url" "$dest"); then
+        echo "helm $HELM_VER $a -> $sha"
+        update_checksums helm "$HELM_VER" "$ARCH" "$sha"
+        break
+      fi
+    done
   done
 fi
 
 K9S_VER=$(get_version k9s)
+# Same 'vv' defect as helm: versions.json carries k9s v-prefixed; strip it.
+K9S_VER=${K9S_VER#v}
 if [ -n "$K9S_VER" ] && [ "$K9S_VER" != "null" ]; then
   candidates=(
     "https://github.com/derailed/k9s/releases/download/v${K9S_VER}/k9s_Linux_{arch}.tar.gz"
@@ -194,6 +191,8 @@ if [ -n "$K9S_VER" ] && [ "$K9S_VER" != "null" ]; then
 fi
 
 KUSTOMIZE_VER=$(get_version kustomize)
+# Same 'vv' defect as helm: versions.json carries kustomize v-prefixed; strip it.
+KUSTOMIZE_VER=${KUSTOMIZE_VER#v}
 if [ -n "$KUSTOMIZE_VER" ] && [ "$KUSTOMIZE_VER" != "null" ]; then
   candidates=(
     "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VER}/kustomize_v${KUSTOMIZE_VER}_linux_{arch}.tar.gz"

@@ -74,8 +74,8 @@ fi
 if [ -n "${KUBECTL_VERSION}" ]; then
   echo "kubernetes-client: installing kubectl ${KUBECTL_VERSION}"
   KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl"
-  # download_direct URL TOOL [INSTALL_DIR] [EXTRACT]
-  download_direct "${KUBECTL_URL}" "kubectl" "${LOCAL_BIN}" "false"
+  # download_direct URL TOOL VERSION [INSTALL_DIR] [EXTRACT]
+  download_direct "${KUBECTL_URL}" "kubectl" "${KUBECTL_VERSION}" "${LOCAL_BIN}" "false"
 fi
 
 # Install helm (GitHub release tarball)
@@ -91,7 +91,7 @@ if [ -n "${HELM_VERSION}" ]; then
   fi
   HELM_URL="https://get.helm.sh/helm-${HELM_TAG}-linux-${ARCH}.tar.gz"
   # use download_direct which will extract and pick the `helm` binary from the archive
-  download_direct "${HELM_URL}" "helm" "${LOCAL_BIN}" "true"
+  download_direct "${HELM_URL}" "helm" "${HELM_VERSION}" "${LOCAL_BIN}" "true"
 fi
 
 # Install kustomize (GitHub release tarball)
@@ -102,7 +102,7 @@ if [ -n "${KUSTOMIZE_VERSION}" ]; then
   KUSTOMIZE_VER_NOV=${KUSTOMIZE_VERSION#v}
   KUSTOMIZE_TAG_ESC="kustomize%2Fv${KUSTOMIZE_VER_NOV}"
   KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/${KUSTOMIZE_TAG_ESC}/kustomize_v${KUSTOMIZE_VER_NOV}_linux_${ARCH}.tar.gz"
-  download_direct "${KUSTOMIZE_URL}" "kustomize" "${LOCAL_BIN}" "true"
+  download_direct "${KUSTOMIZE_URL}" "kustomize" "${KUSTOMIZE_VERSION}" "${LOCAL_BIN}" "true"
 fi
 
 chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}" || true

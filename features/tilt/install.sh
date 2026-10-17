@@ -51,13 +51,15 @@ esac
 if [ "$TILT_VER" = "latest" ]; then
   # For latest, use the GitHub API to get the actual version tag first
   LATEST_TAG=$(curl -sL https://api.github.com/repos/tilt-dev/tilt/releases/latest | jq -r '.tag_name // "v0.33.20"' | sed 's/^v//')
+  TILT_RESOLVED_VER="$LATEST_TAG"
   URL="https://github.com/tilt-dev/tilt/releases/download/v${LATEST_TAG}/tilt.${LATEST_TAG}.linux.${TILT_ARCH}.tar.gz"
 else
   # Strip leading 'v' from version if present to avoid 'vv' in the URL/filename
   TILT_TAG=${TILT_VER#v}
+  TILT_RESOLVED_VER="$TILT_TAG"
   URL="https://github.com/tilt-dev/tilt/releases/download/v${TILT_TAG}/tilt.${TILT_TAG}.linux.${TILT_ARCH}.tar.gz"
 fi
 
-download_direct "$URL" "tilt" "/usr/local/bin"
+download_direct "$URL" "tilt" "$TILT_RESOLVED_VER" "/usr/local/bin"
 echo "✅ Tilt installed successfully"
 echo "===================================================================="

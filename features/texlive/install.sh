@@ -91,6 +91,7 @@ tmpd=$(mktemp -d)
 if download_direct \
   "${TINYTEX_URL}" \
   "tinytex" \
+  "${TINYTEX_VERSION}" \
   "${tmpd}" \
   false; then
   # download_direct will copy the downloaded archive to ${tmpd}/tinytex
@@ -158,29 +159,6 @@ if [ -n "${installer_sh}" ]; then
     echo "texlive: could not locate installed texlive directory under ${install_root}" >&2
   fi
   rm -rf "${tmpd}"
-else
-  curl -fsSL "${TINYTEX_URL}" -o /tmp/${INSTALLER}.tar.gz
-  if command -v fh_verify_from_checksums >/dev/null 2>&1; then
-    if fh_verify_from_checksums "tinytex" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
-      :
-    elif fh_verify_from_checksums "tinytex-installer" "${TINYTEX_VERSION}" "${ARCH:-linux}" /tmp/${INSTALLER}.tar.gz; then
-      :
-    else
-      echo "texlive: checksum verification failed" >&2
-      exit 1
-    fi
-  else
-    if [ -n "${CHKSUM}" ] && command -v verify-artifact >/dev/null 2>&1; then
-      verify-artifact "${CHKSUM}" /tmp/${INSTALLER}.tar.gz
-    elif [ -n "${CHKSUM}" ]; then
-      echo "${CHKSUM}  /tmp/${INSTALLER}.tar.gz" > /tmp/${INSTALLER}.sha256 && sha256sum -c /tmp/${INSTALLER}.sha256 && rm -f /tmp/${INSTALLER}.sha256
-    fi
-  fi
-  tar xf /tmp/${INSTALLER}.tar.gz -C /tmp
-  pushd /tmp
-  ./install.sh || true
-  popd
-  rm -f /tmp/${INSTALLER}.tar.gz || true
 fi
 mkdir -p "${TEXDIR}"
 mv texlive/* "${TEXDIR}" || true

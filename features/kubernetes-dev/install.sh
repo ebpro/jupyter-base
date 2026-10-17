@@ -78,7 +78,7 @@ if [ -n "${K9S_VERSION}" ]; then
   fi
 
   K9S_URL="https://github.com/derailed/k9s/releases/download/${K9S_TAG}/k9s_Linux_${ARCH}.tar.gz"
-  download_direct "${K9S_URL}" "k9s" "${LOCAL_BIN}" "true"
+  download_direct "${K9S_URL}" "k9s" "${K9S_VERSION}" "${LOCAL_BIN}" "true"
 fi
 
 chown -R ${NB_UID}:${NB_GID} "${LOCAL_BIN}" || true

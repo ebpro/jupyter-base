@@ -673,23 +673,43 @@ download_github_release() {
     fi
 }
 
+# Normalise a version into a checksums.json key.
+#
+# checksums.json stores digests under V-LESS version keys
+# (.tools[<tool>].checksums["4.0.4"].<arch>), while versions.json carries
+# v-PREFIXED values for several tools ("helm": "v4.0.4", "k9s": "v0.50.18",
+# "kustomize": "v5.7.1", "tilt": "v0.36.0"). Every digest lookup must therefore
+# strip one leading "v" first. This mirrors the existing convention in
+# features/quarto-cli/install.sh ("${QUARTO_VERSION#v}").
+#
+# Usage: _dr_version_key <version>   -> prints the normalised key
+_dr_version_key() {
+    local v="${1:-}"
+    printf '%s' "${v#v}"
+}
+
 # Download and install a binary from a direct URL
-# Usage: download_direct URL TOOL [INSTALL_DIR] [EXTRACT]
+# Usage: download_direct URL TOOL VERSION [INSTALL_DIR] [EXTRACT]
 #
 # Arguments:
 #   URL: Direct download URL
-#   TOOL: Binary name to install
+#   TOOL: Binary name to install (also the checksums.json tool key)
+#   VERSION: Pinned version, used to resolve the publisher digest from
+#            checksums.json. A leading "v" is normalised by _dr_version_key().
+#            Enforcement is fail-closed: an unresolvable digest aborts the
+#            install unless FH_ALLOW_MISSING_CHECKSUMS=true.
 #   INSTALL_DIR: Target directory (default: /usr/local/bin)
 #   EXTRACT: true to extract tar.gz, false to use binary directly (default: true)
 #
 # Examples:
-#   download_direct "https://example.com/tool.tar.gz" "tool"
-#   download_direct "https://example.com/binary" "tool" "/usr/local/bin" "false"
+#   download_direct "https://example.com/tool.tar.gz" "tool" "1.2.3"
+#   download_direct "https://example.com/binary" "tool" "1.2.3" "/usr/local/bin" "false"
 download_direct() {
     local url="$1"
     local tool="$2"
-    local install_dir="${3:-/usr/local/bin}"
-    local extract="${4:-true}"
+    local version="${3:-}"
+    local install_dir="${4:-/usr/local/bin}"
+    local extract="${5:-true}"
 
     echo "📦 Downloading $tool from direct URL..."
     echo "   URL: $url"
@@ -764,6 +784,66 @@ download_direct() {
         return 1
     fi
 
+    # ── Integrity gate (BEFORE any toolcache write) ─────────────────────────
+    # The archive is verified against the publisher digest held in
+    # checksums.json before it is either cached or extracted, so a poisoned
+    # archive can never be persisted into /opt/toolcache and replayed by every
+    # later build.
+    #
+    # fh_resolve_checksum (features/_lib/fh_helpers.sh) is the single source of
+    # truth and is the only resolver that knows the IN-CONTAINER location
+    # /opt/solen/artefacts/checksums.json. fh_verify_from_checksums
+    # (scripts/lib/features.sh) is host-side only — it looks in /tmp and ${PWD}
+    # and would silently find nothing during an image build.
+    local ver_key
+    ver_key=$(_dr_version_key "$version")
+
+    if ! command -v fh_resolve_checksum >/dev/null 2>&1; then
+        echo "download-release: fh_resolve_checksum not available; cannot verify $tool@${ver_key:-<no version>} — refusing to install or cache an unverified archive" >&2
+        rm -f "$tmpfile"
+        return 1
+    fi
+
+    local expected_sha=""
+    if [ -n "$ver_key" ]; then
+        expected_sha=$(fh_resolve_checksum "$tool" "$ver_key" || true)
+    fi
+
+    if [ -z "$expected_sha" ]; then
+        # Fail closed, mirroring download_github_release. Note download_direct
+        # historically never read FH_ALLOW_MISSING_CHECKSUMS at all; it is
+        # wired deliberately here so the escape hatch behaves identically on
+        # both paths.
+        if [ "${FH_ALLOW_MISSING_CHECKSUMS:-false}" = "true" ]; then
+            echo "   ⚠️  No checksum available for $tool@${ver_key:-<no version>}; skipping verification due to FH_ALLOW_MISSING_CHECKSUMS=true"
+        else
+            echo "❌ Checksum not found for $tool@${ver_key:-<no version>} via fh_resolve_checksum — refusing to install or cache an unverified archive (set FH_ALLOW_MISSING_CHECKSUMS=true to override)" >&2
+            rm -f "$tmpfile"
+            return 1
+        fi
+    else
+        echo "   Verifying checksum for $tool@$ver_key..."
+        local actual_sha
+        actual_sha=$(sha256sum "$tmpfile" | awk '{print $1}')
+        if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "❌ Checksum mismatch for $tool@$ver_key: expected $expected_sha, got $actual_sha" >&2
+            # Evict a poisoned cache entry (this archive may have come from it)
+            # so the next build re-downloads instead of replaying bad bytes.
+            if [ -f "$cache_archive" ]; then
+                if _cache_lock_acquire "$cache_dir"; then
+                    rm -f "$cache_archive" || true
+                    _cache_lock_release "$cache_dir"
+                else
+                    rm -f "$cache_archive" || true
+                fi
+                echo "   Removed bad cache: $cache_archive"
+            fi
+            rm -f "$tmpfile"
+            return 1
+        fi
+        echo "   ✅ Checksum verified"
+    fi
+
     # If downloaded and not from cache, store in toolcache
     if [ "$from_cache" != true ]; then
         if [ -n "$cache_dir" ]; then
@@ -786,17 +866,6 @@ download_direct() {
         fi
     fi
 
-    # Check checksums.json similarly for direct downloads when possible
-    local checksums_file=""
-    if [ -f /tmp/checksums.json ]; then
-        checksums_file=/tmp/checksums.json
-    elif [ -f "${PWD}/checksums.json" ]; then
-        checksums_file="${PWD}/checksums.json"
-    fi
-    if [ -n "$checksums_file" ] && command -v jq >/dev/null 2>&1; then
-        # Attempt to infer tool and version from URL if possible (best-effort)
-        :
-    fi
 
     # Extract or copy binary (same logic as download_github_release)
     mkdir -p "$install_dir"
@@ -853,7 +922,7 @@ download_direct() {
 }
 
 # Export functions
-export -f _map_architecture download_github_release download_direct
+export -f _map_architecture _dr_version_key download_github_release download_direct
 HELPER_EOF
 
 chmod +x "$HELPER_LIB"
