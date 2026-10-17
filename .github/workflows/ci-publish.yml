@@ -10,6 +10,11 @@ on:
         description: 'Comma-separated profiles to publish (defaults to all generated)'
         required: false
         default: ''
+      mirror_force:
+        description: 'Force the toolcache mirror push even when checksums.json is unchanged (bootstrap / re-seed)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -55,6 +60,16 @@ jobs:
   # produces `-amd64` tags holding arm64 images.
   build-amd64-standard:
     runs-on: [self-hosted, linux, x64, ebpro-org]
+    # ADVISORY ORDERING, not a gate: wait for mirror-artefacts to finish so a
+    # run that seeds the mirror can CONSUME its own artefacts in the same run
+    # (the pull step used to race the push). `!cancelled()` is the explicit
+    # form of "success() || failure() || skipped()" at job level: the legs
+    # keep their every-trigger behaviour and a red or skipped mirror (or a
+    # red `changes`) can never skip the release path — the mirror is an
+    # availability hedge, never a publish requirement. Only a CANCELLED
+    # dependency stops these jobs, matching run-cancellation semantics.
+    needs: [changes, mirror-artefacts]
+    if: ${{ !cancelled() }}
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       # Job-level so a step-level `if:` can express the secret-absent case as
@@ -330,6 +345,9 @@ jobs:
   # + quarto-java-*), isolated on the larger pool for resource headroom.
   build-amd64-heavy:
     runs-on: ebpro-org-large
+    # ADVISORY ORDERING, not a gate — see build-amd64-standard.
+    needs: [changes, mirror-artefacts]
+    if: ${{ !cancelled() }}
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       # Job-level so a step-level `if:` can express the secret-absent case as
@@ -605,6 +623,9 @@ jobs:
   # (develop push, v* tag, workflow_dispatch).
   build-arm64:
     runs-on: ebpro-org-arm
+    # ADVISORY ORDERING, not a gate — see build-amd64-standard.
+    needs: [changes, mirror-artefacts]
+    if: ${{ !cancelled() }}
     env:
       IS_VTAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
       # Job-level so a step-level `if:` can express the secret-absent case as
@@ -1285,8 +1306,11 @@ jobs:
   # single-level solen/build-cache in that very run. Do not reintroduce
   # nesting. (scripts/stage-toolcache.sh --mode push: upstream fetch ->
   # verify against in-repo checksums.json -> push missing blobs;
-  # already-published objects are skipped). Runs only when checksums.json
-  # changed. The push step is continue-on-error ON PURPOSE: ci-build.yml
+  # already-published objects are skipped). Runs when checksums.json changed
+  # OR a workflow_dispatch set mirror_force — the bootstrap path: once
+  # checksums.json stabilises the change gate stays closed forever, so seeding
+  # an empty mirror needs an explicit-force door (chicken-and-egg hole in the
+  # original design). The push step is continue-on-error ON PURPOSE: ci-build.yml
   # gates develop promotion on the conclusion of this whole run ("Publish to
   # GHCR"), so a Harbor outage or a flaky origin during a MIRROR push must
   # never block a release — the mirror is an availability hedge, not a
@@ -1296,7 +1320,12 @@ jobs:
   mirror-artefacts:
     name: Mirror toolcache archives to Harbor
     needs: changes
-    if: needs.changes.outputs.checksums == 'true'
+    # Gate: checksums.json changed, OR a dispatch explicitly forced the
+    # mirror (mirror_force — bootstrap/re-seed door; the change gate alone
+    # can never open again once checksums.json stabilises). This explicit
+    # `if` also overrides the implicit success() on `needs: changes`, which
+    # is the pre-existing behaviour of this job.
+    if: needs.changes.outputs.checksums == 'true' || github.event.inputs.mirror_force == 'true'
     # Same amd64 self-hosted pool as the standard builds (the push fetches
     # amd64+arm64 ARCHIVES over HTTPS — no container execution, so host arch
     # is irrelevant; x64 pins it to the pool that reliably egresses).
