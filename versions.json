@@ -14,7 +14,7 @@
     "k9s": "v0.50.18",
     "k3d": "v5.8.3",
     "kubectl": "1.34.1",
-    "kustomize": "v5.8.0",
+    "kustomize": "v5.7.1",
     "code-server": "v4.108.0",
     "minikube": "1.37.0",
     "gh": "2.83.2",

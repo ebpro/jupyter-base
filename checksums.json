@@ -30,6 +30,10 @@
         "3.18.6": {
           "amd64": "3f43c0aa57243852dd542493a0f54f1396c0bc8ec7296bbb2c01e802010819ce",
           "arm64": "5b8e00b6709caab466cbbb0bc29ee09059b8dc9417991dd04b497530e49b1737"
+        },
+        "4.0.4": {
+          "amd64": "29454bc351f4433e66c00f5d37841627cbbcc02e4c70a6d796529d355237671c",
+          "arm64": "16b88acc6503d646b7537a298e7389bef469c5cc9ebadf727547abe9f6a35903"
         }
       }
     },
@@ -43,6 +47,10 @@
         "0.50.9": {
           "amd64": "5e625efa26c3e14256cf29d242179b32129183b549937ec62d0ad9be1bfe2ca4",
           "arm64": "147e696b608da9a300b9db6b35fd6dfc0713ce8c64865e550c90452696bb779a"
+        },
+        "0.50.18": {
+          "amd64": "0b697ed4aa80997f7de4deeed6f1fba73df191b28bf691b1f28d2f45fa2a9e9b",
+          "arm64": "d3dcc051d6be26ee911c00f583412802ebe203a189e51bc079332cb410c83b38"
         }
       }
     },
@@ -138,7 +146,6 @@
         }
       }
     },
-
     "code-server": {
       "pinned_version": "4.95.1-rc.2",
       "archive_format": "tar.gz",
@@ -146,10 +153,13 @@
       "latest_version_cmd": "curl -s https://api.github.com/repos/coder/code-server/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
       "notes": "Code-Server release assets are published on GitHub. Arch values: amd64, arm64.",
       "checksums": {
-        "4.95.1-rc.2": {}
+        "4.95.1-rc.2": {},
+        "4.108.0": {
+          "amd64": "eefeebffb275eb64463a3e03937815a1cd551cc2f765865b12a06e70e24ab5cf",
+          "arm64": "0e441373e3e1dd5af907677eab9759844f8685cf2533801c3e367282f71f16ff"
+        }
       }
-    }
-    ,
+    },
     "ijava": {
       "pinned_version": "1.4.6-pr12",
       "archive_format": "zip",
@@ -165,8 +175,7 @@
           "arm64": "c2fa3bcb3fc22602e7e116bf0f2590dcc521ebf8cecb347885b799919ab6a870"
         }
       }
-    }
-    ,
+    },
     "git-lfs": {
       "pinned_version": "3.4.1",
       "archive_format": "tar.gz",
@@ -181,8 +190,7 @@
           "aarch64": "f93c5070223d95eb44fea0ee2f2db26656793d5f3417366f77dd20b9518c46ce"
         }
       }
-    }
-    ,
+    },
     "tinytex": {
       "pinned_version": "2026.09",
       "archive_format": "tar.gz",
@@ -197,8 +205,7 @@
           "aarch64": "aaf6e0115b1419bafe45c368ae41f46abe024d21556c989db17707698bf69080"
         }
       }
-    }
-    ,
+    },
     "miniforge": {
       "pinned_version": "25.11.0-1",
       "archive_format": "sh",
@@ -213,8 +220,7 @@
           "arm64": "43a3783f9e121088f1c92b131b4305b9ebf159424ad2543dfcfc0f1952b5e127"
         }
       }
-    }
-    ,
+    },
     "chrome-headless-shell": {
       "pinned_version": "155.0.8059.39",
       "archive_format": "zip",
@@ -228,8 +234,7 @@
           "aarch64": "9fb86f7c0b2734c5febc0bbb4e85f37da43553f3f8a7970949828c5713e87e94"
         }
       }
-    }
-    ,
+    },
     "kotlin-jupyter": {
       "pinned_version": "0.19.0.944",
       "archive_format": "whl",
@@ -240,6 +245,19 @@
         "0.19.0.944": {
           "amd64": "dc654a426a28e6621aeb0bd7772d268a9a877aabae4a17b73383752a416281a3",
           "arm64": "dc654a426a28e6621aeb0bd7772d268a9a877aabae4a17b73383752a416281a3"
+        }
+      }
+    },
+    "tilt": {
+      "pinned_version": "0.36.0",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/tilt-dev/tilt/releases/download/v{version}/tilt.{version}.linux.{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/tilt-dev/tilt/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Tilt ships a checksums.txt manifest on each release; asset arch mapping: amd64 -> x86_64 (tilt.{version}.linux.x86_64.tar.gz), arm64 -> arm64. Digested version comes from that manifest, cross-confirmed against GitHub per-asset API digests.",
+      "checksums": {
+        "0.36.0": {
+          "amd64": "9ce610083efc76ffa518ec9b001ddb1711b652adce3333f57ffff6be50ad9719",
+          "arm64": "1fb79ec7609c9d430c29c66d9d1c12c2a58aaf2314bf42d7372105f8ab2eb4ce"
         }
       }
     }

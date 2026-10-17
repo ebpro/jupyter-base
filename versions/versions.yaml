@@ -62,7 +62,10 @@ tools:
       - type: github
         repo: "kubernetes/kubernetes"
   kustomize:
-    version: "v5.8.0"
+    version: "v5.7.1"
+    # Held at 5.7.1 by explicit decision: the upstream 5.8.0 release body
+    # declares a namespace-propagation regression (kubernetes-sigs/kustomize#6031).
+    # The 5.7.1 digests already in checksums.json are what enforcement uses.
     sources:
       - type: github
         repo: "kubernetes-sigs/kustomize"
