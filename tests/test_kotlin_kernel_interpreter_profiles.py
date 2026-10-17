@@ -23,7 +23,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from solen.core.feature import expand_feature_dependencies
 
 REPO = Path(__file__).resolve().parent.parent
