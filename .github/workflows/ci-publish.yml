@@ -175,7 +175,9 @@ jobs:
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
       # Toolcache mirror — consume side. Stage publisher-digest-pinned
-      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
+      # names; the nested two-segment form 502s on the first config-blob
+      # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
       # the build context) so the seed RUN immediately before the install RUN
       # primes /opt/toolcache and download_direct cache-hits instead of
@@ -183,9 +185,10 @@ jobs:
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
       # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); any script
-      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
-      # upstream download and must NEVER fail a build leg.
+      # skip (behaviour identical to before the mirror existed); misses are
+      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
+      # step always exits 0. A mirror miss degrades to today's upstream
+      # download and must NEVER fail a build leg.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
@@ -196,9 +199,22 @@ jobs:
             echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
             exit 0
           fi
-          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
-            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          # mode_pull always returns 0, so an `if ! scripts/…` wrapper around
+          # it could never fire. Surface misses from the script's own markers
+          # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
+          # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
+          # byte-substring). Loud but non-failing: the step exits 0 whatever
+          # the count says — a mirror miss is never a build-leg failure.
+          LOG="$(mktemp)"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          status=${PIPESTATUS[0]}
+          misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
+          if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
+            first="$(grep -m1 -F -e '⚠' -e '❌' "$LOG" || true)"
+            first="${first//%/%25}"
+            echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          rm -f "$LOG"
           exit 0
 
       - name: Build and push (amd64, standard)
@@ -434,7 +450,9 @@ jobs:
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
       # Toolcache mirror — consume side. Stage publisher-digest-pinned
-      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
+      # names; the nested two-segment form 502s on the first config-blob
+      # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
       # the build context) so the seed RUN immediately before the install RUN
       # primes /opt/toolcache and download_direct cache-hits instead of
@@ -442,9 +460,10 @@ jobs:
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
       # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); any script
-      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
-      # upstream download and must NEVER fail a build leg.
+      # skip (behaviour identical to before the mirror existed); misses are
+      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
+      # step always exits 0. A mirror miss degrades to today's upstream
+      # download and must NEVER fail a build leg.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
@@ -455,9 +474,22 @@ jobs:
             echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
             exit 0
           fi
-          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
-            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          # mode_pull always returns 0, so an `if ! scripts/…` wrapper around
+          # it could never fire. Surface misses from the script's own markers
+          # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
+          # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
+          # byte-substring). Loud but non-failing: the step exits 0 whatever
+          # the count says — a mirror miss is never a build-leg failure.
+          LOG="$(mktemp)"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          status=${PIPESTATUS[0]}
+          misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
+          if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
+            first="$(grep -m1 -F -e '⚠' -e '❌' "$LOG" || true)"
+            first="${first//%/%25}"
+            echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          rm -f "$LOG"
           exit 0
 
       - name: Build and push (amd64, heavy/flagship)
@@ -693,7 +725,9 @@ jobs:
           password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
       # Toolcache mirror — consume side. Stage publisher-digest-pinned
-      # archives from Harbor solen/toolcache/<tool>-<arch> into
+      # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
+      # names; the nested two-segment form 502s on the first config-blob
+      # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
       # the build context) so the seed RUN immediately before the install RUN
       # primes /opt/toolcache and download_direct cache-hits instead of
@@ -701,9 +735,10 @@ jobs:
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
       # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); any script
-      # failure => ::warning:: and exit 0. A mirror miss degrades to today's
-      # upstream download and must NEVER fail a build leg.
+      # skip (behaviour identical to before the mirror existed); misses are
+      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
+      # step always exits 0. A mirror miss degrades to today's upstream
+      # download and must NEVER fail a build leg.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
@@ -714,9 +749,22 @@ jobs:
             echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Skipping staging — behaviour is identical to before the mirror existed (upstream downloads)."
             exit 0
           fi
-          if ! scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache; then
-            echo "::warning::Toolcache mirror staging failed on ARCH=$ARCH (any cause). Proceeding with upstream downloads: this leg behaves exactly as before the mirror existed. A mirror miss is never a build-leg failure by design."
+          # mode_pull always returns 0, so an `if ! scripts/…` wrapper around
+          # it could never fire. Surface misses from the script's own markers
+          # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
+          # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
+          # byte-substring). Loud but non-failing: the step exits 0 whatever
+          # the count says — a mirror miss is never a build-leg failure.
+          LOG="$(mktemp)"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          status=${PIPESTATUS[0]}
+          misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
+          if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
+            first="$(grep -m1 -F -e '⚠' -e '❌' "$LOG" || true)"
+            first="${first//%/%25}"
+            echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          rm -f "$LOG"
           exit 0
 
       - name: Build and push (arm64, all)
@@ -1229,16 +1277,22 @@ jobs:
           fi
 
   # Publishes the six download_direct tool archives (both arches) as
-  # content-addressed OCI objects under Harbor solen/toolcache/<tool>-<arch>
-  # (scripts/stage-toolcache.sh --mode push: upstream fetch -> verify against
-  # in-repo checksums.json -> push missing blobs; already-published objects
-  # are skipped). Runs only when checksums.json changed. The push step is
-  # continue-on-error ON PURPOSE: ci-build.yml gates develop promotion on the
-  # conclusion of this whole run ("Publish to GHCR"), so a Harbor outage or a
-  # flaky origin during a MIRROR push must never block a release — the mirror
-  # is an availability hedge, not a publish requirement. Missing credentials
-  # (the expected state until an operator provisions the robot account) are a
-  # clean skip inside the script itself.
+  # content-addressed OCI objects under Harbor solen/toolcache-<tool>-<arch>
+  # — SINGLE-LEVEL repo names. Root cause of the run-39018544362 failure
+  # (12/12 pushes, 502 on the first config-blob POST): Harbor parses the
+  # first path segment as the project and mishandles the nested two-segment
+  # form; the same runner and the same robot credential pushed fine to the
+  # single-level solen/build-cache in that very run. Do not reintroduce
+  # nesting. (scripts/stage-toolcache.sh --mode push: upstream fetch ->
+  # verify against in-repo checksums.json -> push missing blobs;
+  # already-published objects are skipped). Runs only when checksums.json
+  # changed. The push step is continue-on-error ON PURPOSE: ci-build.yml
+  # gates develop promotion on the conclusion of this whole run ("Publish to
+  # GHCR"), so a Harbor outage or a flaky origin during a MIRROR push must
+  # never block a release — the mirror is an availability hedge, not a
+  # publish requirement. The robot credential exists and works (same secret
+  # as the build cache); failures are LOUD — a red step plus an ::error::
+  # annotation with the failing count — while the job stays green.
   mirror-artefacts:
     name: Mirror toolcache archives to Harbor
     needs: changes
@@ -1251,6 +1305,68 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Pure diagnostic, run immediately before the push: GET/HEAD only, NO
+      # registry writes, always exit 0. Separates the three failure classes
+      # this registry has shown — runner egress, token scope, and the
+      # run-39018544362 nested-path 5xx — so the push step's red annotation
+      # can be interpreted without log archaeology.
+      - name: Harbor mirror pre-flight probe (read-only)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+        run: |
+          set -uo pipefail
+          HARBOR_BASE="${HARBOR_BASE_URL:-https://harbor.ebruno.fr}"
+          REPO="solen/toolcache-helm-amd64"   # probe subject; single-level name
+          # Presence only — secret values are NEVER echoed.
+          if [ -n "${HARBOR_ROBOT_SECRET:-}" ]; then secret_state="set"; else secret_state="<unset>"; fi
+          echo "Pre-flight (read-only): HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>} HARBOR_ROBOT_SECRET=$secret_state"
+          # 1) Registry liveness: authenticated GET /v2/. 200 or 401 (the
+          #    healthy Bearer challenge) proves the runner reaches Harbor.
+          alive="$(curl -sS -o /dev/null -w '%{http_code}' -m 20 -u "${HARBOR_USERNAME:-nobody}:${HARBOR_ROBOT_SECRET:-}" "$HARBOR_BASE/v2/" 2>/dev/null || true)"
+          case "${alive:-000}" in
+            200|401) echo "pre-flight: registry alive (GET /v2/ -> ${alive:-000})" ;;
+            000) echo "::warning::Pre-flight: NO EGRESS to $HARBOR_BASE (GET /v2/ unreachable). The push below is expected to fail the same way; the job stays green by design." ;;
+            *) echo "::warning::Pre-flight: unexpected HTTP ${alive:-000} from GET /v2/ (expected 200|401) — Harbor itself is misbehaving." ;;
+          esac
+          # 2) Token exchange scoped exactly like the push (pull,push on one
+          #    single-level mirror repo).
+          TJ="$(mktemp)"
+          tcode="$(curl -sS -o "$TJ" -w '%{http_code}' -m 20 --get "$HARBOR_BASE/service/token" -u "${HARBOR_USERNAME:-nobody}:${HARBOR_ROBOT_SECRET:-}" --data-urlencode 'service=harbor-registry' --data-urlencode "scope=repository:$REPO:pull,push" 2>/dev/null || true)"
+          tok="$(jq -r '.token // empty' "$TJ" 2>/dev/null || true)"
+          rm -f "$TJ"
+          case "${tcode:-000}" in
+            200)
+              if [ -n "$tok" ]; then
+                echo "pre-flight: scoped token issued for $REPO (pull,push)"
+              else
+                echo "::warning::Pre-flight: TOKEN-SCOPE failure — /service/token answered 200 with an empty token for repository:$REPO:pull,push; the robot account likely lacks access to this repo."
+              fi ;;
+            401|403) echo "::warning::Pre-flight: TOKEN-SCOPE/credential failure — /service/token -> HTTP ${tcode} (robot rejected)." ;;
+            000) echo "::warning::Pre-flight: NO EGRESS to $HARBOR_BASE for /service/token." ;;
+            500|502|503|504) echo "::warning::Pre-flight: /service/token -> HTTP ${tcode} — server-side 5xx, the run-39018544362 failure class." ;;
+            *) echo "::warning::Pre-flight: /service/token -> unexpected HTTP ${tcode:-000}." ;;
+          esac
+          # 3) Repository addressability: one HEAD on a manifest reference that
+          #    cannot exist. 404 is the GOOD pre-push state — the registry
+          #    parsed the single-level path and the repo is routable. A
+          #    5xx/timeout here is the run-39018544362 signature.
+          if [ -n "$tok" ]; then
+            mcode="$(curl -sS -o /dev/null -w '%{http_code}' -m 20 -I -H "Authorization: Bearer $tok" -H 'Accept: application/vnd.oci.image.manifest.v1+json' "$HARBOR_BASE/v2/$REPO/manifests/sha256-preflight-probe" 2>/dev/null || true)"
+            case "${mcode:-000}" in
+              404) echo "pre-flight: $REPO addressable (HEAD manifest -> 404, the expected pre-push state)" ;;
+              200) echo "pre-flight: $REPO addressable (HEAD manifest -> 200 — probe tag unexpectedly present; harmless)" ;;
+              401|403) echo "::warning::Pre-flight: TOKEN-SCOPE failure on HEAD $REPO — HTTP ${mcode} despite an issued token (scope not honoured)." ;;
+              000) echo "::warning::Pre-flight: NO EGRESS on HEAD $REPO." ;;
+              500|502|503|504) echo "::warning::Pre-flight: HEAD $REPO -> HTTP ${mcode}. This is the run-39018544362 failure class (Harbor 5xx on this path form) — expect the push below to fail identically; the job stays green by design." ;;
+              *) echo "::warning::Pre-flight: HEAD $REPO -> unexpected HTTP ${mcode:-000}." ;;
+            esac
+          else
+            echo "::warning::Pre-flight: skipping the manifest HEAD — no scoped token available (see the token finding above)."
+          fi
+          # Advisory by design: whatever the probe found, it never fails the job.
+          exit 0
+
       - name: Push toolcache mirror (advisory)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
@@ -1259,7 +1375,22 @@ jobs:
         run: |
           set -uo pipefail
           if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
-            echo "Toolcache mirror: credentials not configured in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Nothing published — the expected state until the Harbor robot account exists. Releases are unaffected."
+            echo "Toolcache mirror: credentials not visible in this scope (HARBOR_USERNAME=${HARBOR_USERNAME:-<unset>}, HARBOR_ROBOT_SECRET=${HARBOR_ROBOT_SECRET:+set}). Nothing published. NOTE: the robot credential EXISTS and works (it is the same secret that pushes solen/build-cache) — emptiness here means a secret-scoping problem, not an unprovisioned account. Releases are unaffected."
             exit 0
           fi
-          scripts/stage-toolcache.sh --mode push --arch amd64,arm64
+          # Loud failure surfacing: mode_push returns 1 when any entry failed,
+          # and its ❌ lines name the repos. Tee to a log, count the failures,
+          # annotate, then exit with the script's status so the STEP goes red
+          # while continue-on-error keeps the JOB green (nothing needs
+          # mirror-artefacts, so this is safe).
+          LOG="$(mktemp)"
+          scripts/stage-toolcache.sh --mode push --arch amd64,arm64 2>&1 | tee "$LOG"
+          status=${PIPESTATUS[0]}
+          fails="$(grep -cF '❌' "$LOG" || true)"
+          if [ "$status" -ne 0 ] || [ "${fails:-0}" -gt 0 ]; then
+            first="$(grep -m1 -F '❌' "$LOG" || true)"
+            first="${first//%/%25}"
+            echo "::error::Toolcache mirror push: ${fails:-0} failed entries (script exit $status). First: ${first:-<no ❌ line captured>}. The job stays green by design (continue-on-error; nothing needs mirror-artefacts) but the step is red — fix the mirror before the next checksums.json change."
+          fi
+          rm -f "$LOG"
+          exit "$status"

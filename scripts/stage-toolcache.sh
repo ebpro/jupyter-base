@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # stage-toolcache.sh — seed and consume the Harbor toolcache mirror
-# (solen/toolcache/<tool>-<arch>).
+# (SINGLE-LEVEL repositories: solen/toolcache-<tool>-<arch>).
 #
 # WHY. A live get.helm.sh download has never succeeded on the self-hosted ARC
 # runners (PMTU blackhole or an Azure-Front-Door fault — unsettled, and this
@@ -18,7 +18,7 @@ set -euo pipefail
 # digest used to construct a blob URL is read from the IN-REPO checksums.json,
 # which is PR-reviewed and publisher-attested. Never read a digest from any
 # Harbor tag, annotation or manifest — and never fetch by tag: fetching
-#   GET /v2/solen/toolcache/<tool>-<arch>/blobs/sha256:<digest>
+#   GET /v2/solen/toolcache-<tool>-<arch>/blobs/sha256:<digest>
 # embeds the expected content IN THE URL WE REQUEST, so the mirror cannot
 # substitute bytes without changing that URL (deliberate hardening over a
 # tag-based fetch, which would reintroduce a verify-before-use race). The
@@ -26,7 +26,8 @@ set -euo pipefail
 # The sha256-<digest> tag on each object exists for BROWSING ONLY.
 #
 # OBJECT LAYOUT (whole-archive). One OCI object per archive, repository
-# solen/toolcache/<tool>-<arch>, layer = the UNEXTRACTED upstream archive. Its
+# solen/toolcache-<tool>-<arch> (SINGLE-LEVEL — see REPO_PREFIX below), layer =
+# the UNEXTRACTED upstream archive. Its
 # blob digest therefore equals the publisher digest and the object is
 # byte-identical to the /opt/toolcache entry download_direct expects. We push
 # archives, never /opt/toolcache contents.
@@ -46,9 +47,14 @@ set -euo pipefail
 #
 # CREDENTIALS. solen is a PRIVATE Harbor project: pull AND push both require
 # the robot credential (HARBOR_USERNAME / HARBOR_ROBOT_SECRET — names
-# documented in .env.example; none provisioned yet, creating one is an
-# operator decision). Absence is a clean skip, never a failure: pull exits 0
-# with a skip message so each leg behaves exactly as before the mirror.
+# documented in .env.example). THE CREDENTIAL EXISTS AND WORKS: the same robot
+# account authenticates the solen/build-cache pushes on the very same runners,
+# in the very same workflow. The earlier claim that none was provisioned is
+# RETRACTED — the 12/12 push failures of CI run 39018544362 were the nested
+# repository-name shape (502 on the config-blob POST), not auth. Absence of
+# the secret in a step's scope is nonetheless a clean skip, never a failure:
+# pull exits 0 with a skip message so each leg behaves exactly as before the
+# mirror.
 #
 # TOOLING. curl only — no oras, no skopeo, no docker, and no solen invocation
 # (solen lives in a host venv at /usr/local/lib/python3.12/dist-packages/solen
@@ -59,7 +65,7 @@ set -euo pipefail
 # echoed, logged or written to disk; tokens are held in shell variables.
 #
 # MODES.
-#   --mode list   print the derived matrix (TSV: tool arch version digest url staged-path)
+#   --mode list   print the derived matrix (TSV: tool arch version digest url staged-path mirror-repo)
 #   --mode pull   fetch each object's blob BY DIGEST and stage it; best-effort,
 #                 always exits 0 so a build leg degrades to upstream downloads
 #   --mode push   fetch each archive from upstream, verify the publisher
@@ -78,7 +84,18 @@ CHECKSUMS_FILE="${CHECKSUMS_FILE:-$ROOT_DIR/checksums.json}"
 
 HARBOR_BASE="${HARBOR_BASE_URL:-https://harbor.ebruno.fr}"
 TOKEN_SERVICE="harbor-registry"   # from the measured 401 Bearer challenge
+# SINGLE-LEVEL repository names ONLY: solen/toolcache-<tool>-<arch>. Harbor
+# parses registry paths as <project>/<rest-of-repository>; the nested form
+# (project solen, repository toolcache/<tool>-<arch>) made Harbor core answer
+# 502 on EVERY config-blob POST (CI run 39018544362: 12/12 pushes failed)
+# while the single-level solen/build-cache pushed fine from the same runners
+# with the same robot credential. Do not reintroduce nesting.
 REPO_PREFIX="solen/toolcache"
+
+# Mirror repository name for one (tool, arch) — the SINGLE-LEVEL form above,
+# used consistently by list (display), pull (token scope + blob URL) and push
+# (token scope + blob/manifest URLs + browsing-tag reference).
+repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
 TOOLS=(kubectl helm kustomize k9s tilt tinytex)
 
@@ -204,7 +221,8 @@ mode_pull() {
     [ -n "${staged:-}" ] || continue
     if [ -f "$staged" ]; then note "already staged: $staged"; continue; fi
     tmp="$(mktemp)"
-    local repo="$REPO_PREFIX/$tool-$arch"
+    local repo
+    repo="$(repo_name "$tool" "$arch")"
     local tok
     tok="$(harbor_token "repository:$repo:pull" || true)"
     if [ -z "$tok" ]; then
@@ -261,7 +279,8 @@ mode_push() {
   local tool arch ver digest url tmp actual fail=0
   while IFS=$'\t' read -r tool arch ver digest url _staged; do
     [ -n "${url:-}" ] || continue
-    local repo="$REPO_PREFIX/$tool-$arch"
+    local repo
+    repo="$(repo_name "$tool" "$arch")"
     local tok
     tok="$(harbor_token "repository:$repo:push,pull" || true)"
     if [ -z "$tok" ]; then
@@ -341,8 +360,13 @@ main() {
 
   case "$MODE" in
     list)
-      printf 'tool\tarch\tversion\tdigest\turl\tstaged-path\n'
-      matrix
+      local tool arch ver digest url staged
+      printf 'tool\tarch\tversion\tdigest\turl\tstaged-path\tmirror-repo\n'
+      while IFS=$'\t' read -r tool arch ver digest url staged; do
+        [ -n "${staged:-}" ] || continue
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+          "$tool" "$arch" "$ver" "$digest" "$url" "$staged" "$(repo_name "$tool" "$arch")"
+      done < <(matrix)
       ;;
     pull)
       require_credentials || exit 0
