@@ -83,7 +83,11 @@ def _run_runner(tmp_path, checks, stub_body):
     runner = tmp_path / "runner.sh"
     runner.write_text(script, encoding="utf-8")
     return subprocess.run(
-        ["bash", str(runner)], capture_output=True, text=True, timeout=30
+        ["bash", str(runner)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,  # returncode is asserted explicitly by each test
     )
 
 
