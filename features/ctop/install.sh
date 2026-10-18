@@ -10,7 +10,37 @@ elif [ -f "../../../scripts/lib/features.sh" ]; then
 fi
 set -euo pipefail
 
-VERSION="${VERSION:-0.7.7}"
+# Resolve the version from the SoT (versions/versions.yaml -> versions.json),
+# fail closed. ctop is checksum-pinned (checksums.json tools.ctop) and mirrored
+# by scripts/stage-toolcache.sh; it must never fall back to upstream "latest"
+# or to a bare curl (tilt/gh precedent).
+resolve_version(){
+  local tool="$1" v=""
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    if [ -n "$v" ]; then
+      echo "$v"; return 0
+    fi
+  fi
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
+  elif [ -f /tmp/versions.json ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+  fi
+  echo "$v"
+}
+
+VERSION=$(resolve_version "ctop")
+if [ -z "$VERSION" ]; then
+  echo "❌ ctop: FH_VERSION_UNRESOLVED — pinned version for 'ctop' not found via fh_resolve_version/artefacts; refusing to fall back to upstream 'latest' (checksum-pinned tool)" >&2
+  exit 1
+fi
+
+if ! command -v download_direct >/dev/null 2>&1; then
+  echo "❌ ctop: download_direct helper not found (features/_lib/download-release must run first)" >&2
+  exit 1
+fi
+
 ARCH=$(dpkg --print-architecture)
 
 echo "ctop: Installing ctop v${VERSION} container monitoring tool"
@@ -22,11 +52,12 @@ case "${ARCH}" in
   *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Download and install from GitHub releases
+# Route through the digest-pinned toolcache. Note the asset name is
+# version-prefixed WITHOUT the leading 'v' (ctop-${VERSION}-linux-...) while
+# only the tag carries it. Raw binary -> extract=false; download_direct
+# verifies against checksums.json and installs to /usr/local/bin/ctop.
 DOWNLOAD_URL="https://github.com/bcicen/ctop/releases/download/v${VERSION}/ctop-${VERSION}-linux-${RELEASE_ARCH}"
-
-curl -fsSL "${DOWNLOAD_URL}" -o /usr/local/bin/ctop
-chmod +x /usr/local/bin/ctop
+download_direct "$DOWNLOAD_URL" "ctop" "$VERSION" "/usr/local/bin" false
 
 # Verify installation
 ctop -v

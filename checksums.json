@@ -260,6 +260,45 @@
           "arm64": "1fb79ec7609c9d430c29c66d9d1c12c2a58aaf2314bf42d7372105f8ab2eb4ce"
         }
       }
+    },
+    "hadolint": {
+      "pinned_version": "2.12.0",
+      "archive_format": "raw-binary",
+      "archive_url_template": "https://github.com/hadolint/hadolint/releases/download/v{version}/hadolint-Linux-{arch}",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/hadolint/hadolint/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "hadolint Dockerfile linter. GitHub release asset arch mapping: amd64 -> x86_64 (hadolint-Linux-x86_64), arm64 -> arm64 (hadolint-Linux-arm64). Raw binary, no archive. Digests computed from the served bytes.",
+      "checksums": {
+        "2.12.0": {
+          "amd64": "56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010",
+          "arm64": "5798551bf19f33951881f15eb238f90aef023f11e7ec7e9f4c37961cb87c5df6"
+        }
+      }
+    },
+    "ctop": {
+      "pinned_version": "0.7.7",
+      "archive_format": "raw-binary",
+      "archive_url_template": "https://github.com/bcicen/ctop/releases/download/v{version}/ctop-{version}-linux-{arch}",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/bcicen/ctop/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "ctop container monitoring tool. Asset name is version-prefixed WITHOUT the leading 'v' (ctop-0.7.7-linux-amd64) while the release tag carries it (v0.7.7). Arch values pass through (amd64, arm64). Raw binary, no archive. Digests computed from the served bytes.",
+      "checksums": {
+        "0.7.7": {
+          "amd64": "b78374734ebe3d14b6edee3d5512c911c250d7fa7f3f964cb00acd3bc5a02a09",
+          "arm64": "d8d91e0fea53a8c78fa81192f078272e5a92f0ea6c4f0e38ec7c944d76e6f02f"
+        }
+      }
+    },
+    "dive": {
+      "pinned_version": "0.12.0",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/wagoodman/dive/releases/download/v{version}/dive_{version}_linux_{arch}.tar.gz",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/wagoodman/dive/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "dive image layer explorer. tar.gz carrying the 'dive' binary at the archive root. Arch values pass through (amd64, arm64). Digests computed from the served archive bytes (unextracted, matching the toolcache staging rule).",
+      "checksums": {
+        "0.12.0": {
+          "amd64": "20a7966523a0905f950c4fbf26471734420d6788cfffcd4a8c4bc972fded3e96",
+          "arm64": "a2a1470302cdfa367a48f80b67bbf11c0cd8039af9211e39515bd2bbbda58fea"
+        }
+      }
     }
   }
 }

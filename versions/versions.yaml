@@ -84,6 +84,21 @@ tools:
     sources:
       - type: github
         repo: "cli/cli"
+  hadolint:
+    version: "2.12.0"
+    sources:
+      - type: github
+        repo: "hadolint/hadolint"
+  ctop:
+    version: "0.7.7"
+    sources:
+      - type: github
+        repo: "bcicen/ctop"
+  dive:
+    version: "0.12.0"
+    sources:
+      - type: github
+        repo: "wagoodman/dive"
   tinytex:
     version: "2026.09"
     sources:

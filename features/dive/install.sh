@@ -10,7 +10,37 @@ elif [ -f "../../../scripts/lib/features.sh" ]; then
 fi
 set -euo pipefail
 
-VERSION="${VERSION:-0.12.0}"
+# Resolve the version from the SoT (versions/versions.yaml -> versions.json),
+# fail closed. dive is checksum-pinned (checksums.json tools.dive) and mirrored
+# by scripts/stage-toolcache.sh; it must never fall back to upstream "latest"
+# or to a bare curl (tilt/gh precedent).
+resolve_version(){
+  local tool="$1" v=""
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    if [ -n "$v" ]; then
+      echo "$v"; return 0
+    fi
+  fi
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
+  elif [ -f /tmp/versions.json ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+  fi
+  echo "$v"
+}
+
+VERSION=$(resolve_version "dive")
+if [ -z "$VERSION" ]; then
+  echo "❌ dive: FH_VERSION_UNRESOLVED — pinned version for 'dive' not found via fh_resolve_version/artefacts; refusing to fall back to upstream 'latest' (checksum-pinned tool)" >&2
+  exit 1
+fi
+
+if ! command -v download_direct >/dev/null 2>&1; then
+  echo "❌ dive: download_direct helper not found (features/_lib/download-release must run first)" >&2
+  exit 1
+fi
+
 ARCH=$(dpkg --print-architecture)
 
 echo "dive: Installing dive v${VERSION} for image layer analysis"
@@ -22,14 +52,12 @@ case "${ARCH}" in
   *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Download and install from GitHub releases
+# Route through the digest-pinned toolcache. tar.gz with the 'dive' binary at
+# the archive root -> extract=true; download_direct's extraction path finds
+# the $tool binary and installs to /usr/local/bin/dive (equivalent to the
+# previous manual tar/mv/chmod, with digest verification added).
 DOWNLOAD_URL="https://github.com/wagoodman/dive/releases/download/v${VERSION}/dive_${VERSION}_linux_${RELEASE_ARCH}.tar.gz"
-
-curl -fsSL "${DOWNLOAD_URL}" -o /tmp/dive.tar.gz
-tar -xzf /tmp/dive.tar.gz -C /tmp
-mv /tmp/dive /usr/local/bin/dive
-chmod +x /usr/local/bin/dive
-rm -f /tmp/dive.tar.gz
+download_direct "$DOWNLOAD_URL" "dive" "$VERSION" "/usr/local/bin" true
 
 # Verify installation
 dive --version

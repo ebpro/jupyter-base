@@ -35,12 +35,14 @@ set -euo pipefail
 # STAGING LAYOUT matches the only reader — download_direct
 # (features/_lib/download-release/install.sh:727):
 #   $TOOLCACHE_DIR/$tool/$(basename "$url")   — no version, no arch.
-# tool_url() replicates the URL construction of the six frozen download_direct
+# tool_url() replicates the URL construction of the nine frozen download_direct
 # call sites exactly: kubernetes-client/install.sh:78,94,105,
-# kubernetes-dev/install.sh:81, tilt/install.sh:63, texlive/install.sh:91-96.
+# kubernetes-dev/install.sh:81, tilt/install.sh:63, texlive/install.sh:91-96,
+# hadolint/install.sh, ctop/install.sh, dive/install.sh (digest-pinning batch —
+# run 39120654609: un-mirrored GitHub assets hit curl (35) on build-amd64-heavy).
 # If a call site ever changes, this table must change with it (verified by
 # the mapping assertion in the ci-publish staging step's own dry-run tooling).
-# The TOOLS list is deliberately ONLY these six tools' archives; other origins
+# The TOOLS list is deliberately ONLY these nine tools' archives; other origins
 # (nodejs.org, starship.rs, tlnet.yihui.org, get.docker.com, get.volta.sh,
 # get.sdkman.io, Homebrew, apt.postgresql.org) are a ratified follow-up batch,
 # not an oversight.
@@ -107,7 +109,7 @@ REPO_PREFIX="solen/toolcache"
 # (token scope + blob/manifest URLs + browsing-tag reference).
 repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
-TOOLS=(kubectl helm kustomize k9s tilt tinytex)
+TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive)
 
 MODE=""
 ARCHES="amd64,arm64"
@@ -172,6 +174,22 @@ tool_url() {
       printf 'https://github.com/tilt-dev/tilt/releases/download/v%s/tilt.%s.linux.%s.tar.gz' "$nov" "$nov" "$ta" ;;
     tinytex)   # texlive/install.sh:91-96 (INSTALLER=installer-unix; same asset every arch)
       printf 'https://github.com/rstudio/tinytex-releases/releases/download/v%s/installer-unix-v%s.tar.gz' "$ver" "$ver" ;;
+    hadolint)  # hadolint/install.sh (tag keeps/gets leading v; amd64->x86_64 asset naming; raw binary)
+      tag="$ver"; case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
+      ta="$arch"
+      case "$arch" in
+        amd64|x86_64|X86_64) ta="x86_64" ;;
+        arm64|aarch64)       ta="arm64" ;;
+      esac
+      printf 'https://github.com/hadolint/hadolint/releases/download/%s/hadolint-Linux-%s' "$tag" "$ta" ;;
+    ctop)      # ctop/install.sh (tag keeps/gets leading v; asset UNVERSIONED-prefixed ctop-<ver>-linux-<arch>)
+      tag="$ver"; case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
+      nov="${ver#v}"
+      printf 'https://github.com/bcicen/ctop/releases/download/%s/ctop-%s-linux-%s' "$tag" "$nov" "$arch" ;;
+    dive)      # dive/install.sh (tag keeps/gets leading v; underscore-separated versioned tar.gz)
+      tag="$ver"; case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
+      nov="${ver#v}"
+      printf 'https://github.com/wagoodman/dive/releases/download/%s/dive_%s_linux_%s.tar.gz' "$tag" "$nov" "$arch" ;;
     *) return 1 ;;
   esac
 }
