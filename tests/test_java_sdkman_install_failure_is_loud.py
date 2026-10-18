@@ -40,11 +40,22 @@ These tests run the REAL shipped installers in a bash subprocess with `su`,
   5. java-sdkman: the happy path exits 0 with stdout byte-identical to the
      pre-fix installer (behaviour unchanged when the install works);
   6. java-jdk / java-maven / java-gradle: a failing `sdk install <candidate>`
-     and a successful install that materialises no binary are both fatal and
-     both name java-sdkman as the producer; their `SDKMAN not available`
-     early abort is preserved;
+     and a successful install that materialises no binary are both fatal; the
+     install-failure paths name java-sdkman as the producer, the verify paths
+     name the exact artefact the probe checked for and did not find; their
+     `SDKMAN not available` early abort is preserved;
   7. RED proof: the pre-fix installer (git show bd1d66d) exits 0 on the exact
-     inputs above, so these assertions genuinely discriminate the fix.
+     inputs above, so these assertions genuinely discriminate the fix;
+  8. faithful environment (the 8da2bd8 false-positive guard): the `su` stub
+     gains a mode whose login shell does NOT source sdkman-init.sh — the real
+     state during the feature loop, because /etc/profile.d/solen.sh is
+     written only by the RUN that follows it
+     (solen-cli/solen/generators/dockerfile_template.j2:240-243). In that
+     environment the 8da2bd8 bare-`command -v` probes FAIL on a healthy
+     install (rc 1, FH_*_NOT_AVAILABLE — the abort that blocked trunk 3/3)
+     while the init-sourcing probes PASS; in the legacy synthetic-sourcing
+     mode the defective probes pass, which is exactly the harness flaw that
+     hid the false positive. Both directions are pinned.
 
 Hermeticity: PATH is the stub directory ALONE — system directories are never
 appended, or a host-wide java/mvn/sdk would satisfy the installers'
@@ -71,6 +82,12 @@ SDKMAN_SH = REPO / "features" / "java-sdkman" / "install.sh"
 # not HEAD, so the RED proofs keep working after the fix is committed — same
 # convention as tests/test_kotlin_install_failure_is_loud.py.
 OLD_FORM_REF = "bd1d66d"
+
+# The revision whose consumer verify probes WERE the false positive: a bare
+# `command -v` in a login shell, un-satisfiable before the profile hook
+# exists. Pinned to a SHA, like OLD_FORM_REF, so the faithful-environment
+# discrimination keeps working after the fix is committed.
+FALSE_POSITIVE_REF = "8da2bd8"
 
 # The named-error tokens the fix emits (convention: FH_<NAME>, cf.
 # FH_VERSION_UNRESOLVED in features/gh/install.sh and features/tilt/install.sh).
@@ -157,20 +174,39 @@ class _Sandbox:
     """Fake host for one installer run.
 
     * ``bin``      — the ONLY PATH entry of the installer process;
-    * ``userbin``  — reachable only through the fake ``sdkman-init.sh``, i.e.
-                     exactly where a real SDKMAN puts its shims;
+    * ``userbin``  — the shim dir the fake ``sdkman-init.sh`` exports (where
+                     the stub ``sdk`` lives);
+    * ``home/.sdkman/candidates/<tool>/current/bin`` — where candidate
+                     binaries are materialised, exactly like the real SDKMAN,
+                     and what the fake init exports by iterating the
+                     candidate dirs at source time;
     * ``home``     — fake ``$HOME`` for both the installer and the ``su``'d
                      target user, so ``$SDKMAN_DIR`` (default
                      ``$HOME/.sdkman``) has one unambiguous value.
+
+    ``faithful=True`` switches the ``su`` stub to the real pre-:243 state:
+    the login shell sources NOTHING, so SDKMAN tools are reachable only to a
+    command that sources ``sdkman-init.sh`` itself. The default keeps the
+    legacy synthetic-sourcing login branch, which the java-sdkman
+    happy-path stdout-parity proofs of the pre-fix installer still rely on.
     """
 
-    def __init__(self, tmp_path: Path, tag: str) -> None:
+    # The candidate export the real sdkman-init.sh performs: every installed
+    # candidate contributes current/bin to PATH, at source time only. Ends in
+    # a statement that cannot leave a non-zero status on the `source`.
+    _INIT_EXPORT_LOOP = (
+        'for d in "$HOME/.sdkman/candidates/"*/current/bin; do '
+        'if [ -d "$d" ]; then export PATH="$d:$PATH"; fi; done'
+    )
+
+    def __init__(self, tmp_path: Path, tag: str, faithful: bool = False) -> None:
         self.root = tmp_path / tag
         self.bin = self.root / "bin"
         self.userbin = self.root / "userbin"
         self.home = self.root / "home"
         self.staging = self.root / "staging"
         self.sdkman = self.home / ".sdkman"
+        self.faithful = faithful
         for d in (self.bin, self.userbin, self.home, self.staging):
             d.mkdir(parents=True)
 
@@ -192,6 +228,8 @@ class _Sandbox:
             'mkdir -p "$SDKMAN_DIR/bin"\n'
             "printf '%s\\n' 'export PATH=\"" + str(self.userbin) + ':$PATH"\' '
             '> "$SDKMAN_DIR/bin/sdkman-init.sh"\n'
+            "printf '%s\\n' '" + self._INIT_EXPORT_LOOP + "' "
+            '>> "$SDKMAN_DIR/bin/sdkman-init.sh"\n'
             "exit 0\n",
             encoding="utf-8",
         )
@@ -204,12 +242,25 @@ class _Sandbox:
     def _write_su_stub(self) -> None:
         """`su - <user> -s /bin/bash (-c|-lc) <cmd>` stub.
 
-        Reproduces the three observable properties of util-linux `su` these
+        Reproduces the observable properties of util-linux `su` these
         installers rely on: (1) the command runs with the TARGET USER's HOME,
-        (2) a login shell has SDKMAN on PATH because the user's profile chain
-        sources ~/.sdkman/bin/sdkman-init.sh, (3) su's exit status is the
-        command's exit status. PATH is rebuilt from scratch (never inherited)
-        so nothing from the host can leak in.
+        (2) su's exit status is the command's exit status. PATH is rebuilt
+        from scratch (never inherited) so nothing from the host can leak in.
+
+        Whether the LOGIN shell already has SDKMAN on PATH is the whole
+        false-positive story, so the stub has two modes:
+
+        * ``faithful=False`` (legacy default): the login branch sources
+          ~/.sdkman/bin/sdkman-init.sh, modelling a user profile chain that
+          exports SDKMAN. That chain does NOT exist during a build: the
+          /etc/profile.d hook is written by the RUN after the feature loop
+          (dockerfile_template.j2:240-243). The mode is kept because the
+          java-sdkman happy-path stdout-parity proofs run the PRE-FIX
+          installer, whose probe depends on it.
+        * ``faithful=True``: the login branch sources NOTHING. A bare
+          ``command -v`` probe then fails exactly as it does in the real
+          image at feature-loop time; only a probe that sources the init
+          script itself can pass.
         """
         body = (
             "# Stub su.\n"
@@ -221,12 +272,15 @@ class _Sandbox:
             "export HOME='" + str(self.home) + "'\n"
             "export PATH='" + str(self.bin) + "'\n"
             "unset SDKMAN_DIR\n"
-            "init='" + str(self.home) + "/.sdkman/bin/sdkman-init.sh'\n"
-            'if [ "$login" = 1 ] && [ -s "$init" ]; then\n'
-            "  source \"$init\" || true\n"
-            "fi\n"
-            "exec '" + BASH + "' -c \"$cmd\"\n"
         )
+        if not self.faithful:
+            body += (
+                "init='" + str(self.home) + "/.sdkman/bin/sdkman-init.sh'\n"
+                'if [ "$login" = 1 ] && [ -s "$init" ]; then\n'
+                "  source \"$init\" || true\n"
+                "fi\n"
+            )
+        body += "exec '" + BASH + "' -c \"$cmd\"\n"
         _write_exec(self.bin / "su", body)
 
     def set_curl(self, mode: str) -> None:
@@ -257,7 +311,9 @@ class _Sandbox:
         `install` is the build-time network fetch stage under test; every other
         subcommand (`list`, `version`) succeeds and prints nothing, so
         candidate DISCOVERY resolves to "no candidate" and the installers take
-        their documented fallback branch.
+        their documented fallback branch. A materialised binary lands at
+        ``$HOME/.sdkman/candidates/<candidate>/current/bin/<binary>`` — the
+        path the real SDKMAN uses and the path the consumer probes verify.
         """
         lines = [
             "# Stub sdk. Never touches the network.",
@@ -268,7 +324,9 @@ class _Sandbox:
         for candidate, (rc, produce) in installs.items():
             lines.append("    " + candidate + ")")
             if produce is not None:
-                target = str(self.userbin / produce)
+                bindir = self.sdkman / "candidates" / candidate / "current" / "bin"
+                target = str(bindir / produce)
+                lines.append('      mkdir -p "' + str(bindir) + '"')
                 lines.append('      cp "' + str(self.staging / produce) + '" "' + target + '"')
                 lines.append('      chmod 755 "' + target + '"')
             lines.append("      exit " + str(rc))
@@ -277,11 +335,22 @@ class _Sandbox:
         _write_exec(self.userbin / "sdk", "\n".join(lines))
 
     def preinstall_sdkman(self, *, exposes_sdk: bool = True) -> Path:
-        """Write the init artefact by hand (partial/complete install states)."""
+        """Write the init artefact by hand (partial/complete install states).
+
+        A complete init exports the shim dir (the stub ``sdk``) plus the
+        per-candidate current/bin loop the real sdkman-init.sh runs: the
+        candidates become reachable ONLY through sourcing the init, never
+        through the login shell itself.
+        """
         init = self.sdkman / "bin" / "sdkman-init.sh"
         init.parent.mkdir(parents=True, exist_ok=True)
         if exposes_sdk:
-            init.write_text('export PATH="' + str(self.userbin) + ':$PATH"\n', encoding="utf-8")
+            init.write_text(
+                'export PATH="' + str(self.userbin) + ':$PATH"\n'
+                + self._INIT_EXPORT_LOOP
+                + "\n",
+                encoding="utf-8",
+            )
         else:
             init.write_text("# partial install: exposes nothing\n", encoding="utf-8")
         return init
@@ -311,6 +380,30 @@ def _old_form(feature: str, dest_dir: Path) -> Path:
     if proc.returncode != 0 or "|| true" not in proc.stdout:
         pytest.skip(f"pre-fix installer not retrievable at {OLD_FORM_REF} (shallow clone?)")
     path = dest_dir / f"install_old_{feature}.sh"
+    path.write_text(proc.stdout, encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+def _false_positive_form(feature: str, dest_dir: Path) -> Path:
+    """The 8da2bd8 revision of a consumer installer: its verify probe is a
+    bare `command -v <bin>` inside a single-quoted login-shell command — the
+    form that could only pass where the login shell already sources the init
+    script, i.e. never during a real build. The marker below is absent from
+    the converted installer (whose probe string starts with `set +u`), so a
+    wrong-tree fetch fails loudly instead of silently testing nothing."""
+    proc = subprocess.run(
+        ["git", "-C", str(REPO), "show", f"{FALSE_POSITIVE_REF}:features/{feature}/install.sh"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0 or "-lc 'command -v " not in proc.stdout:
+        pytest.skip(
+            f"false-positive installer not retrievable at {FALSE_POSITIVE_REF} "
+            "(shallow clone, or the probe shape changed and the guard must be re-pinned)"
+        )
+    path = dest_dir / f"install_fp_{feature}.sh"
     path.write_text(proc.stdout, encoding="utf-8")
     path.chmod(0o755)
     return path
@@ -482,6 +575,11 @@ class TestConsumersFailLoud:
 
     @pytest.mark.parametrize("feature", sorted(_CONSUMERS))
     def test_install_claiming_success_without_the_binary_is_fatal(self, tmp_path, feature):
+        """exit 6: the probe now checks the artefact path itself, so the
+        message names the exact missing file instead of ASSERTING it is
+        missing (the 8da2bd8 prose no code verified). Producer attribution
+        stays where it was verified — the FH_*_INSTALL_FAILED paths, pinned
+        by the test above, which still name java-sdkman."""
         spec = _CONSUMERS[feature]
         sb = _Sandbox(tmp_path, f"{feature}-no-bin")
         sb.preinstall_sdkman()
@@ -491,7 +589,8 @@ class TestConsumersFailLoud:
 
         assert proc.returncode == 1, proc.stdout
         assert spec["verify_token"] in proc.stderr
-        assert "java-sdkman" in proc.stderr
+        assert f"candidates/{spec['candidate']}/current/bin/{spec['binary']}" in proc.stderr
+        assert "missing" in proc.stderr  # the exit-6 cause, not the generic one
         assert f"{feature}: installation successful" not in proc.stdout
         assert f"{feature}: done" not in proc.stdout
 
@@ -529,6 +628,127 @@ class TestConsumersFailLoud:
         new = sb.run(REPO / "features" / feature / "install.sh", spec["env"])
         assert new.returncode == 1
         assert spec["install_token" if rc else "verify_token"] in new.stderr
+
+
+class TestFaithfulEnvironment:
+    """The 8da2bd8 false-positive regression guard — the test that was missing.
+
+    8da2bd8 verified its consumers with `su - <user> -lc 'command -v <bin>'`.
+    That probe is un-satisfiable during a build: `su -` resets PATH through
+    /etc/profile, and the /etc/profile.d hook that would export the SDKMAN
+    candidate bins is written by the RUN that comes AFTER the feature loop
+    (solen-cli/solen/generators/dockerfile_template.j2:240-243). It aborted
+    deterministically 3/3 on healthy installs and blocked trunk.
+
+    The legacy harness could not see this because its `su` stub's login
+    branch sources the fake init — modelling the profile chain that only
+    exists post-:243. Faithful mode removes that synthetic sourcing. The
+    two tests below pin BOTH directions, so neither the guard nor the mode
+    can go vacuous silently: the defective probe passes in the synthetic
+    world (the harness flaw, made visible) and fails in the faithful one,
+    where the converted probe passes.
+    """
+
+    @pytest.mark.parametrize("feature", sorted(_CONSUMERS))
+    def test_synthetic_sourcing_is_what_hid_the_false_positive(self, tmp_path, feature):
+        """The 8da2bd8 probe passes a healthy install ONLY because the legacy
+        su stub sources the init in its login branch. If this test ever
+        fails, the synthetic mode stopped modelling what it is meant to
+        model and the discrimination below proves nothing."""
+        spec = _CONSUMERS[feature]
+        sb = _Sandbox(tmp_path, f"{feature}-synthetic-fp")
+        sb.preinstall_sdkman()
+        sb.set_sdk({spec["candidate"]: (0, spec["binary"])})
+
+        proc = sb.run(_false_positive_form(feature, sb.root), spec["env"])
+        assert proc.returncode == 0, (
+            "the synthetic (legacy) su mode no longer lets the 8da2bd8 bare-login "
+            f"probe pass a healthy install (rc={proc.returncode}); the harness "
+            "modelling changed and the faithful guard needs re-checking"
+        )
+        assert f"{feature}: installation successful" in proc.stdout
+
+    @pytest.mark.parametrize("feature", sorted(_CONSUMERS))
+    def test_healthy_install_fails_the_old_probe_and_passes_the_new_one(
+        self, tmp_path, feature
+    ):
+        """DECISIVE: one healthy install (sdk exits 0 and materialises the
+        binary), faithful environment (login shell without SDKMAN, as during
+        the real feature loop). The 8da2bd8 probe aborts — the false positive
+        that blocked trunk — while the init-sourcing probe exits 0."""
+        spec = _CONSUMERS[feature]
+        sb = _Sandbox(tmp_path, f"{feature}-faithful-ok", faithful=True)
+        sb.preinstall_sdkman()
+        sb.set_sdk({spec["candidate"]: (0, spec["binary"])})
+
+        old = sb.run(_false_positive_form(feature, sb.root), spec["env"])
+        assert old.returncode == 1, (
+            "the faithful environment no longer breaks the 8da2bd8 bare-login "
+            "probe — the guard has gone vacuous (the su stub must NOT source "
+            "the init in its login branch)"
+        )
+        assert spec["verify_token"] in old.stderr
+        assert f"{feature}: done" not in old.stdout
+
+        new = sb.run(REPO / "features" / feature / "install.sh", spec["env"])
+        assert new.returncode == 0, (
+            "the init-sourcing probe failed on a healthy install in the "
+            f"faithful environment: rc={new.returncode} stderr={new.stderr!r}"
+        )
+        assert f"{feature}: installation successful" in new.stdout
+        assert f"{feature}: done" in new.stdout
+        assert spec["verify_token"] not in new.stderr
+
+    def test_faithful_artefact_missing_names_the_exact_file(self, tmp_path):
+        """exit 6 in the faithful environment: sdk exits 0 but the candidate
+        current/bin/mvn is never materialised."""
+        sb = _Sandbox(tmp_path, "maven-faithful-no-artefact", faithful=True)
+        sb.preinstall_sdkman()
+        sb.set_sdk({"maven": (0, None)})
+
+        proc = sb.run(REPO / "features" / "java-maven" / "install.sh")
+
+        assert proc.returncode == 1, proc.stdout
+        assert "FH_JAVA_MAVEN_NOT_AVAILABLE" in proc.stderr
+        assert "candidates/maven/current/bin/mvn" in proc.stderr
+        assert "java-maven: done" not in proc.stdout
+
+    def test_faithful_init_missing_is_exit_3_cause(self, tmp_path):
+        """exit 3: the target user has no sdkman-init.sh at all. The probe is
+        reached by making `sdk` resolvable to the installer process — the
+        real-image analogue is root's own SDKMAN present while jovyan's is
+        absent — so the 'Please include java-sdkman' early abort is not the
+        outcome under test."""
+        sb = _Sandbox(tmp_path, "maven-faithful-no-init", faithful=True)
+        sb.set_sdk({"maven": (0, None)})
+        (sb.bin / "sdk").symlink_to(sb.userbin / "sdk")  # bypass the early abort
+
+        proc = sb.run(REPO / "features" / "java-maven" / "install.sh")
+
+        assert proc.returncode == 1, proc.stdout
+        assert "FH_JAVA_MAVEN_NOT_AVAILABLE" in proc.stderr
+        assert "no init artefact" in proc.stderr
+        assert "Please include java-sdkman feature first" not in proc.stderr
+        assert "java-maven: done" not in proc.stdout
+
+    def test_faithful_init_unsourceable_is_exit_4_cause(self, tmp_path):
+        """exit 4: the init exists and is non-empty, but sourcing it fails
+        (corrupt content). Verified earlier in this session: bash `source` on
+        a syntax-error file returns non-zero without killing the sourcing
+        shell, so `|| exit 4` is the reachable branch."""
+        sb = _Sandbox(tmp_path, "maven-faithful-bad-init", faithful=True)
+        sb.set_sdk({"maven": (0, None)})
+        (sb.bin / "sdk").symlink_to(sb.userbin / "sdk")  # bypass the early abort
+        init = sb.sdkman / "bin" / "sdkman-init.sh"
+        init.parent.mkdir(parents=True, exist_ok=True)
+        init.write_text("bogus ((\n", encoding="utf-8")  # syntax error on source
+
+        proc = sb.run(REPO / "features" / "java-maven" / "install.sh")
+
+        assert proc.returncode == 1, proc.stdout
+        assert "FH_JAVA_MAVEN_NOT_AVAILABLE" in proc.stderr
+        assert "could not be sourced" in proc.stderr
+        assert "java-maven: done" not in proc.stdout
 
 
 class TestConsumerContractPreserved:

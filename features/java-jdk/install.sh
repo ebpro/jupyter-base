@@ -140,12 +140,31 @@ install_jdk "${JDK_VERSION}" "${SDKMAN_JAVA_IDENTIFIER}"
 # Verify installation. This is the post-condition for every branch above: a
 # JDK the target user cannot execute is a failed feature, not a warning —
 # `provides: [java, javac]` is a promise the published image has to keep.
-if su - ${NB_USER:-jovyan} -s /bin/bash -lc 'command -v java >/dev/null 2>&1 && java -version >/dev/null 2>&1'; then
-  echo "java-jdk: installation successful"
-  su - ${NB_USER:-jovyan} -s /bin/bash -lc 'java -version' || true
-else
-  echo "❌ java-jdk: FH_JAVA_JDK_NOT_AVAILABLE — 'java' does not resolve for ${NB_USER:-jovyan} after installation (candidate dir ${SDKMAN_JAVA_IDENTIFIER:-temurin}, version request ${JDK_VERSION}). The java-sdkman feature is the producer of 'sdk'; the sdkman-init.sh under \${NB_USER}'s home and ~/.sdkman/candidates/java are the artefacts to inspect. Aborting rather than publishing an image that advertises java/javac and ships neither." >&2
+#
+# `java` is reachable only through $HOME/.sdkman/candidates/java/current/bin,
+# which sdkman-init.sh exports. A bare login shell does NOT have it at this
+# stage of the build: /etc/profile.d/solen.sh, the hook that would export the
+# SDKMAN paths, is written by the RUN that comes AFTER the feature loop
+# (solen-cli/solen/generators/dockerfile_template.j2:240-243), and `su -`
+# resets PATH through /etc/profile. So a probe that only runs `command -v`
+# in a login shell can never pass, even on a healthy install. Evaluate the
+# post-condition the way the consumers evaluate it at runtime: source the
+# init script, then verify the artefact and its resolvability, with distinct
+# exit statuses per broken guarantee.
+jdk_probe_rc=0
+su - ${NB_USER:-jovyan} -s /bin/bash -lc 'set +u; [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ] || exit 3; source "$HOME/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || exit 4; [ -x "$HOME/.sdkman/candidates/java/current/bin/java" ] || exit 6; command -v java >/dev/null 2>&1 || exit 5' || jdk_probe_rc=$?
+if [ "$jdk_probe_rc" -ne 0 ]; then
+  case "$jdk_probe_rc" in
+    3) cause="no init artefact at \$HOME/.sdkman/bin/sdkman-init.sh for ${NB_USER:-jovyan}" ;;
+    4) cause="sdkman-init.sh could not be sourced by ${NB_USER:-jovyan}" ;;
+    6) cause="the artefact \$HOME/.sdkman/candidates/java/current/bin/java is missing for ${NB_USER:-jovyan}" ;;
+    5) cause="'java' is not resolvable for ${NB_USER:-jovyan} even after sourcing sdkman-init.sh" ;;
+    *) cause="the java probe for ${NB_USER:-jovyan} could not be executed (exit ${jdk_probe_rc})" ;;
+  esac
+  echo "❌ java-jdk: FH_JAVA_JDK_NOT_AVAILABLE — ${cause} although the 'sdk install java' stage exited 0 (distribution ${SDKMAN_JAVA_IDENTIFIER}, version request ${JDK_VERSION}). Aborting rather than publishing an image that advertises java/javac and ships neither." >&2
   exit 1
 fi
+echo "java-jdk: installation successful"
+su - ${NB_USER:-jovyan} -s /bin/bash -lc 'java -version' || true
 
 echo "java-jdk: done"
