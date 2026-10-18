@@ -13,8 +13,8 @@
   "options": {
     "graalvm_version": {
       "type": "string",
-      "default": "22.3.1",
-      "description": "GraalVM release to install"
+      "default": "25.4.4.1+1-graalce",
+      "description": "Complete SDKMAN 'java' candidate id to install: <version>-graalce for GraalVM Community, <version>-graal for Oracle GraalVM (e.g. 25.4.4.1+1-graalce, 21.0.2-graalce). Legacy GraalVM release numbering (22.3.1) has no candidate id and is ignored with a warning."
     },
     "install_native_image": {
       "type": "boolean",
