@@ -24,8 +24,8 @@ ran it ended in ``|| true``, while the feature's own postInstallCheck asserts
 Its ``if [ -d "${HOME_DIR}" ]`` also had no ``else``, so a missing home skipped
 the entire configuration block silently.
 
-These tests run the REAL shipped installers with ``su``, ``curl``, ``git`` and
-``sdk`` stubbed and pin:
+These tests run the REAL shipped installers with ``su``, ``curl``, ``git``,
+``sdk``, ``dpkg``, ``download_direct`` and ``fh_resolve_version`` stubbed and pin:
 
   1. graalvm: an uninstallable candidate aborts at the producer (rc 1,
      FH_GRAALVM_INSTALL_FAILED, naming the resolved id);
@@ -37,10 +37,12 @@ These tests run the REAL shipped installers with ``su``, ``curl``, ``git`` and
      into a dead identifier;
   4. graalvm: a java that is present but is not a GraalVM runtime is fatal
      (the feature advertises GraalVM, not merely java);
-  5. zsh-config: a failed starship fetch is fatal (rc 1,
-     FH_STARSHIP_INSTALL_FAILED) and installs nothing;
-  6. zsh-config: an installer that exits 0 having written no binary is fatal
-     -- this is what the post-condition buys that pipefail alone cannot;
+  5. zsh-config: a failed download_direct fetch of the pinned archive is
+     fatal (rc 1, FH_STARSHIP_INSTALL_FAILED, naming the v-pinned GitHub
+     asset) and installs nothing;
+  6. zsh-config: a download_direct that exits 0 having written no binary is
+     fatal -- what the post-condition buys that rc checks alone cannot; an
+     unresolved pin likewise aborts BEFORE any fetch (FH_VERSION_UNRESOLVED);
   7. zsh-config: the healthy path exits 0 with the binary present;
   8. RED proofs: the fd0f231 forms of both installers exit 0 on the exact
      inputs above, so these assertions discriminate the fix.
@@ -119,7 +121,7 @@ if not BASH:
 
 # Everything the two installers and their stubbed children invoke besides
 # bash builtins. Staged by absolute path so the scrubbed PATH stays closed.
-_PLUMBING = ("cat", "chmod", "chown", "cp", "grep", "mkdir", "rm", "sh")
+_PLUMBING = ("cat", "chmod", "chown", "cp", "grep", "head", "mkdir", "rm", "sed", "sh")
 
 _GRAAL_JAVA = (
     "echo 'openjdk version \"25.0.2\" 2025-07-15' >&2\n"
@@ -198,9 +200,24 @@ class _Sandbox:
         )
         # Keeps zsh-config off its `apt_install git` branch (no apt here).
         _write_exec(self.bin / "git", "# Stub git.\nexit 0\n")
-        # `sh` is staged from the system; `curl`/`sdk` are mode-configured below.
+        # starship mirror stack (zsh-config, post-6ffe215): the installer maps
+        # dpkg's amd64 -> x86_64 for the release asset; the stub fixes amd64.
+        _write_exec(self.bin / "dpkg", "# Stub dpkg.\necho amd64\n")
+        # Version resolution without the prebaked helpers: a PATH executable
+        # answers `command -v fh_resolve_version` exactly like the sourced
+        # function would, extracting .tools[$1] from the repo SoT (read-only).
+        _write_exec(
+            self.bin / "fh_resolve_version",
+            "# Stub fh_resolve_version (read-only on versions.json).\n"
+            'sed -n "s/.*\\"$1\\": \\"\\([^\\"]*\\)\\".*/\\1/p" "'
+            + str(REPO / "versions.json") + '" | head -1\n'
+            "exit 0\n",
+        )
+        # `sh` is staged from the system; `curl`/`sdk`/`download_direct` are
+        # mode-configured below.
         self.set_curl("empty")
         self.set_sdk("noop")
+        self.set_download_direct("noop")
 
         init = self.sdkman / "bin" / "sdkman-init.sh"
         init.parent.mkdir(parents=True, exist_ok=True)
@@ -228,6 +245,34 @@ class _Sandbox:
         else:  # pragma: no cover - harness misuse
             raise ValueError(f"unknown curl mode {mode!r}")
         _write_exec(self.bin / "curl", body)
+
+    def set_download_direct(self, mode: str) -> None:
+        """``fail``: egress dies mid-fetch (the curl (35) class that killed run
+        39129344307), rc 35, writes nothing; ``noop``: exits 0 having written
+        nothing -- the exact shape a green rc cannot prove; ``ok``: materialises
+        the executable at the installer's requested dir ($4), like the real
+        helper does with extract=true."""
+        lines = [
+            "# Stub download_direct. Never touches the network.",
+            'echo "download_direct-stub: $*" >&2',
+        ]
+        if mode == "fail":
+            lines += [
+                "echo 'curl: (35) Recv failure: Connection reset by peer' >&2",
+                "exit 35",
+            ]
+        elif mode == "noop":
+            lines += ["exit 0"]
+        elif mode == "ok":
+            lines += [
+                'mkdir -p "$4"',
+                "printf '#!/bin/sh\\necho starship 1.27.0\\nexit 0\\n' > \"$4/starship\"",
+                'chmod 755 "$4/starship"',
+            ]
+        else:  # pragma: no cover - harness misuse
+            raise ValueError(f"unknown download_direct mode {mode!r}")
+        lines += ["exit 0", ""]
+        _write_exec(self.bin / "download_direct", "\n".join(lines))
 
     def set_sdk(self, mode: str) -> None:
         """``reject``: SDKMAN's 'not a valid version' path (exit 1, writes
@@ -364,30 +409,45 @@ class TestGraalvmFailsLoud:
 
 
 class TestStarshipFailsLoud:
-    """starship is this feature's own contract check; it may not no-op quietly."""
+    """starship is this feature's own contract check; it may not no-op quietly.
+    Post-6ffe215 the fetch is the pinned, digest-verified download_direct call
+    (toolcache mirror); the fatality contract is unchanged."""
 
     def test_egress_failure_aborts_at_the_producer(self, tmp_path):
         sbx = _Sandbox(tmp_path, "ss-fail")
-        sbx.set_curl("fail6")
+        sbx.set_download_direct("fail")
         res = sbx.run(ZSH_CONFIG_SH)
         assert res.returncode == 1, res.stdout + res.stderr
         assert STARSHIP_TOKEN in res.stderr
-        assert "https://starship.rs/install.sh" in res.stderr
+        assert "starship-x86_64-unknown-linux-musl.tar.gz" in res.stderr
+        assert "releases/download/v" in res.stderr
         assert not (sbx.home / ".local" / "bin" / "starship").exists()
 
     def test_exit_zero_installing_nothing_is_fatal(self, tmp_path):
-        """curl exits 0 serving nothing -> `sh` exits 0 -> pipefail sees a green
-        pipeline. Only the post-condition catches this shape."""
+        """download_direct exits 0 having written nothing -> rc checks alone
+        see green. Only the post-condition catches this shape."""
         sbx = _Sandbox(tmp_path, "ss-empty")
-        sbx.set_curl("empty")
+        sbx.set_download_direct("noop")
         res = sbx.run(ZSH_CONFIG_SH)
         assert res.returncode == 1, res.stdout + res.stderr
         assert STARSHIP_TOKEN in res.stderr
         assert str(sbx.home / ".local" / "bin" / "starship") in res.stderr
 
+    def test_unresolved_pin_aborts_before_any_fetch(self, tmp_path):
+        """starship is checksum-pinned: no fh_resolve_version answer and no
+        artefacts/versions.json must abort with FH_VERSION_UNRESOLVED, never
+        fall back to upstream 'latest' and never reach download_direct."""
+        sbx = _Sandbox(tmp_path, "ss-nopin")
+        _write_exec(sbx.bin / "fh_resolve_version", "# Stub: resolves nothing.\nexit 0\n")
+        sbx.set_download_direct("fail")  # if reached, the test would see its token
+        res = sbx.run(ZSH_CONFIG_SH)
+        assert res.returncode == 1, res.stdout + res.stderr
+        assert "FH_VERSION_UNRESOLVED" in res.stderr
+        assert STARSHIP_TOKEN not in res.stderr
+
     def test_healthy_install_exits_zero(self, tmp_path):
         sbx = _Sandbox(tmp_path, "ss-ok")
-        sbx.set_curl("install")
+        sbx.set_download_direct("ok")
         res = sbx.run(ZSH_CONFIG_SH)
         assert res.returncode == 0, res.stdout + res.stderr
         assert (sbx.home / ".local" / "bin" / "starship").is_file()

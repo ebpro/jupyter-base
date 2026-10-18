@@ -99,6 +99,13 @@ tools:
     sources:
       - type: github
         repo: "wagoodman/dive"
+  starship:
+    version: "1.27.0"
+    # zsh-config installs this pin through download_direct (checksums.json
+    # tools.starship, both arches); never upstream "latest".
+    sources:
+      - type: github
+        repo: "starship/starship"
   tinytex:
     version: "2026.09"
     sources:

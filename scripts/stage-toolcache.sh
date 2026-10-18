@@ -36,15 +36,17 @@ set -euo pipefail
 # STAGING LAYOUT matches the only reader — download_direct
 # (features/_lib/download-release/install.sh:727):
 #   $TOOLCACHE_DIR/$tool/$(basename "$url")   — no version, no arch.
-# tool_url() replicates the URL construction of the nine frozen download_direct
+# tool_url() replicates the URL construction of the ten frozen download_direct
 # call sites exactly: kubernetes-client/install.sh:78,94,105,
 # kubernetes-dev/install.sh:81, tilt/install.sh:63, texlive/install.sh:91-96,
 # hadolint/install.sh, ctop/install.sh, dive/install.sh (digest-pinning batch —
-# run 39120654609: un-mirrored GitHub assets hit curl (35) on build-amd64-heavy).
+# run 39120654609: un-mirrored GitHub assets hit curl (35) on build-amd64-heavy),
+# zsh-config/install.sh (starship — same curl-(35) class of failure, run
+# 39129344307: pinned GitHub asset replaces the piped starship.rs installer).
 # If a call site ever changes, this table must change with it (verified by
 # the mapping assertion in the ci-publish staging step's own dry-run tooling).
-# The TOOLS list is deliberately ONLY these nine tools' archives; other origins
-# (nodejs.org, starship.rs, tlnet.yihui.org, get.docker.com, get.volta.sh,
+# The TOOLS list is deliberately ONLY these ten tools' archives; other origins
+# (nodejs.org, tlnet.yihui.org, get.docker.com, get.volta.sh,
 # get.sdkman.io, Homebrew, apt.postgresql.org) are a ratified follow-up batch,
 # not an oversight.
 #
@@ -110,7 +112,7 @@ REPO_PREFIX="solen/toolcache"
 # (token scope + blob/manifest URLs + browsing-tag reference).
 repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
-TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive)
+TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship)
 
 MODE=""
 ARCHES="amd64,arm64"
@@ -191,6 +193,16 @@ tool_url() {
       tag="$ver"; case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
       nov="${ver#v}"
       printf 'https://github.com/wagoodman/dive/releases/download/%s/dive_%s_linux_%s.tar.gz' "$tag" "$nov" "$arch" ;;
+    starship)  # zsh-config/install.sh (tag keeps/gets leading v; asset basename is
+               # UNVERSIONED upstream — the pin lives in the tag; musl on both arches:
+               # amd64 -> x86_64-unknown-linux-musl, arm64 -> aarch64-unknown-linux-musl)
+      tag="$ver"; case "$tag" in v*) : ;; *) tag="v$tag" ;; esac
+      ta="$arch"
+      case "$arch" in
+        amd64|x86_64|X86_64) ta="x86_64" ;;
+        arm64|aarch64|AARCH64) ta="aarch64" ;;
+      esac
+      printf 'https://github.com/starship/starship/releases/download/%s/starship-%s-unknown-linux-musl.tar.gz' "$tag" "$ta" ;;
     *) return 1 ;;
   esac
 }
