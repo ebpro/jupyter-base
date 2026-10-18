@@ -33,3 +33,7 @@ build-logs
 # committed nor reach any COPYed tree.
 toolcache-stage/*
 !toolcache-stage/.gitkeep
+
+# Legacy toolcache staging path (pre-5120ad5): staging now lives in the
+# bind-only toolcache-stage/; stale blobs here would bloat the COPYed layer.
+artefacts/toolcache/
