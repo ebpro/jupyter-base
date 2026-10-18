@@ -1506,8 +1506,11 @@ jobs:
           # Loud failure surfacing: mode_push returns 1 when any entry failed,
           # and its ❌ lines name the repos. Tee to a log, count the failures,
           # annotate, then exit with the script's status so the STEP goes red
-          # while continue-on-error keeps the JOB green (nothing needs
-          # mirror-artefacts, so this is safe).
+          # while continue-on-error keeps the JOB green. The build legs DO
+          # `needs: [changes, mirror-artefacts]` (see :71/:381/:691) — for
+          # ADVISORY ORDERING only: with the push continue-on-error and the
+          # legs gated on !cancelled(), a red mirror can never skip the
+          # release path, so this stays safe.
           LOG="$(mktemp)"
           scripts/stage-toolcache.sh --mode push --arch amd64,arm64 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}

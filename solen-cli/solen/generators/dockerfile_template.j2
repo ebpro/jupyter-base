@@ -139,7 +139,12 @@ for i in "${!features[@]}"; do
   if run_check_as_user "$check_cmd"; then
     echo "OK postInstallCheck: $feature"
   else
-    echo "FAIL postInstallCheck: $feature" >&2
+    # $? here is run_check_as_user's status (the if-condition): a failing
+    # check must name itself -- decoded command + non-zero exit code --
+    # so a red check is diagnosable from the build log alone. Gating is
+    # unchanged: the loop still counts the failure and exits "$failed".
+    status=$?
+    echo "FAIL postInstallCheck: $feature (exit ${status}) command: '${check_cmd}'" >&2
     failed=$((failed + 1))
   fi
 done
