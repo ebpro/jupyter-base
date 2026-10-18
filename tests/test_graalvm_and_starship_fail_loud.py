@@ -361,3 +361,86 @@ class TestGraalvmFailsLoud:
             assert res.returncode == 0, f"pre-fix {mode} case unexpectedly failed:\n{res.stderr}"
             assert "graalvm: done" in res.stdout
             assert not (sbx.sdkman / "candidates" / "java" / "current" / "bin" / "java").exists()
+
+
+class TestStarshipFailsLoud:
+    """starship is this feature's own contract check; it may not no-op quietly."""
+
+    def test_egress_failure_aborts_at_the_producer(self, tmp_path):
+        sbx = _Sandbox(tmp_path, "ss-fail")
+        sbx.set_curl("fail6")
+        res = sbx.run(ZSH_CONFIG_SH)
+        assert res.returncode == 1, res.stdout + res.stderr
+        assert STARSHIP_TOKEN in res.stderr
+        assert "https://starship.rs/install.sh" in res.stderr
+        assert not (sbx.home / ".local" / "bin" / "starship").exists()
+
+    def test_exit_zero_installing_nothing_is_fatal(self, tmp_path):
+        """curl exits 0 serving nothing -> `sh` exits 0 -> pipefail sees a green
+        pipeline. Only the post-condition catches this shape."""
+        sbx = _Sandbox(tmp_path, "ss-empty")
+        sbx.set_curl("empty")
+        res = sbx.run(ZSH_CONFIG_SH)
+        assert res.returncode == 1, res.stdout + res.stderr
+        assert STARSHIP_TOKEN in res.stderr
+        assert str(sbx.home / ".local" / "bin" / "starship") in res.stderr
+
+    def test_healthy_install_exits_zero(self, tmp_path):
+        sbx = _Sandbox(tmp_path, "ss-ok")
+        sbx.set_curl("install")
+        res = sbx.run(ZSH_CONFIG_SH)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert (sbx.home / ".local" / "bin" / "starship").is_file()
+        assert "zsh-config: done" in res.stdout
+
+    def test_missing_home_is_fatal_not_silently_skipped(self, tmp_path):
+        sbx = _Sandbox(tmp_path, "ss-nohome")
+        sbx.set_curl("install")
+        # The path must be UNCREATEABLE, not merely absent: the installer's own
+        # user-dir bootstrap runs `mkdir -p "${HOME_DIR}/.local/bin"`, so a plain
+        # missing directory would exist by the time the `-d` gate is evaluated and
+        # the branch under test would never be reached. A regular file as the
+        # parent makes that mkdir fail for good.
+        blocker = tmp_path / "ss-nohome" / "not-a-directory"
+        blocker.write_text("stop", encoding="utf-8")
+        missing = blocker / "absent-home"
+        res = sbx.run(ZSH_CONFIG_SH, {"HOME_DIR": str(missing)})
+        assert res.returncode == 1, res.stdout + res.stderr
+        assert "FH_ZSH_HOME_MISSING" in res.stderr
+        assert str(missing) in res.stderr
+        assert "container-user" in res.stderr
+
+    def test_red_proof_pre_fix_installer_exited_zero(self, tmp_path):
+        """fd0f231 exited 0 with no starship on the exact failing inputs above."""
+        for mode in ("fail6", "empty"):
+            sbx = _Sandbox(tmp_path, f"ss-red-{mode}")
+            sbx.set_curl(mode)
+            old = _old_form("zsh-config", tmp_path, home_dir_patch=True)
+            res = sbx.run(old)
+            assert res.returncode == 0, f"pre-fix {mode} case unexpectedly failed:\n{res.stderr}"
+            assert "zsh-config: done" in res.stdout
+            assert not (sbx.home / ".local" / "bin" / "starship").exists()
+
+
+class TestGraalProfilePassesAResolvableId:
+    """profiles/matrix/languages.yaml must hand graalvm a catalog id.
+
+    The installer's legacy-numbering warning is a guard, not a plan: a profile
+    that keeps passing `22.3.1` is only correct because the feature ignores it,
+    which leaves the trap armed for the next reader and puts a permanent warning
+    on every graal build. These pin the corrected value and prove the resolution
+    logic takes it verbatim.
+    """
+
+    def test_lang_java_graal_selects_a_graalce_candidate(self):
+        text = (REPO / "profiles" / "matrix" / "languages.yaml").read_text(encoding="utf-8")
+        assert "GRAALVM_VERSION: 22.3.1" not in text
+        assert f"GRAALVM_VERSION: {CE_ID}" in text
+
+    def test_resolved_candidate_is_taken_verbatim(self, tmp_path):
+        sbx = _Sandbox(tmp_path, "matrix-id")
+        sbx.set_sdk("ok")
+        res = sbx.run(GRAALVM_SH, {"GRAALVM_VERSION": CE_ID})
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "ignoring legacy" not in res.stderr
+        assert f"sdk install java {CE_ID}" in res.stdout
