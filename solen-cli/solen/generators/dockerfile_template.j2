@@ -159,6 +159,7 @@ RUN \
 {% endfor %}
   --mount=type=bind,source=inputs,target=/tmp/inputs,readonly \
   --mount=type=bind,source=artefacts,target=/tmp/artefacts,readonly \
+  --mount=type=bind,source=toolcache-stage,target=/tmp/toolcache-stage,readonly \
   --mount=type=bind,source=scripts,target=/tmp/scripts,readonly \
   --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
@@ -173,7 +174,7 @@ source /opt/solen/_lib/helpers.sh || true
 # Seed the shared BuildKit toolcache volume from digest-pinned archives
 # staged by scripts/stage-toolcache.sh --mode pull (CI legs). The seed
 # lives INSIDE this RUN on purpose: the RUN's cache key covers both the
-# seed source (the artefacts bind) and every consumer (the feature
+# seed source (the toolcache-stage bind) and every consumer (the feature
 # binds), so no cached seed step can ever skip while a live consumer
 # runs against an empty mount (the bd1d66d/8da2bd8 divergence).
 # cp -a clobbers: a version bump lands new bytes at the same flat
@@ -182,8 +183,8 @@ source /opt/solen/_lib/helpers.sh || true
 # The `if` form is mandatory: this heredoc runs under `bash -eux`, so the
 # short form `[ -d … ] && cp …` would return 1 on a false test and abort
 # every local ./build.sh.
-if [ -d /tmp/artefacts/toolcache ] && [ -n "$(ls -A /tmp/artefacts/toolcache 2>/dev/null)" ]; then
-  cp -a /tmp/artefacts/toolcache/. /opt/toolcache/
+if [ -d /tmp/toolcache-stage ] && [ -n "$(ls -A /tmp/toolcache-stage 2>/dev/null)" ]; then
+  cp -a /tmp/toolcache-stage/. /opt/toolcache/
 fi
 
 echo "=== debug: list /opt/solen/_lib"; ls -la /opt/solen/_lib || true

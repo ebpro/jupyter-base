@@ -27,3 +27,9 @@ build-logs
 # build logs and backup files
 *.log
 *.bak
+
+# Toolcache staging dir: bind-only build input (see scripts/stage-toolcache.sh).
+# The directory must exist in the build context; archives must never be
+# committed nor reach any COPYed tree.
+toolcache-stage/*
+!toolcache-stage/.gitkeep

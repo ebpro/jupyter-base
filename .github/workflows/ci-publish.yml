@@ -193,9 +193,10 @@ jobs:
       # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
-      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context). The generated install RUN itself seeds
-      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # toolcache-stage/ (a build-context sibling of artefacts/, deliberately
+      # outside the `COPY artefacts` tree so the archives never enter the base
+      # layer). The generated install RUN itself seeds
+      # /opt/toolcache from the toolcache-stage bind — there is deliberately NO
       # standalone seed RUN any more: its cache key excluded features/, so a
       # features-only commit kept it CACHED while the consumer ran against an
       # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
@@ -226,7 +227,7 @@ jobs:
           # byte-substring). Loud but non-failing by default: a mirror miss is
           # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
-          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out toolcache-stage 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
           misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
           if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
@@ -250,7 +251,7 @@ jobs:
             expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
             present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
             missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
-            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            files="$(find toolcache-stage -type f 2>/dev/null | wc -l | tr -d ' ')"
             echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
             if [ "${present:-0}" -lt "${expected:-0}" ]; then
               echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."
@@ -503,9 +504,10 @@ jobs:
       # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
-      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context). The generated install RUN itself seeds
-      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # toolcache-stage/ (a build-context sibling of artefacts/, deliberately
+      # outside the `COPY artefacts` tree so the archives never enter the base
+      # layer). The generated install RUN itself seeds
+      # /opt/toolcache from the toolcache-stage bind — there is deliberately NO
       # standalone seed RUN any more: its cache key excluded features/, so a
       # features-only commit kept it CACHED while the consumer ran against an
       # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
@@ -536,7 +538,7 @@ jobs:
           # byte-substring). Loud but non-failing by default: a mirror miss is
           # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
-          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out toolcache-stage 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
           misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
           if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
@@ -560,7 +562,7 @@ jobs:
             expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
             present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
             missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
-            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            files="$(find toolcache-stage -type f 2>/dev/null | wc -l | tr -d ' ')"
             echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
             if [ "${present:-0}" -lt "${expected:-0}" ]; then
               echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."
@@ -813,9 +815,10 @@ jobs:
       # archives from Harbor solen/toolcache-<tool>-<arch> (SINGLE-LEVEL repo
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
-      # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context). The generated install RUN itself seeds
-      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # toolcache-stage/ (a build-context sibling of artefacts/, deliberately
+      # outside the `COPY artefacts` tree so the archives never enter the base
+      # layer). The generated install RUN itself seeds
+      # /opt/toolcache from the toolcache-stage bind — there is deliberately NO
       # standalone seed RUN any more: its cache key excluded features/, so a
       # features-only commit kept it CACHED while the consumer ran against an
       # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
@@ -846,7 +849,7 @@ jobs:
           # byte-substring). Loud but non-failing by default: a mirror miss is
           # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
-          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
+          scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out toolcache-stage 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
           misses="$(grep -cF -e '⚠' -e '❌' "$LOG" || true)"
           if [ "$status" -ne 0 ] || [ "${misses:-0}" -gt 0 ]; then
@@ -870,7 +873,7 @@ jobs:
             expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
             present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
             missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
-            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            files="$(find toolcache-stage -type f 2>/dev/null | wc -l | tr -d ' ')"
             echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
             if [ "${present:-0}" -lt "${expected:-0}" ]; then
               echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."

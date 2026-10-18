@@ -10,8 +10,9 @@ set -euo pipefail
 # cache key, so any feature-script change forces a cold fetch. The mirror buys
 # immunity to origin-hosted failure of any cause: build legs fetch
 # publisher-digest-pinned archives from Harbor, stage them under
-# artefacts/toolcache/, and the generated Dockerfile's install RUN seeds the
-# shared /opt/toolcache BuildKit volume itself from the artefacts bind, so
+# toolcache-stage/ (a build-context sibling of artefacts/, NOT under the
+# COPYed artefacts tree), and the generated Dockerfile's install RUN seeds the
+# shared /opt/toolcache BuildKit volume itself from the toolcache-stage bind, so
 # download_direct cache-hits instead of touching the failing origin.
 #
 # INTEGRITY RULE (binding). A mirror must NEVER supply its own digest. Every
@@ -83,7 +84,7 @@ set -euo pipefail
 #
 # USAGE.
 #   scripts/stage-toolcache.sh --mode list [--arch amd64[,...]]
-#   scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache
+#   scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out toolcache-stage
 #   scripts/stage-toolcache.sh --mode push --arch amd64,arm64
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -113,7 +114,7 @@ TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive)
 
 MODE=""
 ARCHES="amd64,arm64"
-OUT="artefacts/toolcache"
+OUT="toolcache-stage"
 
 usage() { sed -n '/^# MODES\./,/^# USAGE\./p;/^#   scripts/p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 

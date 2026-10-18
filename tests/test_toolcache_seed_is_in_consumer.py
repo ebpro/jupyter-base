@@ -8,7 +8,7 @@ cache-mount writes are excluded from exported layers anyway) while the
 consumer executed against an empty mount — then the silent no-`else`
 toolcache-miss path in download_direct egressed to origin and the legs died
 on `curl: (28)`. Moving the seed into the install RUN makes a single cache
-key cover both the seed source (the artefacts bind) and every consumer (the
+key cover both the seed source (the toolcache-stage bind) and every consumer (the
 feature binds), so the divergence is structurally impossible.
 
 Static template-text assertions only — no docker, no network. The idiom
@@ -30,10 +30,10 @@ PREFIX_REV = "c5af458"  # last commit with the standalone seeder RUN (hop 4)
 
 MOUNT = "--mount=type=cache,target=/opt/toolcache"
 SEED_IF = (
-    'if [ -d /tmp/artefacts/toolcache ] '
-    '&& [ -n "$(ls -A /tmp/artefacts/toolcache 2>/dev/null)" ]; then'
+    'if [ -d /tmp/toolcache-stage ] '
+    '&& [ -n "$(ls -A /tmp/toolcache-stage 2>/dev/null)" ]; then'
 )
-SEED_CP = "cp -a /tmp/artefacts/toolcache/. /opt/toolcache/"
+SEED_CP = "cp -a /tmp/toolcache-stage/. /opt/toolcache/"
 HEREDOC_START = "bash -eux -o pipefail <<'SCRIPT'"
 
 
@@ -96,7 +96,7 @@ def test_seed_uses_if_form_and_documents_the_bash_eux_reason():
     body = _install_run_heredoc(_template())
     assert SEED_IF in body
     # The abort-on-false short form must not replace the if-block.
-    assert not re.search(r"\[\s*-d\s+/tmp/artefacts/toolcache\s*\]\s*&&\s*cp\b", body), (
+    assert not re.search(r"\[\s*-d\s+/tmp/toolcache-stage\s*\]\s*&&\s*cp\b", body), (
         "`[ -d … ] && cp …` returns 1 under bash -eux when the test is false "
         "and would abort every local ./build.sh"
     )
@@ -129,7 +129,7 @@ def test_guards_are_non_vacuous_against_the_prefix_template():
     seeder_run = "RUN --mount=type=cache,target=/opt/toolcache"
     assert seeder_run in old
     assert seeder_run not in _template()  # (c) discriminates
-    # (b) the old seed read the baked COPY path, not the artefacts bind, and
+    # (b) the old seed read the baked COPY path, not the toolcache-stage bind, and
     # the new bind-sourced seed lines are absent.
     assert SEED_IF not in old
     assert SEED_CP not in old
@@ -137,6 +137,6 @@ def test_guards_are_non_vacuous_against_the_prefix_template():
     assert not any(
         line.lstrip().startswith("#") and "bash -eux" in line for line in old.splitlines()
     )
-    # (e) the old cp targeted the baked path — the new /tmp/artefacts cp line
+    # (e) the old cp targeted the baked path — the new /tmp/toolcache-stage cp line
     # is absent above (SEED_CP), so test (e)'s exact-text assertion discriminates.
     assert "cp -a /opt/solen/artefacts/toolcache/. /opt/toolcache/" in old
