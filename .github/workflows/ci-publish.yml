@@ -1349,8 +1349,13 @@ jobs:
           done
 
   # Toolcache mirror — publish side. The mirror's digest SoT is the in-repo
-  # checksums.json, so a change to that file is the refresh trigger: this
-  # gate lives in the `changes` job, which mirror-artefacts needs.
+  # checksums.json. This job's commit-range diff of that file USED to be the
+  # mirror's refresh trigger, consumed by mirror-artefacts through
+  # `needs.changes.outputs.checksums`; it no longer gates the mirror (see the
+  # mirror-artefacts comment for why range-diff gating was retired). The job
+  # itself stays: the build legs still list `changes` in `needs` for the
+  # advisory ordering edge, and a red `changes` job still taints the run
+  # conclusion that ci-build.yml's promotion gate reads.
   # Fail-open by construction: an unresolvable before-SHA range (force-push,
   # branch creation, tag, workflow_dispatch payload) defaults to changed=true
   # so a rewritten history can NEVER silently skip publishing. A needless
@@ -1402,11 +1407,25 @@ jobs:
   # single-level solen/build-cache in that very run. Do not reintroduce
   # nesting. (scripts/stage-toolcache.sh --mode push: upstream fetch ->
   # verify against in-repo checksums.json -> push missing blobs;
-  # already-published objects are skipped). Runs when checksums.json changed
-  # OR a workflow_dispatch set mirror_force — the bootstrap path: once
-  # checksums.json stabilises the change gate stays closed forever, so seeding
-  # an empty mirror needs an explicit-force door (chicken-and-egg hole in the
-  # original design). The push step is continue-on-error ON PURPOSE: ci-build.yml
+  # already-published objects are skipped). TRIGGER POLICY (rewritten after
+  # production proved the old one fragile): runs on EVERY push to develop and
+  # on every workflow_dispatch, plus the explicit mirror_force door — it no
+  # longer consumes the `changes` range-diff output at all. Reason: a
+  # one-time "did this commit range touch checksums.json?" gate lost the
+  # seeding event three times — runs 39127999375 (b514de1), 39128743942
+  # (77b3272) and 39128767925 (bb2a2dc) were each replaced while still
+  # pending and cancelled with ZERO jobs, and run 39120654609 (9225c0d)
+  # completed with this job `skipped`; the HEAD-push run 39129344307
+  # (90e8db8) then diffed bb2a2dc..90e8db8, which contains no checksums.json
+  # change, so the six never-pushed blobs would have stayed orphaned forever
+  # (no later range includes b514de1's change). Because mode_push is
+  # content-addressed and idempotent (`already published; skipping`), running
+  # unconditionally on develop is cheap and SELF-HEALING: any blob missed by
+  # a failed or cancelled run is retried by the very next develop push.
+  # v* tag pushes intentionally do NOT run it: tags are cut on the develop
+  # tip, whose push already mirrored the same checksums.json. This workflow
+  # has no pull_request trigger, so PR behaviour is unchanged (never ran).
+  # The push step is continue-on-error ON PURPOSE: ci-build.yml
   # gates develop promotion on the conclusion of this whole run ("Publish to
   # GHCR"), so a Harbor outage or a flaky origin during a MIRROR push must
   # never block a release — the mirror is an availability hedge, not a
@@ -1415,13 +1434,17 @@ jobs:
   # annotation with the failing count — while the job stays green.
   mirror-artefacts:
     name: Mirror toolcache archives to Harbor
-    needs: changes
-    # Gate: checksums.json changed, OR a dispatch explicitly forced the
-    # mirror (mirror_force — bootstrap/re-seed door; the change gate alone
-    # can never open again once checksums.json stabilises). This explicit
-    # `if` also overrides the implicit success() on `needs: changes`, which
-    # is the pre-existing behaviour of this job.
-    if: needs.changes.outputs.checksums == 'true' || github.event.inputs.mirror_force == 'true'
+    # No `needs`: the mirror must not wait on — or be conditioned to — the
+    # `changes` range-diff output. That dependence is exactly what orphaned
+    # six blobs when the runs carrying the seeding diff (39127999375,
+    # 39128743942, 39128767925) were replaced before their first job started.
+    # Gate: unconditional on develop pushes (idempotent skip for existing
+    # blobs makes the steady-state cost negligible) and on workflow_dispatch
+    # (manual re-verify); mirror_force is kept as the explicit override door
+    # for forced re-verification on other refs — redundant-but-harmless on a
+    # dispatch, and the documented bootstrap/re-seed lever. An explicit `if`
+    # with no `needs` keeps this job trigger-driven only.
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/develop') || github.event_name == 'workflow_dispatch' || github.event.inputs.mirror_force == 'true' }}
     # Same amd64 self-hosted pool as the standard builds (the push fetches
     # amd64+arm64 ARCHIVES over HTTPS — no container execution, so host arch
     # is irrelevant; x64 pins it to the pool that reliably egresses).
