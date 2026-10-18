@@ -194,20 +194,25 @@ jobs:
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context) so the seed RUN immediately before the install RUN
-      # primes /opt/toolcache and download_direct cache-hits instead of
-      # touching origins that have never worked from this runner pool. Every
+      # the build context). The generated install RUN itself seeds
+      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # standalone seed RUN any more: its cache key excluded features/, so a
+      # features-only commit kept it CACHED while the consumer ran against an
+      # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
-      # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); misses are
-      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
-      # step always exits 0. A mirror miss degrades to today's upstream
-      # download and must NEVER fail a build leg.
+      # substitute bytes. Best-effort by default: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); misses and an
+      # incomplete staging (toolcache-pull-summary present < expected) are
+      # surfaced as loud ::warning:: annotations but the step exits 0. Set
+      # the repository variable TOOLCACHE_STRICT=true to turn an INCOMPLETE
+      # staging into a leg failure; otherwise a mirror miss still degrades to
+      # upstream downloads.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
           HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+          TOOLCACHE_STRICT: ${{ vars.TOOLCACHE_STRICT }}
         run: |
           set -uo pipefail
           if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
@@ -218,8 +223,8 @@ jobs:
           # it could never fire. Surface misses from the script's own markers
           # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
           # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
-          # byte-substring). Loud but non-failing: the step exits 0 whatever
-          # the count says — a mirror miss is never a build-leg failure.
+          # byte-substring). Loud but non-failing by default: a mirror miss is
+          # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
           scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
@@ -229,7 +234,34 @@ jobs:
             first="${first//%/%25}"
             echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          # Completeness gate. mode_pull emits exactly one machine-readable
+          # line "toolcache-pull-summary arch=… expected=N present=M missing=K";
+          # present < expected (or a missing summary line) means at least one
+          # pinned archive will miss the toolcache inside the install RUN and
+          # egress to origin — the failure mode behind the 8da2bd8 leg deaths.
+          # The find cross-check is printed for the log; the trigger per
+          # contract is present < expected. Fail only under TOOLCACHE_STRICT.
+          incomplete=false
+          summary="$(grep -m1 '^toolcache-pull-summary' "$LOG" || true)"
+          if [ -z "$summary" ]; then
+            echo "::warning::Toolcache mirror on ARCH=$ARCH: no toolcache-pull-summary line emitted — completeness cannot be assessed."
+            incomplete=true
+          else
+            expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
+            present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
+            missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
+            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
+            if [ "${present:-0}" -lt "${expected:-0}" ]; then
+              echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."
+              incomplete=true
+            fi
+          fi
           rm -f "$LOG"
+          if [ "$incomplete" = true ] && [ "${TOOLCACHE_STRICT:-}" = "true" ]; then
+            echo "::error::TOOLCACHE_STRICT=true and toolcache staging was incomplete on ARCH=$ARCH — failing the leg instead of risking silent origin egress."
+            exit 1
+          fi
           exit 0
 
       - name: Build and push (amd64, standard)
@@ -472,20 +504,25 @@ jobs:
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context) so the seed RUN immediately before the install RUN
-      # primes /opt/toolcache and download_direct cache-hits instead of
-      # touching origins that have never worked from this runner pool. Every
+      # the build context). The generated install RUN itself seeds
+      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # standalone seed RUN any more: its cache key excluded features/, so a
+      # features-only commit kept it CACHED while the consumer ran against an
+      # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
-      # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); misses are
-      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
-      # step always exits 0. A mirror miss degrades to today's upstream
-      # download and must NEVER fail a build leg.
+      # substitute bytes. Best-effort by default: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); misses and an
+      # incomplete staging (toolcache-pull-summary present < expected) are
+      # surfaced as loud ::warning:: annotations but the step exits 0. Set
+      # the repository variable TOOLCACHE_STRICT=true to turn an INCOMPLETE
+      # staging into a leg failure; otherwise a mirror miss still degrades to
+      # upstream downloads.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
           HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+          TOOLCACHE_STRICT: ${{ vars.TOOLCACHE_STRICT }}
         run: |
           set -uo pipefail
           if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
@@ -496,8 +533,8 @@ jobs:
           # it could never fire. Surface misses from the script's own markers
           # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
           # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
-          # byte-substring). Loud but non-failing: the step exits 0 whatever
-          # the count says — a mirror miss is never a build-leg failure.
+          # byte-substring). Loud but non-failing by default: a mirror miss is
+          # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
           scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
@@ -507,7 +544,34 @@ jobs:
             first="${first//%/%25}"
             echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          # Completeness gate. mode_pull emits exactly one machine-readable
+          # line "toolcache-pull-summary arch=… expected=N present=M missing=K";
+          # present < expected (or a missing summary line) means at least one
+          # pinned archive will miss the toolcache inside the install RUN and
+          # egress to origin — the failure mode behind the 8da2bd8 leg deaths.
+          # The find cross-check is printed for the log; the trigger per
+          # contract is present < expected. Fail only under TOOLCACHE_STRICT.
+          incomplete=false
+          summary="$(grep -m1 '^toolcache-pull-summary' "$LOG" || true)"
+          if [ -z "$summary" ]; then
+            echo "::warning::Toolcache mirror on ARCH=$ARCH: no toolcache-pull-summary line emitted — completeness cannot be assessed."
+            incomplete=true
+          else
+            expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
+            present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
+            missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
+            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
+            if [ "${present:-0}" -lt "${expected:-0}" ]; then
+              echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."
+              incomplete=true
+            fi
+          fi
           rm -f "$LOG"
+          if [ "$incomplete" = true ] && [ "${TOOLCACHE_STRICT:-}" = "true" ]; then
+            echo "::error::TOOLCACHE_STRICT=true and toolcache staging was incomplete on ARCH=$ARCH — failing the leg instead of risking silent origin egress."
+            exit 1
+          fi
           exit 0
 
       - name: Build and push (amd64, heavy/flagship)
@@ -750,20 +814,25 @@ jobs:
       # names; the nested two-segment form 502s on the first config-blob
       # POST — CI run 39018544362) into
       # artefacts/toolcache/ (the tree the existing `COPY artefacts` lands in
-      # the build context) so the seed RUN immediately before the install RUN
-      # primes /opt/toolcache and download_direct cache-hits instead of
-      # touching origins that have never worked from this runner pool. Every
+      # the build context). The generated install RUN itself seeds
+      # /opt/toolcache from the artefacts bind — there is deliberately NO
+      # standalone seed RUN any more: its cache key excluded features/, so a
+      # features-only commit kept it CACHED while the consumer ran against an
+      # empty mount (the bd1d66d-warm / 8da2bd8-cold divergence). Every
       # digest is read from the in-repo checksums.json — never from Harbor —
       # and objects are fetched by blob digest, so the mirror cannot
-      # substitute bytes. STRICTLY best-effort: credential absent => clean
-      # skip (behaviour identical to before the mirror existed); misses are
-      # surfaced as a loud ::warning:: (the script's own ⚠/❌ count) but the
-      # step always exits 0. A mirror miss degrades to today's upstream
-      # download and must NEVER fail a build leg.
+      # substitute bytes. Best-effort by default: credential absent => clean
+      # skip (behaviour identical to before the mirror existed); misses and an
+      # incomplete staging (toolcache-pull-summary present < expected) are
+      # surfaced as loud ::warning:: annotations but the step exits 0. Set
+      # the repository variable TOOLCACHE_STRICT=true to turn an INCOMPLETE
+      # staging into a leg failure; otherwise a mirror miss still degrades to
+      # upstream downloads.
       - name: Stage toolcache mirror (pull, best-effort)
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
           HARBOR_ROBOT_SECRET: ${{ secrets.HARBOR_ROBOT_SECRET }}
+          TOOLCACHE_STRICT: ${{ vars.TOOLCACHE_STRICT }}
         run: |
           set -uo pipefail
           if [ -z "${HARBOR_USERNAME:-}" ] || [ -z "${HARBOR_ROBOT_SECRET:-}" ]; then
@@ -774,8 +843,8 @@ jobs:
           # it could never fire. Surface misses from the script's own markers
           # instead: grep -F on the ⚠ / ❌ byte prefixes (the script emits
           # ⚠️ with a trailing VS16; the bare ⚠ codepoint matches it as a
-          # byte-substring). Loud but non-failing: the step exits 0 whatever
-          # the count says — a mirror miss is never a build-leg failure.
+          # byte-substring). Loud but non-failing by default: a mirror miss is
+          # never a build-leg failure unless TOOLCACHE_STRICT=true.
           LOG="$(mktemp)"
           scripts/stage-toolcache.sh --mode pull --arch "$ARCH" --out artefacts/toolcache 2>&1 | tee "$LOG"
           status=${PIPESTATUS[0]}
@@ -785,7 +854,34 @@ jobs:
             first="${first//%/%25}"
             echo "::warning::Toolcache mirror staging on ARCH=$ARCH: exit=$status, ${misses:-0} warn/error entries. First: ${first:-<none captured>}. Proceeding with upstream downloads — this leg behaves exactly as before the mirror existed."
           fi
+          # Completeness gate. mode_pull emits exactly one machine-readable
+          # line "toolcache-pull-summary arch=… expected=N present=M missing=K";
+          # present < expected (or a missing summary line) means at least one
+          # pinned archive will miss the toolcache inside the install RUN and
+          # egress to origin — the failure mode behind the 8da2bd8 leg deaths.
+          # The find cross-check is printed for the log; the trigger per
+          # contract is present < expected. Fail only under TOOLCACHE_STRICT.
+          incomplete=false
+          summary="$(grep -m1 '^toolcache-pull-summary' "$LOG" || true)"
+          if [ -z "$summary" ]; then
+            echo "::warning::Toolcache mirror on ARCH=$ARCH: no toolcache-pull-summary line emitted — completeness cannot be assessed."
+            incomplete=true
+          else
+            expected="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^expected=//p')"
+            present="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^present=//p')"
+            missing="$(printf '%s\n' "$summary" | tr ' ' '\n' | sed -n 's/^missing=//p')"
+            files="$(find artefacts/toolcache -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "Toolcache mirror completeness: arch=$ARCH expected=${expected:-?} present=${present:-?} missing=${missing:-?} staged-files=$files"
+            if [ "${present:-0}" -lt "${expected:-0}" ]; then
+              echo "::warning::Toolcache mirror INCOMPLETE on ARCH=$ARCH: ${present:-0}/${expected:-0} entries staged (missing=${missing:-?}, staged files=$files). Unstaged tools will fall back to origin downloads inside the install RUN."
+              incomplete=true
+            fi
+          fi
           rm -f "$LOG"
+          if [ "$incomplete" = true ] && [ "${TOOLCACHE_STRICT:-}" = "true" ]; then
+            echo "::error::TOOLCACHE_STRICT=true and toolcache staging was incomplete on ARCH=$ARCH — failing the leg instead of risking silent origin egress."
+            exit 1
+          fi
           exit 0
 
       - name: Build and push (arm64, all)

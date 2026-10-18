@@ -766,6 +766,8 @@ download_direct() {
         echo "   Using cached archive: $cache_archive"
         cp -a "$cache_archive" "$tmpfile"
         from_cache=true
+    else
+        echo "   ⚠️  toolcache miss: $cache_archive absent — falling back to origin $url" >&2
     fi
 
     while [ $attempt -le $max_attempts ]; do

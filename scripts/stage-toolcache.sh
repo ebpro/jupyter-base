@@ -10,9 +10,9 @@ set -euo pipefail
 # cache key, so any feature-script change forces a cold fetch. The mirror buys
 # immunity to origin-hosted failure of any cause: build legs fetch
 # publisher-digest-pinned archives from Harbor, stage them under
-# artefacts/toolcache/, and the generated Dockerfile's seed RUN primes the
-# shared /opt/toolcache BuildKit volume from that tree, so download_direct
-# cache-hits instead of touching the failing origin.
+# artefacts/toolcache/, and the generated Dockerfile's install RUN seeds the
+# shared /opt/toolcache BuildKit volume itself from the artefacts bind, so
+# download_direct cache-hits instead of touching the failing origin.
 #
 # INTEGRITY RULE (binding). A mirror must NEVER supply its own digest. Every
 # digest used to construct a blob URL is read from the IN-REPO checksums.json,
@@ -227,9 +227,11 @@ require_credentials() {
 # ---------------------------------------------------------------------------
 mode_pull() {
   local tool arch ver digest url staged tmp actual got
+  local total=0 present=0 missing
   while IFS=$'\t' read -r tool arch ver digest url staged; do
     [ -n "${staged:-}" ] || continue
-    if [ -f "$staged" ]; then note "already staged: $staged"; continue; fi
+    total=$((total + 1))
+    if [ -f "$staged" ]; then note "already staged: $staged"; present=$((present + 1)); continue; fi
     tmp="$(mktemp)"
     local repo
     repo="$(repo_name "$tool" "$arch")"
@@ -255,7 +257,12 @@ mode_pull() {
     mkdir -p "$(dirname "$staged")"
     mv "$tmp" "$staged"; chmod 0644 "$staged"
     note "staged $staged (sha256:$digest, digest-pinned fetch)"
+    present=$((present + 1))
   done < <(matrix)
+  missing=$((total - present))
+  # Machine-readable completeness line for the CI legs (observability only —
+  # enforcement policy lives in the workflow, not here).
+  echo "toolcache-pull-summary arch=$ARCHES expected=$total present=$present missing=$missing"
   # Staging is advisory: never a build-leg failure, whatever happened above.
   return 0
 }
