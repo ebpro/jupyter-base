@@ -1518,7 +1518,7 @@ jobs:
           if [ "$status" -ne 0 ] || [ "${fails:-0}" -gt 0 ]; then
             first="$(grep -m1 -F '❌' "$LOG" || true)"
             first="${first//%/%25}"
-            echo "::error::Toolcache mirror push: ${fails:-0} failed entries (script exit $status). First: ${first:-<no ❌ line captured>}. The job stays green by design (continue-on-error; nothing needs mirror-artefacts) but the step is red — fix the mirror before the next checksums.json change."
+            echo "::error::Toolcache mirror push: ${fails:-0} failed entries (script exit $status). First: ${first:-<no ❌ line captured>}. The job stays green by design (continue-on-error; the build legs list mirror-artefacts in needs for advisory ordering only, never for its success) but the step is red — fix the mirror before the next checksums.json change."
           fi
           rm -f "$LOG"
           exit "$status"

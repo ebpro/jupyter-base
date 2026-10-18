@@ -9,9 +9,12 @@ missing=0``. The fix converts the three installers from bare ``curl`` to
 tool_url() and both-arch digests to checksums.json, raising the staging
 matrix from 6 to 9 rows per arch.
 
-WHAT IS GUARDED (each with a red proof against the pre-change content, via
-``git show HEAD:<path>`` — a property that also held against HEAD would be a
-vacuous test):
+WHAT IS GUARDED (each with a red proof against the PRE-CHANGE content, via
+``git show BASELINE_SHA:<path>`` — a property that also held against HEAD
+would be a vacuous test. BASELINE_SHA is pinned to the parent of the
+guarding commit on purpose: deriving "pre-change" from HEAD is
+self-annihilating, because once the change is committed the HEAD blob IS
+the new content and every red proof silently inverts):
 
   (a) routing     — the installer calls download_direct with the canonical
                     5-arg form and contains no bare ``curl -…`` of the asset.
@@ -42,10 +45,21 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 STAGE_SCRIPT = REPO / "scripts" / "stage-toolcache.sh"
 
+# Immutable anchor for the red proofs: b514de1^, the last commit whose
+# installer/checksum/staging content predates the toolcache mirroring.
+# NEVER re-point this at HEAD (test_baseline_anchor_is_not_self_referential
+# fails if the two blobs ever coincide).
+BASELINE_SHA = "9225c0d"
+
 TOOLS = ("hadolint", "ctop", "dive")
 ALL_NINE = ("kubectl", "helm", "kustomize", "k9s", "tilt", "tinytex",
             "hadolint", "ctop", "dive")
 ARCHES = ("amd64", "arm64")
+
+GUARDED_PATHS = tuple(
+    [f"features/{tool}/install.sh" for tool in TOOLS]
+    + ["checksums.json", "scripts/stage-toolcache.sh"]
+)
 
 
 def _installer(tool):
@@ -56,12 +70,20 @@ def _text(path):
     return path.read_text(encoding="utf-8")
 
 
-def _git_show(path):
-    """HEAD blob of a repo-relative path (pre-change content)."""
+def _git_show(path, rev=None):
+    """Blob of a repo-relative path at ``rev`` (default: BASELINE_SHA —
+    the pinned pre-change content the red proofs are measured against)."""
     return subprocess.run(
-        ["git", "-C", str(REPO), "show", f"HEAD:{path}"],
+        ["git", "-C", str(REPO), "show", f"{rev or BASELINE_SHA}:{path}"],
         check=True, capture_output=True, text=True,
     ).stdout
+
+
+def _rev_parse(rev):
+    return subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", rev],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
 
 
 def _bash():
@@ -86,7 +108,7 @@ def _checksums(text=None):
 
 # ---------------------------------------------------------------------------
 # Property helpers (pure, so the same predicate can be run against the
-# current worktree AND the HEAD blob for the red proofs).
+# current worktree AND the baseline blob for the red proofs).
 # ---------------------------------------------------------------------------
 
 def _routes_via_download_direct(text, tool):
@@ -135,7 +157,7 @@ def _tool_url_basename(script_path, tool, arch):
 
 def _list_rows(script_path):
     """Run --mode list --arch amd64,arm64, return {arch: [tool,...]} and
-    stderr. Env-overridable SoT paths keep HEAD-blob copies runnable."""
+    stderr. Env-overridable SoT paths keep baseline-blob copies runnable."""
     env = dict(os.environ,
                VERSIONS_FILE=str(REPO / "versions.json"),
                CHECKSUMS_FILE=str(REPO / "checksums.json"))
@@ -161,6 +183,28 @@ def _digests_complete(blocks, tool):
 
 
 # ---------------------------------------------------------------------------
+# Anchor integrity: a red proof whose "old" blob IS the current blob is
+# worthless (it silently inverts into a live assertion against new content).
+# ---------------------------------------------------------------------------
+
+def test_baseline_anchor_is_not_self_referential():
+    """BASELINE_SHA must be a real ancestor of HEAD — never HEAD itself —
+    and every guarded path must have DIFFERENT content at BASELINE_SHA vs
+    HEAD. If this fails, the 16 red proofs below are vacuous by
+    construction (e.g. the anchor was re-pointed, or the pre-change
+    content leaked into the baseline)."""
+    assert _rev_parse("HEAD") != _rev_parse(BASELINE_SHA), \
+        f"{BASELINE_SHA} resolves to HEAD — red proofs compare a blob to itself"
+    r = subprocess.run(
+        ["git", "-C", str(REPO), "merge-base", "--is-ancestor",
+         BASELINE_SHA, "HEAD"], check=False)
+    assert r.returncode == 0, f"{BASELINE_SHA} is not an ancestor of HEAD"
+    for path in GUARDED_PATHS:
+        assert _git_show(path) != _git_show(path, rev="HEAD"), \
+            f"{path}: baseline blob identical to HEAD — anchor is self-referential"
+
+
+# ---------------------------------------------------------------------------
 # (a) routing
 # ---------------------------------------------------------------------------
 
@@ -174,10 +218,10 @@ def test_installer_routes_through_download_direct(tool):
 
 @pytest.mark.parametrize("tool", TOOLS)
 def test_red_proof_old_installer_used_bare_curl(tool):
-    """(a) is not vacuous: against HEAD the predicate is inverted — bare
-    curl present, download_direct absent."""
+    """(a) is not vacuous: against the pinned baseline the predicate is
+    inverted — bare curl present, download_direct absent."""
     old = _git_show(f"features/{tool}/install.sh")
-    assert _has_bare_curl(old), f"{tool}: HEAD had no bare curl — guard vacuous"
+    assert _has_bare_curl(old), f"{tool}: baseline had no bare curl — guard vacuous"
     assert not _routes_via_download_direct(old, tool)
 
 
@@ -198,9 +242,9 @@ def test_cache_key_basenames_match(tool, arch):
 @pytest.mark.parametrize("tool", TOOLS)
 @pytest.mark.parametrize("arch", ARCHES)
 def test_red_proof_old_script_knew_no_arm(tool, arch, tmp_path):
-    """(b) is not vacuous: HEAD's tool_url() has no arm for these tools,
-    so the staged basename is empty and the same assertion fails."""
-    old = tmp_path / "stage-head.sh"
+    """(b) is not vacuous: the baseline's tool_url() has no arm for these
+    tools, so the staged basename is empty and the same assertion fails."""
+    old = tmp_path / "stage-baseline.sh"
     old.write_text(_git_show("scripts/stage-toolcache.sh"), encoding="utf-8")
     assert _tool_url_basename(old, tool, arch) == ""
 
@@ -216,8 +260,8 @@ def test_checksums_block_has_both_arch_digests(tool):
 
 @pytest.mark.parametrize("tool", TOOLS)
 def test_red_proof_old_checksums_lacked_the_tool(tool):
-    """(c) is not vacuous: HEAD's checksums.json has no complete block for
-    the tool at all."""
+    """(c) is not vacuous: the baseline's checksums.json has no complete
+    block for the tool at all."""
     with pytest.raises((KeyError, AssertionError)):
         _digests_complete(_checksums(_git_show("checksums.json")), tool)
 
@@ -236,9 +280,9 @@ def test_list_mode_reports_nine_rows_per_arch():
 
 
 def test_red_proof_old_script_staged_only_six(tmp_path):
-    """(d) is not vacuous: HEAD's script stages 6 rows/arch (its TOOLS list
-    lacks the three tools even against the CURRENT SoT files)."""
-    old = tmp_path / "stage-head.sh"
+    """(d) is not vacuous: the baseline's script stages 6 rows/arch (its
+    TOOLS list lacks the three tools even against the CURRENT SoT files)."""
+    old = tmp_path / "stage-baseline.sh"
     old.write_text(_git_show("scripts/stage-toolcache.sh"), encoding="utf-8")
     rows, _ = _list_rows(old)
     for arch in ARCHES:
