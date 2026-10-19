@@ -99,6 +99,14 @@ tools:
     sources:
       - type: github
         repo: "wagoodman/dive"
+  gradle:
+    version: "9.8.1"
+    # java-gradle installs this pin through download_direct (checksums.json
+    # tools.gradle, single arch-independent -bin.zip served for BOTH arches);
+    # never an SDKMAN candidate resolution.
+    sources:
+      - type: github
+        repo: "gradle/gradle-distributions"
   starship:
     version: "1.27.0"
     # zsh-config installs this pin through download_direct (checksums.json

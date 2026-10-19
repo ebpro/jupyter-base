@@ -29,7 +29,8 @@ the new content and every red proof silently inverts):
                     archive_format and digests for BOTH arches (a missing
                     arch makes matrix() silently skip it, see the
                     'no … digest … skipping' warning path).
-  (d) breadth     — ``--mode list --arch amd64,arm64`` yields 10 rows/arch.
+  (d) breadth     — ``--mode list --arch amd64,arm64`` yields 11 rows/arch
+                  (10 through the starship port; gradle raises it to 11).
   (e) fail-closed — unresolved version exits 1 with FH_VERSION_UNRESOLVED;
                     no upstream 'latest' fallback (checksum-pinned tools).
 """
@@ -52,8 +53,8 @@ STAGE_SCRIPT = REPO / "scripts" / "stage-toolcache.sh"
 BASELINE_SHA = "9225c0d"
 
 TOOLS = ("hadolint", "ctop", "dive")
-ALL_TEN = ("kubectl", "helm", "kustomize", "k9s", "tilt", "tinytex",
-           "hadolint", "ctop", "dive", "starship")
+ALL_ELEVEN = ("kubectl", "helm", "kustomize", "k9s", "tilt", "tinytex",
+              "hadolint", "ctop", "dive", "starship", "gradle")
 ARCHES = ("amd64", "arm64")
 
 GUARDED_PATHS = tuple(
@@ -267,15 +268,15 @@ def test_red_proof_old_checksums_lacked_the_tool(tool):
 
 
 # ---------------------------------------------------------------------------
-# (d) staging breadth: 10 rows/arch, no silent skips
+# (d) staging breadth: 11 rows/arch, no silent skips
 # ---------------------------------------------------------------------------
 
-def test_list_mode_reports_ten_rows_per_arch():
+def test_list_mode_reports_eleven_rows_per_arch():
     rows, stderr = _list_rows(STAGE_SCRIPT)
     assert set(rows) == set(ARCHES), rows
     for arch in ARCHES:
-        assert sorted(rows[arch]) == sorted(ALL_TEN), \
-            f"{arch}: {len(rows[arch])} rows, expected 10"
+        assert sorted(rows[arch]) == sorted(ALL_ELEVEN), \
+            f"{arch}: {len(rows[arch])} rows, expected 11"
     assert "skipping" not in stderr, stderr
 
 
@@ -286,7 +287,7 @@ def test_red_proof_old_script_staged_only_six(tmp_path):
     old.write_text(_git_show("scripts/stage-toolcache.sh"), encoding="utf-8")
     rows, _ = _list_rows(old)
     for arch in ARCHES:
-        assert sorted(rows[arch]) != sorted(ALL_TEN)
+        assert sorted(rows[arch]) != sorted(ALL_ELEVEN)
         assert len(rows[arch]) == 6, rows
 
 

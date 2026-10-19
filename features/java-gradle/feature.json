@@ -2,7 +2,7 @@
   "id": "java-gradle",
   "name": "Gradle Build Tool",
   "version": "1.0.0",
-  "description": "Installs Gradle build tool via SDKMAN",
+  "description": "Installs Gradle build tool pinned by the versions SoT, digest-verified and served from the toolcache mirror",
   "dependsOn": [
     "java-sdkman"
   ],
@@ -18,7 +18,7 @@
     "GRADLE_VERSION": {
       "type": "string",
       "default": "",
-      "description": "Specific Gradle version to install, or empty for latest"
+      "description": "Specific Gradle version to install, or empty for the versions SoT pin"
     }
   },
   "provides": [

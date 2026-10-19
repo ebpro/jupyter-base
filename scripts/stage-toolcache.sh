@@ -36,19 +36,24 @@ set -euo pipefail
 # STAGING LAYOUT matches the only reader — download_direct
 # (features/_lib/download-release/install.sh:727):
 #   $TOOLCACHE_DIR/$tool/$(basename "$url")   — no version, no arch.
-# tool_url() replicates the URL construction of the ten frozen download_direct
+# tool_url() replicates the URL construction of the eleven frozen download_direct
 # call sites exactly: kubernetes-client/install.sh:78,94,105,
 # kubernetes-dev/install.sh:81, tilt/install.sh:63, texlive/install.sh:91-96,
 # hadolint/install.sh, ctop/install.sh, dive/install.sh (digest-pinning batch —
 # run 39120654609: un-mirrored GitHub assets hit curl (35) on build-amd64-heavy),
 # zsh-config/install.sh (starship — same curl-(35) class of failure, run
-# 39129344307: pinned GitHub asset replaces the piped starship.rs installer).
+# 39129344307: pinned GitHub asset replaces the piped starship.rs installer),
+# java-gradle/install.sh (gradle — same curl-(35) class again, run 39129344307:
+# the SDKMAN candidate fetch died 3× mid-transfer of gradle-9.8.1.bin; a pinned
+# canonical-origin -bin.zip replaces the SDKMAN transport).
 # If a call site ever changes, this table must change with it (verified by
 # the mapping assertion in the ci-publish staging step's own dry-run tooling).
-# The TOOLS list is deliberately ONLY these ten tools' archives; other origins
+# The TOOLS list is deliberately ONLY these eleven tools' archives; other origins
 # (nodejs.org, tlnet.yihui.org, get.docker.com, get.volta.sh,
 # get.sdkman.io, Homebrew, apt.postgresql.org) are a ratified follow-up batch,
-# not an oversight.
+# not an oversight. get.sdkman.io STAYS excluded: java-sdkman bootstraps from it
+# and java-jdk still installs the java candidate through SDKMAN — the gradle
+# port removed a consumer of that transport, not the bootstrap.
 #
 # CREDENTIALS. solen is a PRIVATE Harbor project: pull AND push both require
 # the robot credential (HARBOR_USERNAME / HARBOR_ROBOT_SECRET — names
@@ -112,7 +117,7 @@ REPO_PREFIX="solen/toolcache"
 # (token scope + blob/manifest URLs + browsing-tag reference).
 repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
-TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship)
+TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship gradle)
 
 MODE=""
 ARCHES="amd64,arm64"
@@ -203,6 +208,10 @@ tool_url() {
         arm64|aarch64|AARCH64) ta="aarch64" ;;
       esac
       printf 'https://github.com/starship/starship/releases/download/%s/starship-%s-unknown-linux-musl.tar.gz' "$tag" "$ta" ;;
+    gradle)    # java-gradle/install.sh (canonical publisher endpoint; SINGLE
+               # architecture-independent -bin.zip — same asset and same digest
+               # for both arches, tinytex precedent; the version is v-less)
+      printf 'https://services.gradle.org/distributions/gradle-%s-bin.zip' "$ver" ;;
     *) return 1 ;;
   esac
 }

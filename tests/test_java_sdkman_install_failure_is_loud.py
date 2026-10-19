@@ -1,5 +1,7 @@
-"""Regression tests for the java-sdkman / java-jdk / java-maven / java-gradle
-fail-loud contract (CI run 39053927880, the 7-minute misattribution chain).
+"""Regression tests for the java-sdkman / java-jdk / java-maven fail-loud
+contract (CI run 39053927880, the 7-minute misattribution chain).
+java-gradle is no longer a consumer of the SDKMAN transport; its mirrored
+install is guarded by tests/test_java_gradle_is_mirrored.py.
 
 `features/java-sdkman/install.sh` used to end its installer pipeline in
 `|| true`, and its only post-install probe printed a warning and exited 0:
@@ -39,7 +41,7 @@ These tests run the REAL shipped installers in a bash subprocess with `su`,
      init script is fatal instead of a warning;
   5. java-sdkman: the happy path exits 0 with stdout byte-identical to the
      pre-fix installer (behaviour unchanged when the install works);
-  6. java-jdk / java-maven / java-gradle: a failing `sdk install <candidate>`
+  6. java-jdk / java-maven: a failing `sdk install <candidate>`
      and a successful install that materialises no binary are both fatal; the
      install-failure paths name java-sdkman as the producer, the verify paths
      name the exact artefact the probe checked for and did not find; their
@@ -528,14 +530,10 @@ _CONSUMERS = {
         "warning": "WARNING - mvn command not available after installation",
         "env": {},
     },
-    "java-gradle": {
-        "candidate": "gradle",
-        "binary": "gradle",
-        "install_token": "FH_JAVA_GRADLE_INSTALL_FAILED",
-        "verify_token": "FH_JAVA_GRADLE_NOT_AVAILABLE",
-        "warning": "WARNING - gradle command not available after installation",
-        "env": {},
-    },
+    # java-gradle REMOVED from this suite: it no longer installs through the
+    # SDKMAN transport (pinned digest-verified toolcache mirror via
+    # download_direct). Its fail-loud contract lives in
+    # tests/test_java_gradle_is_mirrored.py.
     "java-jdk": {
         "candidate": "java",
         "binary": "java",
@@ -755,7 +753,9 @@ class TestConsumerContractPreserved:
     """Change 3/4: nothing that used to be a correct early abort got softer,
     and no supported configuration became a hard failure."""
 
-    @pytest.mark.parametrize("feature", ["java-jdk", "java-maven", "java-gradle"])
+    # java-gradle dropped: it has no SDKMAN-absent abort any more (see
+    # tests/test_java_gradle_is_mirrored.py for its guards).
+    @pytest.mark.parametrize("feature", ["java-jdk", "java-maven"])
     def test_sdkman_absent_still_aborts_naming_the_producer(self, tmp_path, feature):
         sb = _Sandbox(tmp_path, f"{feature}-no-sdkman")
         # No artefact, no sdk anywhere: the accurate early signal.

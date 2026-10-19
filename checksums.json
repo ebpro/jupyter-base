@@ -312,6 +312,19 @@
           "arm64": "341f5cbf24699fa0b27ec88965ad25f862ea09e15d35a543fd6ffdff1d2aa00d"
         }
       }
+    },
+    "gradle": {
+      "pinned_version": "9.8.1",
+      "archive_format": "zip",
+      "archive_url_template": "https://services.gradle.org/distributions/gradle-{version}-bin.zip",
+      "latest_version_cmd": "curl -s https://api.github.com/repos/gradle/gradle-distributions/releases/latest | jq -r '.tag_name' | sed 's/^v//'",
+      "notes": "Gradle build tool (java-gradle). SINGLE architecture-independent -bin.zip: services.gradle.org is the publisher's canonical distributions endpoint (307 to the gradle/gradle-distributions GitHub release; the same asset and the same digest serve amd64 and arm64 — tinytex precedent). The archive carries the full gradle-<version>/ distribution tree (bin/gradle + lib jars), extracted by the feature into the SDKMAN candidate layout. Digest of the served bytes (151620101, zero 404s), matched byte-for-byte against the publisher .sha256 sidecar AND the GitHub API per-asset digest.",
+      "checksums": {
+        "9.8.1": {
+          "amd64": "dce76f55f8e251a3a1f130eb120f30b3d271de2b76c9b0729d316b5a1b6dc01f",
+          "arm64": "dce76f55f8e251a3a1f130eb120f30b3d271de2b76c9b0729d316b5a1b6dc01f"
+        }
+      }
     }
   }
 }
