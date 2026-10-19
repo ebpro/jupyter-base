@@ -24,8 +24,8 @@
     "sdkman"
   ],
   "postInstallCheck": {
-    "command": "sh -c 'command -v sdk >/dev/null && sdk version || echo \"sdk not found\"'",
-    "description": "Verify sdkman shim is available"
+    "command": "test -s /home/jovyan/.sdkman/bin/sdkman-init.sh && command -v sdk >/dev/null && echo \"java-sdkman: check OK (init artefact present, sdk resolvable)\"",
+    "description": "Verify the SDKMAN transport for jovyan: init artefact present and sdk resolvable in the check shell (run-check-env.sh sources sdkman-init.sh before eval). No child shell: sdk is an unexported function; no || fallback: absence must exit non-zero."
   },
   "documentationURL": "./features/java-sdkman/README.md"
 }
