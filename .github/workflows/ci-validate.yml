@@ -14,6 +14,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Regression-anchor tests (tests/test_*_is_mirrored.py, red-proof suites)
+          # resolve historical commits via `git show` / `rev-parse` /
+          # `merge-base --is-ancestor`. The default fetch-depth: 1 leaves those
+          # objects unreachable (exit 128). The oldest anchor actually used in a
+          # git command is 7000760 (= de086cb^, 50 commits behind develop); 100
+          # leaves 2x headroom while staying far cheaper than full history
+          # (339 commits, ~100 MiB pack). If a future test pins an older commit,
+          # raise this value — do NOT convert the anchors to skips.
+          fetch-depth: 100
 
       - name: Set up Python
         uses: actions/setup-python@v7
