@@ -11,10 +11,9 @@ install is guarded by tests/test_java_gradle_is_mirrored.py.
     java-sdk: SDKMAN installation completed but 'sdk' not exposed in PATH for jovyan
     java-sdk: SDKMAN installation complete                      <-- exit 0
 
-The failing download is INSIDE the upstream get.sdkman.io script, so the
-status was only observable through the pipeline (hence the subshell `pipefail`
-in the fix). Six to eight minutes later the *consumer* aborted, in the wrong
-file:
+The failing download was INSIDE the upstream bootstrap script, so the status
+was only observable through the pipeline (hence the subshell `pipefail` in the
+fix). Six to eight minutes later the *consumer* aborted, in the wrong file:
 
     java-maven: ERROR - SDKMAN not available. Please include java-sdkman feature first.
 
@@ -25,8 +24,19 @@ not hypothetical: build-arm64 SUCCEEDED on a leg whose log contains
 this time..." / "java-jdk: WARNING - java command not available after
 installation" — a green leg publishing an image with no Java in it.
 
+MIGRATION NOTE (the bootstrap is mirrored now): the fetch stage is no longer a
+`curl | bash` pipe of the upstream bootstrap script but `download_direct` of
+the pinned, digest-verified sdkman-cli release archive, followed by the seven
+artefacts that script used to SYNTHESISE around it (the directory skeleton,
+var/platform, var/candidates, etc/config, the extract-and-flatten, var/version
+and var/version_native). This guard therefore drives a `download_direct` stub;
+the `curl` stub survives for the RED proofs, which run the PRE-FIX installer.
+The invariant is unchanged and still pinned here: a failing fetch aborts at the
+producer, names the consumers that used to absorb the blame, and installs
+nothing.
+
 These tests run the REAL shipped installers in a bash subprocess with `su`,
-`curl` and `sdk` stubbed, and pin:
+`curl`, `download_direct` and `sdk` stubbed, and pin:
 
   1. java-sdkman: a failed fetch aborts at the producer (rc 1,
      FH_SDKMAN_INSTALL_FAILED, naming the consumers that would have taken the
@@ -72,6 +82,7 @@ residue: everything lives under pytest's tmp_path.
 
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -94,6 +105,10 @@ FALSE_POSITIVE_REF = "8da2bd8"
 # The named-error tokens the fix emits (convention: FH_<NAME>, cf.
 # FH_VERSION_UNRESOLVED in features/gh/install.sh and features/tilt/install.sh).
 SDKMAN_TOKEN = "FH_SDKMAN_INSTALL_FAILED"
+
+# The pinned bootstrap release (versions/versions.yaml tools.sdkman-cli).
+# The fake archive the download_direct stub stages is shaped like it.
+_SDKMAN_CLI_VERSION = "5.23.2"
 
 # --- bash >= 4 resolution (macOS /bin/bash is 3.2); same approach as
 # tests/test_download_direct_integrity_gate.py ---------------------------------
@@ -145,6 +160,7 @@ _PLUMBING = (
     "chown",
     "cp",
     "cut",
+    "find",
     "grep",
     "head",
     "id",
@@ -154,6 +170,9 @@ _PLUMBING = (
     "sed",
     "stat",
     "tr",
+    "uname",
+    "unzip",
+    "zip",
 )
 
 # Content of a candidate binary the stub `sdk` "installs". `java -version`
@@ -238,6 +257,7 @@ class _Sandbox:
 
         self._write_su_stub()
         self.set_curl("empty")
+        self.set_download_direct("nothing")
         self.set_sdk({})
 
     # -- stubs ---------------------------------------------------------------
@@ -284,6 +304,51 @@ class _Sandbox:
             )
         body += "exec '" + BASH + "' -c \"$cmd\"\n"
         _write_exec(self.bin / "su", body)
+
+    def _fake_archive(self, exposes_sdk: bool) -> Path:
+        """A zip shaped like the real sdkman-cli release: ONE sdkman-<version>/
+        root carrying bin/sdkman-init.sh and src/ — and deliberately NO etc/
+        and NO var/, which is exactly the asymmetry the installer has to
+        synthesise. Built with the stdlib, so the sandbox never needs the
+        host's zip binary."""
+        init = (
+            'export PATH="' + str(self.userbin) + ':$PATH"\n' + self._INIT_EXPORT_LOOP + "\n"
+        ) if exposes_sdk else "# install that exposes nothing\n"
+        archive = self.root / f"fake-sdkman-cli-{_SDKMAN_CLI_VERSION}.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            root = f"sdkman-{_SDKMAN_CLI_VERSION}/"
+            zf.writestr(root + "bin/sdkman-init.sh", init)
+            zf.writestr(root + "src/sdkman-fake.sh", "# nothing to source\n")
+        return archive
+
+    def set_download_direct(self, mode: str, exposes_sdk: bool = True) -> None:
+        """`download_direct URL TOOL VERSION INSTALL_DIR EXTRACT` stub — the
+        mirrored fetch stage this feature now depends on. ``fail`` reproduces
+        the transport dying (the curl-(35) shape) as exit 1; ``nothing`` exits
+        0 having staged no archive; ``archive`` stages the fake release zip at
+        ``$INSTALL_DIR/$TOOL``, which is where the real helper puts it."""
+        if mode == "fail":
+            body = (
+                "# Stub download_direct: the mirrored fetch failing.\n"
+                "echo 'curl: (35) Recv failure: Connection reset by peer' >&2\n"
+                "exit 1\n"
+            )
+        elif mode == "nothing":
+            body = "# Stub download_direct: succeeds, stages nothing.\nexit 0\n"
+        elif mode == "archive":
+            archive = self._fake_archive(exposes_sdk)
+            body = (
+                "# Stub download_direct: stages the fake release archive.\n"
+                'tool="${2:-}"; install_dir="${4:-}"\n'
+                'if [ -n "$tool" ] && [ -n "$install_dir" ]; then\n'
+                '  mkdir -p "$install_dir"\n'
+                '  cp "' + str(archive) + '" "$install_dir/$tool"\n'
+                "fi\n"
+                "exit 0\n"
+            )
+        else:  # pragma: no cover - harness misuse
+            raise ValueError(f"unknown download_direct mode {mode!r}")
+        _write_exec(self.bin / "download_direct", body)
 
     def set_curl(self, mode: str) -> None:
         """`fail35` the observed transient egress error; `empty` the upstream
@@ -359,7 +424,15 @@ class _Sandbox:
 
     # -- execution -----------------------------------------------------------
     def run(self, installer: Path, env_extra: dict | None = None):
-        env = {"PATH": str(self.bin), "HOME": str(self.home), "TMPDIR": str(self.root)}
+        # SDKMAN_CLI_VERSION stands in for fh_resolve_version, which the scrubbed
+        # PATH cannot reach (scripts/lib/features.sh is sourced by relative path
+        # from the build context). Same pin, same source of truth.
+        env = {
+            "PATH": str(self.bin),
+            "HOME": str(self.home),
+            "TMPDIR": str(self.root),
+            "SDKMAN_CLI_VERSION": _SDKMAN_CLI_VERSION,
+        }
         env.update(env_extra or {})
         return subprocess.run(
             [BASH, str(installer)],
@@ -416,7 +489,7 @@ class TestSdkmanFailsLoud:
 
     def test_egress_failure_aborts_at_the_producer(self, tmp_path):
         sb = _Sandbox(tmp_path, "egress")
-        sb.set_curl("fail35")
+        sb.set_download_direct("fail")
 
         proc = sb.run(SDKMAN_SH)
 
@@ -425,7 +498,7 @@ class TestSdkmanFailsLoud:
             f"stderr={proc.stderr!r}"
         )
         assert SDKMAN_TOKEN in proc.stderr
-        assert "exited 35" in proc.stderr  # the pipeline status survived
+        assert "exited 1" in proc.stderr  # the fetch stage's status survived
         # Attribution: the failure names the consumers that used to absorb it.
         assert "java-jdk" in proc.stderr and "java-maven" in proc.stderr
         # The green-with-nothing banner must be gone.
@@ -435,13 +508,13 @@ class TestSdkmanFailsLoud:
 
     def test_installer_exiting_zero_without_artefact_aborts(self, tmp_path):
         sb = _Sandbox(tmp_path, "no-artefact")
-        sb.set_curl("empty")  # upstream exits 0 and installs nothing
+        sb.set_download_direct("nothing")  # the fetch exits 0, stages nothing
 
         proc = sb.run(SDKMAN_SH)
 
         assert proc.returncode == 1, proc.stdout
         assert SDKMAN_TOKEN in proc.stderr
-        assert "no init artefact" in proc.stderr  # the post-condition, not the rc
+        assert "left no archive" in proc.stderr  # the post-condition, not the rc
         assert "java-sdk: SDKMAN installation complete" not in proc.stdout
 
     def test_pipefail_gate_aborts_even_with_a_tree_present(self, tmp_path):
@@ -452,22 +525,24 @@ class TestSdkmanFailsLoud:
         place would still exit 0 — the half of the fix the artefact check
         alone cannot provide.
         """
-        sb = _Sandbox(tmp_path, "pipefail")
+        sb = _Sandbox(tmp_path, "fetch-status")
         sb.preinstall_sdkman()
-        sb.set_curl("fail35")
+        sb.set_download_direct("fail")
 
         proc = sb.run(SDKMAN_SH)
 
         assert proc.returncode == 1, proc.stdout
         assert SDKMAN_TOKEN in proc.stderr
-        assert "exited 35" in proc.stderr
+        assert "exited 1" in proc.stderr
         assert "no init artefact" not in proc.stderr  # a different gate fired
+        # The tree is still there: the abort came from the fetch alone.
+        assert (sb.sdkman / "bin" / "sdkman-init.sh").is_file()
 
     def test_sdk_unresolvable_after_init_is_fatal(self, tmp_path):
         """The old 'sdk not exposed in PATH' warning + exit 0 is now fatal."""
         sb = _Sandbox(tmp_path, "not-exposed")
         sb.preinstall_sdkman(exposes_sdk=False)
-        sb.set_curl("empty")
+        sb.set_download_direct("archive", exposes_sdk=False)
 
         proc = sb.run(SDKMAN_SH)
 
@@ -479,7 +554,7 @@ class TestSdkmanFailsLoud:
 
     def test_happy_path_exits_zero_and_stdout_is_unchanged(self, tmp_path):
         sb = _Sandbox(tmp_path, "happy")
-        sb.set_curl("install")
+        sb.set_download_direct("archive")
 
         new = sb.run(SDKMAN_SH)
         assert new.returncode == 0, new.stderr
@@ -488,11 +563,39 @@ class TestSdkmanFailsLoud:
         assert "java-sdk: SDKMAN installed for jovyan" in new.stdout
         assert "java-sdk: SDKMAN installation complete" in new.stdout
 
-        # Same sandbox, so paths in the banner are comparable: the fix must not
-        # change a successful install's observable output.
+        # The synthesised state is the NEW guarantee: the mirrored release
+        # archive ships no etc/ and no var/, so "unpacked but left the broker's
+        # files behind" is the failure mode the pipe used to hide.
+        assert (sb.sdkman / "var" / "platform").read_text(encoding="utf-8").strip()
+        assert (sb.sdkman / "var" / "version").read_text(encoding="utf-8").strip() == _SDKMAN_CLI_VERSION
+        assert (sb.sdkman / "var" / "version_native").read_text(encoding="utf-8").strip() == "0.7.34"
+        assert (sb.sdkman / "var" / "candidates").read_text(encoding="utf-8").strip().split(",")
+        assert (sb.sdkman / "etc" / "config").read_text(encoding="utf-8").splitlines() == [
+            "sdkman_auto_answer=true",
+            "sdkman_colour_enable=false",
+            "sdkman_selfupdate_feature=false",
+            "sdkman_auto_complete=true",
+            "sdkman_auto_env=false",
+            "sdkman_beta_channel=false",
+            "sdkman_checksum_enable=true",
+            "sdkman_curl_connect_timeout=7",
+            "sdkman_curl_max_time=10",
+            "sdkman_debug_mode=false",
+            "sdkman_healthcheck_enable=true",
+            "sdkman_insecure_ssl=false",
+            "sdkman_native_enable=true",
+        ]
+        assert (sb.sdkman / "candidates").is_dir() and (sb.sdkman / "ext").is_dir()
+
+        # The log contract a successful install owes its consumers is intact.
+        # (The byte-parity proof against the pre-fix installer is gone: the
+        # transport it compared no longer exists, and the only removed output
+        # is the broker's own progress chatter — see the deviation note in the
+        # port commit. The pre-fix form still runs green in this sandbox.)
         old = sb.run(_old_form("java-sdkman", sb.root))
         assert old.returncode == 0, old.stderr
-        assert new.stdout == old.stdout
+        assert "java-sdk: SDKMAN installation complete" in old.stdout
+        assert "java-sdk: Use java-jdk, java-maven, or java-gradle features" in new.stdout
 
     @pytest.mark.parametrize(
         ("mode", "preinstall"),

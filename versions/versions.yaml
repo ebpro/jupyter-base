@@ -107,6 +107,17 @@ tools:
     sources:
       - type: github
         repo: "gradle/gradle-distributions"
+  sdkman-cli:
+    version: "5.23.2"
+    # java-sdkman bootstraps SDKMAN from this pin through download_direct
+    # (checksums.json tools.sdkman-cli, SINGLE arch-independent release zip
+    # served for BOTH arches); never by piping the upstream bootstrap script,
+    # whose own build-time egress killed CI legs on curl (35). The archive
+    # carries only bin/ src/ contrib/ — the etc/ and var/ state is synthesised
+    # by the feature.
+    sources:
+      - type: github
+        repo: "sdkman/sdkman-cli"
   starship:
     version: "1.27.0"
     # zsh-config installs this pin through download_direct (checksums.json

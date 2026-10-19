@@ -48,12 +48,16 @@ set -euo pipefail
 # canonical-origin -bin.zip replaces the SDKMAN transport).
 # If a call site ever changes, this table must change with it (verified by
 # the mapping assertion in the ci-publish staging step's own dry-run tooling).
-# The TOOLS list is deliberately ONLY these eleven tools' archives; other origins
-# (nodejs.org, tlnet.yihui.org, get.docker.com, get.volta.sh,
-# get.sdkman.io, Homebrew, apt.postgresql.org) are a ratified follow-up batch,
-# not an oversight. get.sdkman.io STAYS excluded: java-sdkman bootstraps from it
-# and java-jdk still installs the java candidate through SDKMAN — the gradle
-# port removed a consumer of that transport, not the bootstrap.
+# The TOOLS list is deliberately ONLY these tools' archives; other origins
+# (nodejs.org, tlnet.yihui.org, get.docker.com, get.volta.sh, Homebrew,
+# apt.postgresql.org) are a ratified follow-up batch, not an oversight.
+# The SDKMAN bootstrap is now IN this list (sdkman-cli): java-sdkman used to
+# pipe the upstream bootstrap SCRIPT, whose own archive fetch was the last
+# severable build-time egress in the java family; the script's synthesised
+# state (etc/config, var/*) is reproduced by the feature. What STAYS excluded
+# is the JDK/CANDIDATE archive transport — java-jdk still installs the java
+# candidate through SDKMAN, and mirroring those archives needs a redirector
+# (deferred, gitops-wave2a).
 #
 # CREDENTIALS. solen is a PRIVATE Harbor project: pull AND push both require
 # the robot credential (HARBOR_USERNAME / HARBOR_ROBOT_SECRET — names
@@ -117,7 +121,7 @@ REPO_PREFIX="solen/toolcache"
 # (token scope + blob/manifest URLs + browsing-tag reference).
 repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
-TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship gradle)
+TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship gradle sdkman-cli)
 
 MODE=""
 ARCHES="amd64,arm64"
@@ -212,6 +216,13 @@ tool_url() {
                # architecture-independent -bin.zip — same asset and same digest
                # for both arches, tinytex precedent; the version is v-less)
       printf 'https://services.gradle.org/distributions/gradle-%s-bin.zip' "$ver" ;;
+    sdkman-cli) # java-sdkman/install.sh (SDKMAN script-CLI bootstrap; SINGLE
+               # architecture-independent release zip — same asset, same digest
+               # for both arches, gradle/tinytex precedent; tag is V-LESS and
+               # the asset basename sdkman-cli-<version>.zip is load-bearing:
+               # download_direct keys the cache as $TOOLCACHE_DIR/<tool>/
+               # $(basename "$url"))
+      printf 'https://github.com/sdkman/sdkman-cli/releases/download/%s/sdkman-cli-%s.zip' "$ver" "$ver" ;;
     *) return 1 ;;
   esac
 }

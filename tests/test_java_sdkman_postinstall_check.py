@@ -163,7 +163,30 @@ class _WrapperSandbox:
         self.wrapper = self.root / "run-check-env.sh"
         self.wrapper.write_text(patched, encoding="utf-8")
 
-    def make_init(self, mode: str) -> None:
+    #: The state the mirrored sdkman-cli release archive does NOT ship, and
+    #: which the installer therefore has to synthesise (the upstream bootstrap
+    #: script used to write it around the archive). Each is a non-empty file the
+    #: shipped check now requires: an archive that unpacked but left one behind
+    #: is the failure mode the mirror introduces, and it must go red.
+    SYNTHESISED = (
+        "var/platform",
+        "var/candidates",
+        "etc/config",
+        "var/version",
+        "var/version_native",
+    )
+
+    def make_state(self) -> None:
+        for rel in self.SYNTHESISED:
+            artefact = self.sdkman / rel
+            artefact.parent.mkdir(parents=True, exist_ok=True)
+            # Non-empty, and shaped like the real thing where the check cares.
+            artefact.write_text(
+                "java,gradle,maven\n" if rel == "var/candidates" else "seeded\n",
+                encoding="utf-8",
+            )
+
+    def make_init(self, mode: str, *, state: bool = True) -> None:
         if mode == "missing":
             return
         self.init.parent.mkdir(parents=True, exist_ok=True)
@@ -175,6 +198,11 @@ class _WrapperSandbox:
             self.init.write_text("# truncated sdkman install: defines nothing\n", encoding="utf-8")
         else:  # pragma: no cover - guard against harness typos
             raise ValueError(mode)
+        if state:
+            self.make_state()
+        # candidates/ backs the exported SDKMAN_CANDIDATES_DIR; sdkman-init.sh
+        # itself never creates it, so it is part of the synthesised skeleton.
+        (self.sdkman / "candidates").mkdir(parents=True, exist_ok=True)
 
     def redirect(self, command: str) -> str:
         if "/home/jovyan" in command:
@@ -221,6 +249,14 @@ class TestCommandShape:
         assert "test -s /home/jovyan/.sdkman/bin/sdkman-init.sh" in COMMAND
         assert "command -v sdk" in COMMAND
 
+    @pytest.mark.parametrize("rel", _WrapperSandbox.SYNTHESISED)
+    def test_anchors_on_every_synthesised_file(self, rel):
+        """The mirror ships these itself; the check must gate each one."""
+        assert f"test -s /home/jovyan/.sdkman/{rel}" in COMMAND
+
+    def test_anchors_on_the_candidates_directory(self):
+        assert "test -d /home/jovyan/.sdkman/candidates" in COMMAND
+
     def test_success_marker_present(self):
         assert 'echo "java-sdkman: check OK' in COMMAND
 
@@ -260,6 +296,70 @@ class TestNonVacuousBehaviour:
         checks = collect_post_install_checks(REPO / "features", ["java-sdkman"])
         assert checks and checks[0]["id"] == "java-sdkman"
         assert checks[0]["command"] == COMMAND
+
+
+@pytest.mark.skipif(not BASH, reason="no bash >= 4 found")
+class TestSynthesisedStateGates:
+    """The failure mode the mirror introduces -- and the reason this class is
+    the safety net for the whole migration.
+
+    Under the bootstrap-script transport these files were written by the
+    script, so an absent one implied the script had failed and the init
+    artefact was usually missing too. Under the mirror, the ONLY thing fetched
+    is the release archive, which ships bin/, src/ and contrib/ and NOTHING
+    under etc/ or var/. A zip can therefore unpack perfectly, leave a healthy
+    sdkman-init.sh behind, and still produce an SDKMAN that cannot install a
+    candidate -- because var/candidates backs `SDKMAN_CANDIDATES_CSV=$(<...)`
+    at source time, var/platform is read by the API negotiation, and etc/config
+    carries the non-interactive settings the build relies on.
+
+    Every case here is: healthy init + one synthesised artefact broken. The
+    check MUST go red. `test -s` covers both shapes of "broken" -- absent and
+    zero-length -- which is why both are parametrised rather than one.
+    """
+
+    @pytest.mark.parametrize("rel", _WrapperSandbox.SYNTHESISED)
+    def test_missing_synthesised_file_fails(self, tmp_path, rel):
+        sbx = _WrapperSandbox(tmp_path, f"gone-{rel.replace('/', '_')}")
+        sbx.make_init(mode="function")
+        artefact = sbx.sdkman / rel
+        assert artefact.is_file(), f"harness broken: {rel} was never seeded"
+        artefact.unlink()
+        result = sbx.run(COMMAND)
+        assert result.returncode != 0, (
+            f"{rel} absent while sdkman-init.sh is healthy: the archive unpacked "
+            f"but the synthesised state did not -- exactly the silent break that "
+            "must never ship as a green post-install contract check"
+        )
+        assert "check OK" not in result.stdout
+
+    @pytest.mark.parametrize("rel", _WrapperSandbox.SYNTHESISED)
+    def test_empty_synthesised_file_fails(self, tmp_path, rel):
+        sbx = _WrapperSandbox(tmp_path, f"zero-{rel.replace('/', '_')}")
+        sbx.make_init(mode="function")
+        artefact = sbx.sdkman / rel
+        artefact.write_text("", encoding="utf-8")
+        result = sbx.run(COMMAND)
+        assert result.returncode != 0, f"{rel} present but zero-length must fail test -s"
+        assert "check OK" not in result.stdout
+
+    def test_missing_candidates_directory_fails(self, tmp_path):
+        """candidates/ is a directory, so it is gated with -d, not -s."""
+        sbx = _WrapperSandbox(tmp_path, "no-candidates-dir")
+        sbx.make_init(mode="function")
+        (sbx.sdkman / "candidates").rmdir()
+        result = sbx.run(COMMAND)
+        assert result.returncode != 0
+        assert "check OK" not in result.stdout
+
+    def test_a_fully_synthesised_tree_passes(self, tmp_path):
+        """Positive control for the class above: the reds come from the
+        artefact under test, never from the harness."""
+        sbx = _WrapperSandbox(tmp_path, "complete")
+        sbx.make_init(mode="function")
+        result = sbx.run(COMMAND)
+        assert result.returncode == 0, result
+        assert "java-sdkman: check OK" in result.stdout
 
 
 @pytest.mark.skipif(not BASH, reason="no bash >= 4 found")
