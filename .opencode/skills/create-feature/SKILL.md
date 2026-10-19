@@ -302,9 +302,12 @@ bash -n .devcontainer/features/<name>/install.sh
 # 3. Check dependencies exist (run the validator)
 python3 scripts/validate-feature-deps.py
 
-# 4. Check helper sourcing is present (or inject it)
+# 4. Check helper sourcing is present (optional: the build dispatcher sources
+#    and export -s the shared helpers globally, so per-file sourcing is only a
+#    fallback courtesy. NOTE: the injector scans features/ tree-wide — it is
+#    not a per-feature operation.)
 if ! grep -q 'FEATURE_HELPERS_DIR' .devcontainer/features/<name>/install.sh; then
-  bash scripts/inject_prebaked_helpers.sh
+  bash scripts/utils/inject_prebaked_helpers.sh
 fi
 ```
 
@@ -325,7 +328,7 @@ bash scripts/test-profile.sh "<image-tag>" "<profile-name>"
 Verify before presenting to user:
 - [ ] feature.json is valid JSON
 - [ ] install.sh passes `bash -n` syntax check
-- [ ] install.sh has helper sourcing snippet
+- [ ] install.sh helper usage is sound (explicit sourcing snippet, or reliance on the globally sourced/exported helpers with an inline `command -v` fallback)
 - [ ] install.sh has fh_ensure_user_dirs call
 - [ ] DependsOn features actually exist
 - [ ] Version in feature.json options matches Artefacts/versions.json

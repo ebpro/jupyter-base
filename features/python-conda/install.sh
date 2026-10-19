@@ -1,6 +1,3 @@
-# Auto-inserted by scripts/inject_prebaked_helpers.sh
-# Source shared feature helpers (prebaked into image) or fall back to repository helper
-# Ensure per-user local/cache dirs exist (use helper when available, fallback otherwise)
 #!/usr/bin/env bash
 # Auto-inserted by scripts/inject_prebaked_helpers.sh
 # Source shared feature helpers (prebaked into image) or fall back to repository helper

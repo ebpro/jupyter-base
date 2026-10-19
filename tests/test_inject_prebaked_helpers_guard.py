@@ -47,6 +47,7 @@ distinct so this file can never self-reference its own fix.
 """
 
 import hashlib
+import re
 import subprocess
 from pathlib import Path
 
@@ -153,6 +154,20 @@ TILT_REAL = (REPO / "features" / "tilt" / "install.sh").read_text(encoding="utf-
 GH_REAL = (REPO / "features" / "gh" / "install.sh").read_text(encoding="utf-8")
 PYTHON_CONDA_REAL = (REPO / "features" / "python-conda" / "install.sh").read_text(encoding="utf-8")
 
+# Python mirrors of the shell guard's two anchored greps (kept in sync with
+# marker_re / payload_re in SCRIPT_REL), for whole-tree state assertions.
+MARKER_RE = re.compile(r"^# Auto-inserted by scripts/inject_prebaked_helpers\.sh$")
+PAYLOAD_RE = re.compile(r'^[ \t]*source[ \t]+"?\$\{FEATURE_HELPERS_DIR\}/helpers\.sh')
+
+
+def _injection_state(text: str) -> tuple:
+    """(markers, payloads) for an install.sh body, per the anchored sentinels."""
+    lines = text.splitlines()
+    return (
+        sum(1 for ln in lines if MARKER_RE.match(ln)),
+        sum(1 for ln in lines if PAYLOAD_RE.match(ln)),
+    )
+
 
 class TestScriptShapePinned:
     """Static drift guards on the shipped bytes."""
@@ -246,7 +261,8 @@ class TestIdempotence:
         # The old script was "idempotent" on already-injected files only by
         # over-matching; the new guard keeps that property via the payload
         # sentinel instead. (Duplicate-injection was nonetheless achieved
-        # historically: features/python-conda ships 2 markers -- pinned below.)
+        # historically -- features/python-conda shipped 2 markers until the
+        # de-stack fix; that state is reproduced synthetically below.)
         root = _make_tree(tmp_path, {"condaprema": PYTHON_CONDA_REAL})
         script = _place(root, _baseline_script(), "flat")
         result = _run(script)
@@ -270,11 +286,18 @@ class TestContradictoryStatesFailLoud:
         )
 
     def test_stacked_markers_fail(self, tmp_path):
-        # The real python-conda shape: two auto-insert markers, one payload.
-        assert PYTHON_CONDA_REAL.count(MARKER) == 2, (
-            "python-conda no longer carries the historical double injection -- update this fixture"
+        # The historical python-conda shape (2 markers, 1 payload). The real
+        # file has since been de-stacked (single marker, shebang first), so
+        # the contradictory state is reproduced synthetically by stacking one
+        # extra marker on top of the real fixed bytes -- same shape, and the
+        # tree itself stays guard-acceptable (pinned by TestWholeTree...).
+        assert PYTHON_CONDA_REAL.count(MARKER) == 1, (
+            "python-conda is expected to carry exactly one marker since the "
+            "double-injection fix -- re-derive this fixture if that changed"
         )
-        root = _make_tree(tmp_path, {"python-conda": PYTHON_CONDA_REAL})
+        stacked = f"{MARKER}\n{PYTHON_CONDA_REAL}"
+        assert _injection_state(stacked) == (2, 1)
+        root = _make_tree(tmp_path, {"python-conda": stacked})
         script = _place(root, CURRENT_SCRIPT, "utils")
         result = _run(script)
         assert result.returncode != 0, "stacked markers were silently tolerated"
@@ -324,3 +347,66 @@ class TestMissingFeaturesDir:
         result = _run(script)
         assert result.returncode != 0
         assert "features directory not found" in result.stderr
+
+
+class TestWholeTreeGuardAcceptable:
+    """Regression pin: the injector must accept its own repository.
+
+    THE USABILITY DEFECT this pins: features/python-conda carried a stacked
+    double injection (2 markers, 1 payload), which sent the anchored guard
+    into its fail-loud branch -- so scripts/utils/inject_prebaked_helpers.sh
+    refused to run (exit 1) on the very tree it maintains. Fixing the file
+    without pinning the tree-wide property would leave the regression free to
+    return.
+
+    Guard-acceptable, per the fail-loud branches of the script, means for
+    every features/*/install.sh: NOT (markers >= 2) and NOT (markers >= 1 and
+    payloads == 0). Equivalently: whenever a payload is present there is at
+    most one marker, and a marker never appears without its payload.
+    """
+
+    @staticmethod
+    def _real_install_scripts():
+        return sorted((REPO / "features").glob("*/install.sh"))
+
+    def test_no_feature_has_conflicting_injection_state(self):
+        files = self._real_install_scripts()
+        # Anti-vacuity: the repo currently ships ~68 features.
+        assert len(files) >= 60, (
+            f"only {len(files)} install.sh found under features/ -- the tree "
+            f"walk broke and this check would pass vacuously"
+        )
+        violations = []
+        for p in files:
+            markers, payloads = _injection_state(p.read_text(encoding="utf-8"))
+            if markers >= 2 or (markers >= 1 and payloads == 0):
+                violations.append(f"{p.relative_to(REPO)}: {markers} marker(s), {payloads} payload(s)")
+        assert violations == [], (
+            "inject_prebaked_helpers.sh would exit 1 (contradictory "
+            "helpers-injection state) on its own repo:\n" + "\n".join(violations)
+        )
+
+    @requires_bash
+    def test_script_runs_clean_on_a_copy_of_the_repository_tree(self, tmp_path):
+        # End-to-end proof the tool is usable again: run the real script over
+        # a fixture copy of every real install.sh. Exit 0 with no "contradictory"
+        # verdict means the guard accepts the tree. The repository's own
+        # features/ is never mutated: the script only ever sees tmp_path, and
+        # the before/after digest of the real bytes below proves it.
+        features = {p.parent.name: p.read_text(encoding="utf-8") for p in self._real_install_scripts()}
+        before = hashlib.sha256(repr(sorted(features.items())).encode("utf-8")).hexdigest()
+        root = _make_tree(tmp_path, features)
+        script = _place(root, CURRENT_SCRIPT, "utils")
+        result = _run(script)
+        assert result.returncode == 0, (
+            f"guard refused a copy of its own repo (rc={result.returncode}):\n{result.stderr}"
+        )
+        assert "contradictory helpers-injection state" not in result.stderr
+        after = {p.parent.name: p.read_text(encoding="utf-8") for p in self._real_install_scripts()}
+        assert hashlib.sha256(repr(sorted(after.items())).encode("utf-8")).hexdigest() == before, (
+            "running the injector against a fixture copy mutated the real repository bytes"
+        )
+        # Convergence: on the copy, every file ends in a state the guard accepts.
+        for p in sorted((root / "features").glob("*/install.sh")):
+            markers, payloads = _injection_state(p.read_text(encoding="utf-8"))
+            assert not (markers >= 2 or (markers >= 1 and payloads == 0)), p
