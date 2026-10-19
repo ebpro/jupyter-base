@@ -307,9 +307,28 @@ def test_list_mode_emits_gradle_rows_with_matching_digests():
 
 def _run_sandboxed(args, tmp_path):
     """Run the real installer with an isolated PATH (no gradle, no sdk, no
-    download_direct helper stack) and no SoT reachable from cwd."""
+    download_direct helper stack) and no SoT reachable from cwd.
+
+    HERMETIC: PATH is an EMPTY controlled bin dir ALONE -- never /usr/bin
+    or /bin. The GitHub ubuntu-latest image ships Gradle and a Temurin JDK
+    17 under /usr/bin, so a PATH that includes them satisfies the installer's
+    idempotence guard (`command -v gradle` -> "java-gradle: Gradle already
+    installed" -> exit 0): both fail-closed legs passed on macOS (no
+    /usr/bin/gradle there) and died on the runner -- the same contamination
+    class and fix the kotlin module already scrubbed
+    (tests/test_kotlin_install_failure_is_loud.py, run 38436645475 lesson).
+    The fail-closed paths need ZERO system binaries: `command`, `test`/`[`
+    and `echo` are bash builtins, and bash itself is invoked by absolute
+    path. Do NOT stage a `gradle`/`java` stub here either -- the idempotence
+    guard only needs the binary to be RESOLVABLE, so any present-and-
+    executable stub re-arms the exact skip branch CI hit. If a future change
+    makes these legs genuinely need one system binary, satisfy that single
+    dependency by absolute path or a minimal controlled dir -- not /usr/bin
+    wholesale."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
     env = {
-        "PATH": f"{tmp_path}:/usr/bin:/bin",
+        "PATH": str(bin_dir),
         "GRADLE_VERSION": "",
         "HOME_DIR": str(tmp_path / "home"),
         "NB_USER": "jovyan", "NB_UID": "1001", "NB_GID": "1001",
