@@ -114,7 +114,7 @@ actionlint                                 # workflow lint (developer-provided; 
   Default profile: **`quarto-full`** (MVP). Produces SBOM (syft) + Trivy scan per
   profile.
 - `ci-publish.yml` — push to develop / tag `v*` / dispatch: multi-arch publish to
-  GHCR, **6 jobs** (the three build jobs carry no per-trigger gate — all run on
+  GHCR, **7 jobs** (the three build jobs carry no per-trigger gate — all run on
   every trigger):
   1. `build-amd64-standard` — `runs-on: ebpro-org`, standard (non-heavy) profiles,
      native amd64.
@@ -125,10 +125,19 @@ actionlint                                 # workflow lint (developer-provided; 
      OCI index (manifest list) at the base tag via `docker buildx imagetools
      create`. Every trigger.
   5. `verify-published` — `needs: [merge-index]`, **unguarded (every trigger)**,
-     amd64 pool. Re-runs the baked post-install contract plus an independent
-     binary floor against the published `-amd64` tags. Leaf job: nothing needs
-     it. See `docs/TESTING.md`.
-  6. `sign-release` — signs the merged `solen` indexes with cosign. Guarded by
+     amd64 pool (`[self-hosted, linux, x64, ebpro-org]`). Re-runs the baked
+     post-install contract plus an independent binary floor against the
+     published `-amd64` tags. Leaf job: nothing needs it. See `docs/TESTING.md`.
+  6. `verify-published-arm64` — `needs: [merge-index]`, **unguarded (no explicit
+     `if:`)**, `runs-on: ebpro-org-arm`. Validates the **folded multiarch index**
+     (the unsuffixed base tag, not the `-arm64` child) on real arm64 hardware:
+     imagetools fold integrity, `docker image inspect` arch guard, the baked
+     contract with `N/M passed` asserted, in-container `uname -m`, a real
+     `quarto render`/JVM probe, and a hazard sweep. Cost-capped to a documented
+     representative subset (`quarto-full lang-java-25 db-postgres minimal`)
+     because the arm pool is `minRunners: 0` / `maxRunners: 2`. Leaf job. See
+     `docs/TESTING.md`.
+  7. `sign-release` — signs the merged `solen` indexes with cosign. Guarded by
      `if: startsWith(github.ref, 'refs/tags/v')` — **the only job with an `if:`
      guard, so it skips by design on a `develop` push and on dispatch.**
   Each build job bakes with the buildx `docker-container` driver and a Harbor

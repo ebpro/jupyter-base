@@ -218,11 +218,13 @@ docker run --rm --entrypoint /opt/solen/run-postinstall-checks.sh <image>
 
 for each built profile.
 
-### `ci-publish.yml` — `verify-published`
+### `ci-publish.yml` — `verify-published` and `verify-published-arm64`
 
 Publishing re-runs the same contract **against the published artifact**. A `200` on a
-registry manifest proves a tag exists, not that its content is correct; this job is what
-closes that gap.
+registry manifest proves a tag exists, not that its content is correct; these two jobs are
+what closes that gap.
+
+#### `verify-published` (amd64)
 
 - `needs: [merge-index]` and **unguarded**, so it runs on every publish trigger
   (`develop` push, `v*` tag, dispatch) — unlike `sign-release`, which is gated by
@@ -240,6 +242,51 @@ closes that gap.
   failing fast so one run reports the whole blast radius.
 - It is a **leaf** job — nothing `needs` it, so a verification-harness hiccup cannot
   block signing.
+
+#### `verify-published-arm64` (arm64, the folded index)
+
+The amd64 gate above proves nothing about what an arm64 consumer receives, and
+`merge-index` is the one step that can silently get that wrong. This job validates the
+**folded multiarch index** — the unsuffixed base tag, which is the ref people actually
+pull — rather than the per-arch child, because pointing at `-arm64` would verify the
+child and miss a mis-fold entirely.
+
+- `needs: [merge-index]`, **no explicit `if:`** (the implicit `success()` default, the
+  same choice `verify-published` makes), `runs-on: ebpro-org-arm`, and a **leaf** job.
+- **Why its own runner and not `--platform linux/arm64` on the amd64 box:** the no-binfmt
+  decision above cuts both ways. On an x64 runner an arm64 ref can be *inspected* but
+  never *executed* — `docker run` dies on the exec format before a single check runs. The
+  two facts only arm64 hardware can establish are that the index really resolves an
+  arm64 child, and that that child **boots and passes its own baked contract**. Neither is
+  reachable from the amd64 pool at any flag setting.
+- Per selected image, in order: registry-side fold integrity (`docker buildx imagetools
+  inspect` must advertise **both** `linux/amd64` and `linux/arm64`), then
+  `docker pull --platform linux/arm64` followed by `docker image inspect` asserting the
+  resolved child **is** `linux/arm64` — the loud guard against silently validating the
+  amd64 image and reporting it as arm64 assurance. Then the baked contract, checked three
+  ways: exit status, the `Solen post-install checks complete: N/M passed` summary line
+  existing at all, and `N == M` (so `44/44` is asserted, not eyeballed, and the count is
+  free to grow with the feature graph). Then in-container `uname -m == aarch64` plus the
+  same binary floor, then a **real functional probe**: `quarto render` of a `.qmd` to a
+  non-empty `.html` where quarto exists, a JVM `os.arch` probe where only java exists, and
+  an explicit `::warning::` when neither does rather than a silent no-op. Finally a hazard
+  sweep (`An error occurred while executing`, `FH_SDKMAN_INSTALL_FAILED`, `get.sdkman.io`,
+  `curl: (35)`, `Killed`, `OutOfMemoryError`, `137`, `Timeout`) over everything the image
+  produced, so an error path that fired under a green step still reddens the job.
+- The job's first step asserts the **runner's own** `uname -m == aarch64`, so a mislabelled
+  pool aborts immediately instead of reading as an image regression.
+- **Cost-capped by selection, not by arch support.** All 31 profiles are genuinely
+  multiarch (`build-arm64` runs `SUBSET=all` over every generated profile; no
+  `profiles/matrix/*.yaml` carries an arch exclusion), so the cap is a deliberate
+  representative subset — `quarto-full`, `lang-java-25`, `db-postgres`, `minimal` — on a
+  `minRunners: 0` / `maxRunners: 2` arm pool. The other 27 profiles are still built arm64,
+  folded, and amd64-verified every trigger; what they do not get is arm64 *execution* on
+  every trigger, and that residual gap is the stated price. `SMOKE_PROFILES` /
+  `SMOKE_MAX_IMAGES` raise it deliberately, and a subset dispatch that names none of the
+  representatives validates the dispatched profiles themselves instead of passing empty.
+- Carries the same **vacuous-pass guard**: zero enumerated images is `::error::` + `exit 1`,
+  because a green check that validated nothing is indistinguishable from a real pass and
+  would rot silently.
 
 #### Why publish does not just set `RUN_POSTINSTALL_CHECKS=true`
 
