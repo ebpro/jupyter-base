@@ -338,6 +338,19 @@
           "arm64": "d5ab363da944ad803b42470f73dd1b7beabad7d7b18f9eb2252ed485aabefbb5"
         }
       }
+    },
+    "sdkman-java-catalog": {
+      "pinned_version": "2026-10-20",
+      "archive_format": "text",
+      "archive_url_template": "https://api.sdkman.io/2/candidates/java/{platform}/versions/list?current=&installed=",
+      "latest_version_cmd": "curl -s 'https://api.sdkman.io/2/candidates/java/linuxarm64/versions/list?current=&installed=' | shasum -a 256",
+      "notes": "Vendored SDKMAN Java version-catalog table consumed by java-jdk's candidate discovery (replaces the live `sdk list java`, which curled this endpoint on EVERY invocation because src/sdkman-list.sh keeps no cache). NOT a toolcache entry: it is a rendered text table, not an archive, nothing downloads or extracts it, and no download_direct/stage-toolcache.sh call site exists for it — the bytes are committed beside the installer as features/java-jdk/sdkman-java-catalog.<platform>.txt and reached via SCRIPT_DIR (the readonly features/<feat> bind mount during a build). Key naming follows the arch convention fh_resolve_checksum uses: amd64 == the linuxx64 table, arm64 == the linuxarm64 table; the digests DIFFER per platform because each table lists different identifiers and its header names the platform. pinned_version is the capture date, not an upstream version — the endpoint has no version of its own. Provenance: captured with empty current=/installed= query parameters, the state a build is in, and verified byte-identical (linuxarm64 7975 B, linuxx64 8344 B) to what the pinned sdkman-cli 5.23.2 `sdk list java` writes to a non-tty pipe, so substituting the file changes no observed behaviour — including the pre-existing quirks that make ALL THREE discovery paths resolve no candidate and fall through to the plain `sdk install java` default, exactly as they did against the live endpoint: `cut -f 6 -d '|'` sees only the table's delimiter-free header/footer lines, so numeric-major and 'ea' discovery come back empty; and 'latest' is empty for a different reason — the footer line carrying `install the default:` IS present in the vendored bytes, but the shipped `grep \"${suffix}$\"` passes `-tem$` with no `--` separator, so grep parses it as option letters and yields nothing. These are upstream-owned defects, pinned as OBSERVED behaviour and deliberately NOT fixed here: fixing them would change which JDK a build gets and confound this determinism change. tests/test_java_jdk_catalog_is_mirrored.py pins digests and those resolution decisions; re-vendor by re-running the endpoint with curl, replacing both files, and updating pinned_version plus the two digests here.",
+      "checksums": {
+        "2026-10-20": {
+          "amd64": "3b4c008e69a6db9615e1a8b2df1cc87a6ee250d17ed24c0412ad75e018fcdbd2",
+          "arm64": "7d97acaaf882f36381883ac0b4adbcfcaf57c1e351a3a6b7674172bbd61fc261"
+        }
+      }
     }
   }
 }

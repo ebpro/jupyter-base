@@ -30,14 +30,110 @@ if ! command -v sdk >/dev/null 2>&1; then
   fi
 fi
 
-# Helper: query SDKMAN list for a matching candidate (run as NB_USER).
+# ---------------------------------------------------------------------------
+# Vendored SDKMAN Java version catalog (candidate discovery input).
+#
+# Discovery used to shell out to the SDKMAN java versions-list command, which
+# performed a LIVE `curl` of the upstream catalog endpoint (its URL is
+# recorded in checksums.json under tools.sdkman-java-catalog) on
+# every single invocation: the CLI's list path curls it unconditionally and
+# keeps no catalog cache, so seeding one was not an option. That left the
+# publish path dependent on an unpinned third-party endpoint, and made the JDK
+# resolved by a build a function of what that endpoint happened to render at
+# that moment.
+#
+# The rendered table is now vendored per platform, byte for byte, next to this
+# script as sdkman-java-catalog.<platform>.txt, captured with the same empty
+# `current=&installed=` query parameters a build-time caller sends (nothing is
+# installed yet, so the Use column is empty in the vendored bytes exactly as
+# it is during a build). Byte-identity is what makes this swap behaviour
+# preserving rather than behaviour changing: the real `sdk list java`, run in a
+# non-tty pipe, emits exactly these bytes (7975 for linuxarm64, 8344 for
+# linuxx64), so every filter below is fed the same input it was fed before and
+# therefore returns the same answer — INCLUDING the pre-existing quirks. The
+# `tr -d ' ' | cut -f 6 -d '|'` filters are deliberately untouched: `cut`
+# prints delimiter-free lines verbatim, so they see only the table's
+# header/footer lines, numeric majors resolve no candidate and fall through to
+# the plain `install java` default, and `latest` passes an option-looking
+# pattern (`-tem$`) to grep with no `--` separator and resolves nothing either.
+# All three discovery paths therefore reach the documented fallback, exactly as
+# they did against the live endpoint. Those are upstream-owned defects, recorded in
+# the report and pinned as OBSERVED behaviour by
+# tests/test_java_jdk_catalog_is_mirrored.py; fixing them here would change
+# behaviour and confound this determinism change.
+#
+# Integrity of the vendored bytes is pinned in checksums.json
+# (tools.sdkman-java-catalog) and asserted there by that test with hashlib.
+# It is NOT re-hashed here on purpose: this installer runs under the
+# closed-PATH sandbox of tests/, which stages no sha256 tool, and git already
+# authenticates the blob it checks out. No retry, no fallback to the live
+# endpoint — a missing catalog is a hard failure.
+# ---------------------------------------------------------------------------
+# Resolved with shell expansion and builtins only — deliberately NOT the
+# `$(cd "$(dirname …)")` idiom other installers use, because this script runs
+# under the closed-PATH sandbox of tests/test_java_sdkman_install_failure_is_loud.py,
+# which stages no `dirname`. `cd`/`pwd` are builtins, so discovery needs no
+# external command beyond `cat`.
+_self="${BASH_SOURCE[0]:-$0}"
+case "$_self" in
+  */*) SCRIPT_DIR="$(cd "${_self%/*}" && pwd)" ;;
+  *) SCRIPT_DIR="." ;;
+esac
+unset _self
+
+SDKMAN_JAVA_CATALOG=""
+
+# Resolve the vendored catalog for the build machine's platform. Called only
+# by the branches that actually need discovery ('ea', 'latest', numeric major);
+# 'default' and an explicit identifier never touch it. MUST be called from the
+# main shell, never inside a command substitution, so its abort cannot be
+# swallowed by a subshell.
+resolve_catalog() {
+  if [ -n "$SDKMAN_JAVA_CATALOG" ]; then
+    return 0
+  fi
+  local platform name candidate
+  # Prefer the platform SDKMAN itself recorded (java-sdkman's var/platform),
+  # else reproduce its infer_platform() mapping — lowercase tokens, because
+  # the API rejects LINUX64. Builds are native per arch (no QEMU), so
+  # build-time uname == the arch the catalog was rendered for.
+  platform=""
+  if [ -s "$HOME/.sdkman/var/platform" ]; then
+    platform="$(tr -d '[:space:]' <"$HOME/.sdkman/var/platform")"
+  fi
+  if [ -z "$platform" ]; then
+    case "$(uname -m)" in
+      x86_64 | amd64) platform="linuxx64" ;;
+      aarch64 | arm64) platform="linuxarm64" ;;
+      *) platform="unknown" ;;
+    esac
+  fi
+  name="sdkman-java-catalog.${platform}.txt"
+  # SCRIPT_DIR is the feature dir in every real context: the bind mount
+  # /tmp/features/<feat> (dockerfile_template.j2:158, readonly) during a
+  # build, and the repository checkout under tests/.
+  for candidate in \
+    "${SCRIPT_DIR}/${name}" \
+    "/tmp/features/java-jdk/${name}" \
+    "${PWD}/features/java-jdk/${name}"; do
+    if [ -s "$candidate" ]; then
+      SDKMAN_JAVA_CATALOG="$candidate"
+      echo "java-jdk: using vendored SDKMAN java catalog for ${platform}: ${candidate}"
+      return 0
+    fi
+  done
+  echo "❌ java-jdk: FH_SDKMAN_CATALOG_UNAVAILABLE — no vendored SDKMAN java catalog '${name}' for platform ${platform} (looked in ${SCRIPT_DIR}, /tmp/features/java-jdk and ${PWD}/features/java-jdk). Candidate discovery for JDK_VERSION='${JDK_VERSION}' cannot run without it. Re-vendor the table and pin it in checksums.json (tools.sdkman-java-catalog) rather than reaching for the live catalog endpoint again; aborting rather than resolving a JDK against no catalog." >&2
+  exit 1
+}
+
+# Helper: query the vendored catalog for a matching candidate (run as NB_USER).
 # Candidate DISCOVERY is allowed to come back empty (each caller has a
 # documented fallback below), but a missing candidate never becomes a green
 # build: the install that follows is verified and fatal on failure.
 query_candidate() {
   local pattern="$1"
   su - ${NB_USER:-jovyan} -s /bin/bash -lc \
-    "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | grep -E \"${pattern}\" | awk '{print \$NF}' | head -n1" || true
+    "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | grep -E \"${pattern}\" | awk '{print \$NF}' | head -n1" || true
 }
 
 # Run one `sdk install java …` as the target user, failing loudly.
@@ -74,6 +170,7 @@ install_jdk() {
   # Case 2: 'ea' - latest Early Access
   if [ "${ver}" = "ea" ]; then
     echo "java-jdk: selecting latest openjdk EA via SDKMAN"
+    resolve_catalog
     cand=$(query_candidate "openjdk.*ea|openjdk.*-ea") || true
     if [ -n "${cand}" ]; then
       run_sdk_install "sdk install java ${cand}"
@@ -96,7 +193,8 @@ install_jdk() {
       *) suffix=".*" ;;
     esac
 
-    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep \"${suffix}\$\" | head -n1") || true
+    resolve_catalog
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 6 -d '|' | grep \"${suffix}\$\" | head -n1") || true
 
     if [ -n "${cand}" ]; then
       run_sdk_install "sdk install java ${cand}"
@@ -118,7 +216,8 @@ install_jdk() {
       *) suffix=".*" ;;
     esac
 
-    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; sdk list java | tr -d ' ' | cut -f 6 -d '|' | grep \"^${ver}\\..*${suffix}\" | head -n1") || true
+    resolve_catalog
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 6 -d '|' | grep \"^${ver}\\..*${suffix}\" | head -n1") || true
 
     if [ -n "${cand}" ]; then
       run_sdk_install "sdk install java ${cand}"
