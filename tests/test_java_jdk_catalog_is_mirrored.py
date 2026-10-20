@@ -98,7 +98,7 @@ def _digest(path: Path) -> str:
 def _baseline_installer() -> str:
     proc = subprocess.run(
         ["git", "show", f"{BASELINE_SHA}:features/java-jdk/install.sh"],
-        cwd=REPO, capture_output=True, text=True,
+        cwd=REPO, capture_output=True, text=True, check=False,
     )
     assert proc.returncode == 0, (
         f"red-proof anchor {BASELINE_SHA} is not resolvable in this checkout "
@@ -115,7 +115,7 @@ def _run_filter(pipeline: str, env_extra: dict) -> str:
     """Execute a filter string extracted from the shipped installer."""
     proc = subprocess.run(
         ["bash", "-c", pipeline],
-        cwd=REPO, capture_output=True, text=True,
+        cwd=REPO, capture_output=True, text=True, check=False,
         env={"PATH": "/usr/bin:/bin", **env_extra},
     )
     assert proc.returncode == 0, f"filter failed: {pipeline}\n{proc.stderr}"
@@ -155,7 +155,7 @@ class TestVendoredCatalog:
             "the version the SDKMAN default resolves to must be listed, else "
             "the fallback-to-default behaviour pinned below is meaningless"
         )
-        assert f"install the default: 25.0.4.1+1-tem" in text
+        assert "install the default: 25.0.4.1+1-tem" in text
 
     def test_no_ansi_or_crlf_in_vendored_bytes(self):
         for token in PLATFORMS.values():

@@ -148,7 +148,7 @@ class TestFoldedIndexIsTheTarget:
 
     def test_resolved_child_arch_is_asserted_loudly(self):
         s = _verify_script()
-        assert re.search(r"docker image inspect.*\{\{\.Os\}\}/\{\{\.Architecture\}\}", s, re.S), \
+        assert re.search(r"docker image inspect.*\{\{\.Os\}\}/\{\{\.Architecture\}\}", s, re.DOTALL), \
             "must prove which child the manifest actually resolved to"
         assert "CRITICAL" in s, "a silently-wrong child is the defect class; it must scream"
 
@@ -229,7 +229,7 @@ class TestVacuousPassGuard:
             + guard
             + '\necho "selected=${#selected_refs[@]} skipped=${#skipped_owners[@]}"\n'
         )
-        return subprocess.run(["bash", "-c", harness], capture_output=True, text=True)
+        return subprocess.run(["bash", "-c", harness], capture_output=True, text=True, check=False)
 
     def test_empty_selection_exits_non_zero(self):
         """Actually RUNS the guard with zero candidates. A guard that was never
