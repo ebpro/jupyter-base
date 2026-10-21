@@ -14,10 +14,20 @@ design contract of the new job without docker or network:
     in: the string must not appear in ci-publish.yml at all;
   * an empty tag enumeration fails loudly (no vacuous pass);
   * failures accumulate instead of failing fast;
+  * the selection verifies ONE tag per profile — the bake's three
+    digest-identical names per profile are the same artifact, so iterating all
+    of them bought no coverage and tripled the pulls and the imagefs churn on
+    the disk-constrained amd64 node — and that tag is the immutable
+    `<slug>-<sha>` member, never the floating one;
   * nothing depends on verify-published — signing is never gated on it.
+
+Tag selection is asserted by EXECUTING the job's own bash over a synthetic
+docker-bake.hcl, not by pattern-matching the step's text.
 """
 
 import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -50,6 +60,136 @@ def _main_verify_script():
         if "run-postinstall-checks.sh" in script:
             return script
     raise AssertionError(f"no run step of {JOB} references run-postinstall-checks.sh")
+
+
+# --- executable harness -----------------------------------------------------
+#
+# The job's own bash is sliced out of the step and RUN against a synthetic bake,
+# so the selection is asserted by behaviour rather than by grep. The anchors are
+# the block's own statements, which keeps the same slice valid before and after
+# a change to it — that is what makes the red-then-green evidence honest.
+_ENUM_START = "compute_slug() {"
+_TAGS_END = "# Vacuous-pass guard: zero enumerated tags"
+
+REPO = "ghcr.io/ebpro/solen"
+
+# Not incidental: a hex SHA can never sort after `v1.2.3` or `latest`, but it
+# CAN sort after `develop` ('f' > 'd'). Pinning a SHA that loses alphabetically
+# means a selection that picks the immutable ref is proving a rule, not
+# inheriting `sort -u`'s ordering.
+PIN_SHA = "ffee123"
+
+
+def _refs_for(slugs, sha=PIN_SHA):
+    """The three base refs merge-index folds per profile on a develop push
+    (`solen-cli/solen/generators/bake.py:172-183`,
+    `solen-cli/solen/utils/git.py:99-107`), in `sort -u` order. 31 profiles ×
+    3 = the 93-entry list this job actually iterates today.
+    """
+    refs = []
+    for s in slugs:
+        refs += [f"{REPO}:{s}-develop", f"{REPO}:{s}-develop-{sha}", f"{REPO}:{s}-{sha}"]
+    return sorted(refs)
+
+
+def _run_tag_selection(refs, slugs, profile_list=""):
+    """Runs the job's OWN enumeration + tag-selection block over a synthetic
+    generated/docker-bake.hcl and returns the resulting `tags` array."""
+    script_src = _main_verify_script()
+    block = script_src[script_src.index(_ENUM_START):script_src.index(_TAGS_END)]
+    with tempfile.TemporaryDirectory() as td:
+        gen = Path(td, "generated")
+        (gen / "profiles").mkdir(parents=True)
+        for slug in slugs:
+            (gen / "profiles" / slug).write_text("features: []\n")
+        # The generated header comment contributes the untagged `ghcr.io/…`
+        # ref; including it keeps the `*:*` skip genuinely exercised.
+        bake = f"// image: {REPO}\n"
+        for r in refs:
+            bake += f'tag = ["{r}"]\n'
+        (gen / "docker-bake.hcl").write_text(bake)
+        script = (
+            "set -uo pipefail\n"
+            f"PROFILE_LIST='{profile_list}'\n"
+            + block
+            + '\nfor t in "${tags[@]}"; do echo "TAG $t"; done\n'
+        )
+        r = subprocess.run(["bash", "-c", script], capture_output=True, text=True,
+                           check=False, cwd=td)
+    assert r.returncode == 0, f"selection block died: rc={r.returncode} {r.stderr!r}"
+    return [ln[4:] for ln in r.stdout.splitlines() if ln.startswith("TAG ")]
+
+
+# A realistic 31-profile set — the count `generated/profiles` holds today. Pinned
+# literally rather than read from generated/, because that directory is
+# build-time output and absent from a fresh CI checkout.
+PROFILE_SLUGS = [
+    "codeserver", "containers-tools", "data-science", "db-mongo", "db-multi",
+    "db-mysql", "db-postgres", "db-redis", "dev", "full", "jetbrains-gateway",
+    "k8s-dev", "k8s-sim", "lang-java-21", "lang-java-25", "lang-java-8",
+    "lang-java-db-jdk25", "lang-java-ea", "lang-java-graal", "lang-java-latest",
+    "lang-java-sdk", "lang-kotlin", "lang-web-dev", "minimal", "python-db",
+    "quarto", "quarto-containers", "quarto-db-pg", "quarto-full",
+    "quarto-java-25", "quarto-java-ea",
+]
+
+
+class TestTagSelection:
+    """Selection behaviour, executed rather than pattern-matched.
+
+    This job has no cost cap, so it cannot drop a profile and is immune to the
+    starvation defect that `verify-published-arm64` suffered. What it was not
+    immune to is paying for the same digest three times: the bake's three
+    digest-identical names per profile all became verification targets, which is
+    ~93 pulls and ~93 imagefs writes on the disk-constrained amd64 node — the
+    fleet's actual bottleneck — for zero extra artifact coverage.
+    """
+
+    def test_bake_shape_fixture_is_the_real_three_refs_per_profile(self):
+        refs = _refs_for(PROFILE_SLUGS)
+        assert len(PROFILE_SLUGS) == 31
+        assert len(refs) == 93, "fixture must be the 93-ref list CI iterates"
+
+    def test_one_tag_per_profile_not_one_per_bake_ref(self):
+        tags = _run_tag_selection(_refs_for(PROFILE_SLUGS), PROFILE_SLUGS)
+        profiles = [t.rsplit(":", 1)[1][: -len("-amd64")] for t in tags]
+        assert len(tags) == len(PROFILE_SLUGS), (
+            f"expected one tag per profile ({len(PROFILE_SLUGS)}), got {len(tags)}: "
+            "verifying the same digest three times triples the pulls and the "
+            "imagefs churn on a disk-constrained node"
+        )
+        assert len(set(profiles)) == len(profiles), f"a profile was verified twice: {profiles}"
+
+    def test_the_immutable_sha_ref_is_the_one_verified(self):
+        # Dedup that picks `<slug>-develop-amd64` would trade cost for a
+        # re-pointable tag; the fold must be the commit-SHA name.
+        tags = _run_tag_selection(_refs_for(PROFILE_SLUGS), PROFILE_SLUGS)
+        for t in tags:
+            assert t.endswith(f"-{PIN_SHA}-amd64"), f"{t} is not the -<sha> amd64 member"
+
+    def test_subset_dispatch_still_filters_by_ownership(self):
+        # Manual subset dispatch must verify the dispatched profile only — and
+        # still only once.
+        tags = _run_tag_selection(_refs_for(PROFILE_SLUGS), PROFILE_SLUGS, profile_list="minimal")
+        assert tags == [f"{REPO}:minimal-{PIN_SHA}-amd64"], tags
+
+    def test_untagged_header_ref_and_unowned_refs_are_not_verified(self):
+        refs = _refs_for(["minimal"]) + [f"{REPO}:gone-away-{PIN_SHA}"]
+        tags = _run_tag_selection(refs, ["minimal"])
+        assert all(":" in t for t in tags), f"untagged header ref leaked in: {tags}"
+        assert not any("gone-away" in t for t in tags), "an unowned ref took a verification slot"
+
+    def test_prefix_colliding_profiles_keep_their_own_refs(self):
+        # `quarto` and `quarto-full` are both real profiles and `quarto` sorts
+        # first; first-match ownership would verify quarto-full's image while
+        # reporting `quarto`, and lose quarto from the sweep entirely.
+        slugs = ["quarto", "quarto-full"]
+        tags = _run_tag_selection(_refs_for(slugs), slugs)
+        assert sorted(t.split(":")[1] for t in tags) == [
+            f"quarto-{PIN_SHA}-amd64",
+            f"quarto-full-{PIN_SHA}-amd64",
+        ], tags
+
 
 
 class TestJobShape:
