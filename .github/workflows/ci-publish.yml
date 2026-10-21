@@ -1113,7 +1113,10 @@ jobs:
                   owner="$s"
                 fi
               done
-              if [ -z "$owner" ]; then continue; fi
+              if [ -z "$owner" ]; then
+                echo ">> SKIPPED-UNOWNED: $T (no generated profile owns this ref — it is a bake artefact, not an image to merge)"
+                continue
+              fi
               match=0
               for s in "${req_slugs[@]}"; do
                 if [ "$s" = "$owner" ]; then match=1; break; fi
@@ -1148,7 +1151,16 @@ jobs:
             done
             echo "Merging OCI index: $T  <-  ${T}-amd64, ${T}-arm64"
             docker buildx imagetools create -t "$T" "${T}-amd64" "${T}-arm64"
+            folded=$(( ${folded:-0} + 1 ))
           done
+          # Zero-fold guard: if nothing was folded, every candidate ref was
+          # skipped (unowned bake artefacts or not requested). A merge-index
+          # run that folds nothing means the publish silently produced no
+          # multi-arch index — fail loudly instead of a vacuous pass.
+          if [ "${folded:-0}" -eq 0 ]; then
+            echo "::error::merge-index: folded ZERO OCI indexes — every candidate ref was skipped; the publish would be silently incomplete" >&2
+            exit 1
+          fi
 
   # Content verification of the PUBLISHED artifact. A 200 manifest proves
   # existence, not content: nothing in the publish path ever asserted what
@@ -1261,7 +1273,10 @@ jobs:
                 owner="$s"
               fi
             done
-            if [ -z "$owner" ]; then continue; fi
+            if [ -z "$owner" ]; then
+              echo ">> SKIPPED-UNOWNED: $T (no generated profile owns this ref — it is a bake artefact, not an image to verify)"
+              continue
+            fi
             if [ "${#req_slugs[@]}" -gt 0 ]; then
               match=0
               for s in "${req_slugs[@]}"; do
@@ -1330,6 +1345,25 @@ jobs:
             T="$(best_ref_for "$o")"
             tags+=("${T}-amd64")
           done
+          # Coverage guard: on an unrestricted run, every generated profile
+          # must own at least one candidate ref. A profile with zero refs
+          # means the bake ref enumeration no longer matches the profile set
+          # (generator/validator drift) and the sweep below would be silently
+          # weaker than it appears — fail loudly, same defect class as the
+          # vacuous pass below. (Skipped under a subset dispatch: profiles
+          # that were not requested are legitimately absent from the refs.)
+          if [ "${#req_slugs[@]}" -eq 0 ] && [ "${#tags[@]}" -gt 0 ]; then
+            for s in "${all_slugs[@]}"; do
+              owned=0
+              for o in "${seen_owners[@]}"; do
+                if [ "$o" = "$s" ]; then owned=1; break; fi
+              done
+              if [ "$owned" -eq 0 ]; then
+                echo "::error::verify-published: COVERAGE LOSS — generated profile '$s' owns no candidate ref in generated/docker-bake.hcl; the bake ref enumeration no longer matches the profile set" >&2
+                exit 1
+              fi
+            done
+          fi
           # Vacuous-pass guard: zero enumerated tags means the harness is
           # broken (bake generation, grep idiom, profiles). Passing
           # verification over an empty list is precisely the silent-skip
