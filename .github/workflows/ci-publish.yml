@@ -1464,32 +1464,89 @@ jobs:
           selected_refs=()
           selected_owners=()
           skipped_owners=()
-          for i in "${!cand_refs[@]}"; do
-            o="${cand_owners[$i]}"
-            hit=0
-            for w in "${want[@]}"; do
-              if [ "$w" = "$o" ]; then hit=1; break; fi
-            done
-            if [ "$hit" -eq 1 ] && [ "${#selected_refs[@]}" -lt "$SMOKE_MAX_IMAGES" ]; then
-              selected_refs+=("${cand_refs[$i]}")
-              selected_owners+=("$o")
+          # The bake publishes THREE digest-identical names per profile
+          # (merge-index folds the same build under each: `<slug>-<sha>`,
+          # `<slug>-<branch>`, `<slug>-<branch>-<sha>`, or the v* equivalents),
+          # so validating one of them costs zero artifact coverage. Capping the
+          # REF list, as this block used to, let the first profile in
+          # alphabetical order spend the whole SMOKE_MAX_IMAGES budget:
+          # `VALIDATING 4 …: db-postgres db-postgres db-postgres lang-java-25`
+          # starred quarto-full and minimal out of the gate — and because the
+          # probe below is content-selected, losing quarto-full means the
+          # flagship `quarto render` never ran while the job reported green.
+          # Selection is therefore driven by PROFILES, one ref each, which makes
+          # that starvation structurally impossible.
+          #
+          # Which ref, deterministically (never the bake's tag ordering):
+          #   rank 0  remainder is a bare git SHA      -> <slug>-<sha>
+          #   rank 1  remainder ends in "-<git SHA>"   -> <slug>-develop-<sha>, <slug>-v1.2.3-<sha>
+          #   rank 2  anything else (floating)         -> <slug>-develop, <slug>-v1.2.3, <slug>-latest
+          # ties inside a rank break on the ref string. Rationale for preferring
+          # rank 0: a floating tag can be re-pointed between enumeration and
+          # pull (TOCTOU) even though all three names fold one digest today, and
+          # the SHA ref cannot. Every trigger shape resolves to rank 0.
+          ref_rank() {
+            local rest="$1"
+            if [[ "$rest" =~ ^[0-9a-f]{7,40}$ ]]; then
+              echo 0
+            elif [[ "$rest" =~ -[0-9a-f]{7,40}$ ]]; then
+              echo 1
             else
-              skipped_owners+=("$o")
+              echo 2
             fi
-          done
-          # A subset dispatch that names none of the representatives must still
-          # be gated — that dispatch is precisely when an untested arm64 image
-          # ships. Fall back to the dispatched profiles themselves, same cap.
-          if [ "${#selected_refs[@]}" -eq 0 ] && [ "${#cand_refs[@]}" -gt 0 ]; then
-            echo ">> representative set matched no owned tag; validating the dispatched subset itself (capped at $SMOKE_MAX_IMAGES)"
+          }
+          # Lowest-ranked (then lexicographically smallest) candidate ref owned
+          # by $1; prints nothing when that profile has no candidate at all.
+          best_ref_for() {
+            local owner_w="$1" best="" best_rank="" i cand tag rest rank
             for i in "${!cand_refs[@]}"; do
+              if [ "${cand_owners[$i]}" != "$owner_w" ]; then continue; fi
+              cand="${cand_refs[$i]}"
+              tag="${cand##*:}"
+              rest="${tag#"$owner_w"}"
+              rest="${rest#-}"
+              rank="$(ref_rank "$rest")"
+              if [ -z "$best" ] || [ "$rank" -lt "$best_rank" ] \
+                 || { [ "$rank" -eq "$best_rank" ] && [[ "$cand" < "$best" ]]; }; then
+                best="$cand"
+                best_rank="$rank"
+              fi
+            done
+            printf '%s' "$best"
+          }
+          # Spend at most ONE slot per profile from the ordered list "$@@",
+          # until SMOKE_MAX_IMAGES is reached. Shared by the representative path
+          # and the subset-dispatch fallback so both inherit the per-profile cap.
+          select_profiles() {
+            local w ref
+            for w in "$@"; do
               if [ "${#selected_refs[@]}" -ge "$SMOKE_MAX_IMAGES" ]; then
-                skipped_owners+=("${cand_owners[$i]}")
+                skipped_owners+=("$w")
                 continue
               fi
-              selected_refs+=("${cand_refs[$i]}")
-              selected_owners+=("${cand_owners[$i]}")
+              ref="$(best_ref_for "$w")"
+              if [ -n "$ref" ]; then
+                selected_refs+=("$ref")
+                selected_owners+=("$w")
+              fi
             done
+          }
+          select_profiles "${want[@]}"
+          # A subset dispatch that names none of the representatives must still
+          # be gated — that dispatch is precisely when an untested arm64 image
+          # ships. Fall back to the dispatched profiles themselves, same cap,
+          # still one ref per profile.
+          if [ "${#selected_refs[@]}" -eq 0 ] && [ "${#cand_refs[@]}" -gt 0 ]; then
+            echo ">> representative set matched no owned tag; validating the dispatched subset itself (capped at $SMOKE_MAX_IMAGES)"
+            distinct_owners=()
+            for i in "${!cand_owners[@]}"; do
+              seen=0
+              for d in "${distinct_owners[@]}"; do
+                if [ "$d" = "${cand_owners[$i]}" ]; then seen=1; break; fi
+              done
+              if [ "$seen" -eq 0 ]; then distinct_owners+=("${cand_owners[$i]}"); fi
+            done
+            select_profiles "${distinct_owners[@]}"
           fi
           # Vacuous-pass guard (same defect class verify-published pins): zero
           # images means the harness is broken — bake generation, the grep
@@ -1499,6 +1556,55 @@ jobs:
           if [ "${#selected_refs[@]}" -eq 0 ]; then
             echo "::error:: verify-published-arm64: enumerated ZERO multiarch images to validate (candidates=${#cand_refs[@]}, profiles=${#all_slugs[@]}) — refusing to pass vacuously; check 'Generate base bake' above and the bake grep" >&2
             exit 1
+          fi
+          # Coverage guards — stricter SIBLINGS of the zero-guard above, which
+          # only fires at ZERO. Zero was never the dangerous case: a wanted
+          # profile quietly dropping out of the selection validated 2 of 4
+          # documented images and still went green. Both guards stay silent
+          # while the cap genuinely binds (that shortfall is the documented
+          # design), and fire only when the selection is smaller than the
+          # budget allowed.
+          sel_distinct=()
+          for o in "${selected_owners[@]}"; do
+            dup=0
+            for d in "${sel_distinct[@]}"; do
+              if [ "$d" = "$o" ]; then dup=1; break; fi
+            done
+            if [ "$dup" -eq 0 ]; then sel_distinct+=("$o"); fi
+          done
+          if [ "${#sel_distinct[@]}" -lt "$SMOKE_MAX_IMAGES" ]; then
+            for w in "${want[@]}"; do
+              chosen=0
+              for o in "${selected_owners[@]}"; do
+                if [ "$o" = "$w" ]; then chosen=1; break; fi
+              done
+              if [ "$chosen" -eq 1 ]; then continue; fi
+              # (a) starvation guard: this wanted profile HAD candidate refs
+              #     and still got no slot — i.e. something spent the budget on
+              #     duplicate folds of another profile.
+              had_cand=0
+              for o in "${cand_owners[@]}"; do
+                if [ "$o" = "$w" ]; then had_cand=1; break; fi
+              done
+              if [ "$had_cand" -eq 1 ]; then
+                echo "::error:: verify-published-arm64: COVERAGE LOSS — '$w' is in SMOKE_PROFILES and its tags were enumerated, but no ref for it was selected (selected: ${selected_owners[*]}) — a profile is being validated by a duplicate of another" >&2
+                exit 1
+              fi
+              # (b) bake-coverage guard: on the unrestricted path every wanted
+              #     profile that exists as a generated profile must be
+              #     selectable. A wanted profile with no candidate ref means the
+              #     bake lost it, which shrinks the gate silently.
+              if [ "${#req_slugs[@]}" -eq 0 ]; then
+                in_profiles=0
+                for s in "${all_slugs[@]}"; do
+                  if [ "$s" = "$w" ]; then in_profiles=1; break; fi
+                done
+                if [ "$in_profiles" -eq 1 ]; then
+                  echo "::error:: verify-published-arm64: COVERAGE LOSS — '$w' is in SMOKE_PROFILES and is a generated profile, but NO tag for it was enumerated from generated/docker-bake.hcl (selected: ${selected_owners[*]}) — refusing to pass with a silently reduced subset" >&2
+                  exit 1
+                fi
+              fi
+            done
           fi
           echo ">> VALIDATING ${#selected_refs[@]} folded index(es): ${selected_owners[*]}"
           echo ">> SKIPPED (cost cap): ${#skipped_owners[@]} -> ${skipped_owners[*]:-none}"
