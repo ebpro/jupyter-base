@@ -12,8 +12,12 @@ design contract of the new job without docker or network:
   * the rejected design (setting RUN_POSTINSTALL_CHECKS at publish build
     time — it invalidates the cached install layer) can never sneak back
     in: the string must not appear in ci-publish.yml at all;
-  * an empty tag enumeration fails loudly (no vacuous pass);
-  * failures accumulate instead of failing fast;
+   * an empty tag enumeration fails loudly (no vacuous pass);
+   * an unowned bake ref is never dropped silently: it is logged as
+     SKIPPED-UNOWNED, and on an unrestricted run a generated profile that owns
+     no ref at all fails the job (coverage guard, twin of the vacuous-pass
+     guard);
+   * failures accumulate instead of failing fast;
   * the selection verifies ONE tag per profile — the bake's three
     digest-identical names per profile are the same artifact, so iterating all
     of them bought no coverage and tripled the pulls and the imagefs churn on
@@ -92,9 +96,15 @@ def _refs_for(slugs, sha=PIN_SHA):
     return sorted(refs)
 
 
-def _run_tag_selection(refs, slugs, profile_list=""):
+def _run_selection(refs, slugs, profile_list=""):
     """Runs the job's OWN enumeration + tag-selection block over a synthetic
-    generated/docker-bake.hcl and returns the resulting `tags` array."""
+    generated/docker-bake.hcl and returns ``(tags, stdout_lines, rc, stderr)``.
+
+    The block is the workflow's real text (sliced, never retyped) and runs
+    under the step's own ``set -uo pipefail``. Callers decide what a non-zero
+    returncode means; the wrapper below keeps the historical "must succeed"
+    contract for the plain selection tests.
+    """
     script_src = _main_verify_script()
     block = script_src[script_src.index(_ENUM_START):script_src.index(_TAGS_END)]
     with tempfile.TemporaryDirectory() as td:
@@ -116,8 +126,15 @@ def _run_tag_selection(refs, slugs, profile_list=""):
         )
         r = subprocess.run(["bash", "-c", script], capture_output=True, text=True,
                            check=False, cwd=td)
-    assert r.returncode == 0, f"selection block died: rc={r.returncode} {r.stderr!r}"
-    return [ln[4:] for ln in r.stdout.splitlines() if ln.startswith("TAG ")]
+    tags = [ln[4:] for ln in r.stdout.splitlines() if ln.startswith("TAG ")]
+    return tags, r.stdout.splitlines(), r.returncode, r.stderr
+
+
+def _run_tag_selection(refs, slugs, profile_list=""):
+    """Historical contract: the selection block must succeed; returns `tags`."""
+    tags, _lines, rc, stderr = _run_selection(refs, slugs, profile_list)
+    assert rc == 0, f"selection block died: rc={rc} {stderr!r}"
+    return tags
 
 
 # A realistic 31-profile set — the count `generated/profiles` holds today. Pinned
@@ -175,9 +192,30 @@ class TestTagSelection:
 
     def test_untagged_header_ref_and_unowned_refs_are_not_verified(self):
         refs = _refs_for(["minimal"]) + [f"{REPO}:gone-away-{PIN_SHA}"]
-        tags = _run_tag_selection(refs, ["minimal"])
+        tags, lines, rc, _stderr = _run_selection(refs, ["minimal"])
+        assert rc == 0, "selection block must not die on an unowned ref"
         assert all(":" in t for t in tags), f"untagged header ref leaked in: {tags}"
         assert not any("gone-away" in t for t in tags), "an unowned ref took a verification slot"
+        # And the skip must be VISIBLE, not silent: the unowned ref must show
+        # up in the log as SKIPPED-UNOWNED, or its absence would be
+        # indistinguishable from a broken enumeration.
+        skipped = [ln for ln in lines if "SKIPPED-UNOWNED" in ln]
+        assert any(f"{REPO}:gone-away-{PIN_SHA}" in ln for ln in skipped), (
+            "the unowned ref was dropped without a SKIPPED-UNOWNED trace — "
+            f"silent skip; log lines: {lines!r}"
+        )
+
+    def test_real_bake_output_has_no_unowned_refs(self):
+        # The real bake shape (three digest-identical refs per generated
+        # profile) must be fully owned by the workflow's own ownership
+        # matcher: if the generator ever emits a ref no profile owns, this is
+        # the first line that says so instead of the ref vanishing from the
+        # sweep.
+        tags, lines, rc, _stderr = _run_selection(_refs_for(PROFILE_SLUGS), PROFILE_SLUGS)
+        assert rc == 0
+        assert len(tags) == len(PROFILE_SLUGS), f"expected 31 tags, got {len(tags)}"
+        unowned = [ln for ln in lines if "SKIPPED-UNOWNED" in ln]
+        assert not unowned, f"bake refs with no owning profile: {unowned}"
 
     def test_prefix_colliding_profiles_keep_their_own_refs(self):
         # `quarto` and `quarto-full` are both real profiles and `quarto` sorts
