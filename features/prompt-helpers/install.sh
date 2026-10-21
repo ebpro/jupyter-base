@@ -70,7 +70,7 @@ case "$probe_arch" in
 esac
 probe_url="https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-${probe_token}.tar.gz"
 
-if curl -sfI "$probe_url" >/dev/null 2>&1; then
+if curl -sfI --max-time 30 --retry 5 --retry-all-errors "$probe_url" >/dev/null 2>&1; then
   echo "prompt-helpers: found upstream artifact for ${probe_token}, proceeding"
   # Use download_github_release helper to download and extract gitstatusd
   download_github_release \
@@ -81,11 +81,12 @@ if curl -sfI "$probe_url" >/dev/null 2>&1; then
     "gitstatusd-linux-{arch}.tar.gz" \
     "true"
 else
-  echo "prompt-helpers: ⚠️ gitstatus upstream artifact not available for platform token '${probe_token}' (URL: ${probe_url})"
-  echo "prompt-helpers: available upstream URLs include (examples):"
-  echo "  https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-linux-aarch64.tar.gz"
-  echo "  https://github.com/romkatv/gitstatus/releases/download/v${GITSTATUS_VERSION}/gitstatusd-darwin-x86_64.tar.gz"
-  echo "prompt-helpers: skipping gitstatusd installation on this platform to avoid 404 failures"
+  # A failed probe means the egress to github.com failed (transient network
+  # failure, proxy, rate limit) or the artifact is not published. It is NOT
+  # evidence that this platform is unsupported: the archive fallback below and
+  # the terminal platform check are what decide. Never skip the fallback here.
+  echo "prompt-helpers: ⚠️ upstream probe failed for platform token '${probe_token}' (URL: ${probe_url})"
+  echo "prompt-helpers: this may be a transient egress failure; continuing to the archive fallback"
 fi
 
 # Set ownership
@@ -110,7 +111,7 @@ if [ ! -x "${TARGET_BIN}" ]; then
     [ -f "$a" ] || continue
     echo "prompt-helpers: inspecting archive $a"
     # list entries and attempt to find a file named gitstatusd or gitstatus
-    entry=$(tar -tzf "$a" 2>/dev/null | awk -F"/" '/gitstatusd$|gitstatus$/{print; exit}') || true
+    entry=$(tar -tzf "$a" 2>/dev/null | awk -F"/" '{n=$NF} n ~ /^gitstatusd/ && n !~ /tar/ {print; exit}') || true
     if [ -n "$entry" ]; then
       echo "prompt-helpers: extracting $entry from $a"
       # extract to a temp dir then move into place
@@ -128,7 +129,21 @@ if [ ! -x "${TARGET_BIN}" ]; then
     fi
   done
   if [ ! -x "$TARGET_BIN" ]; then
-    echo "prompt-helpers: ❌ gitstatusd still not found after fallback"
+    # Terminal check. feature.json declares platforms ["linux/amd64",
+    # "linux/arm64"]; a missing gitstatusd on a declared platform is a hard
+    # build error (fail loudly). On any other platform the feature is skipped
+    # gracefully (the symlink block below is a no-op without the binary).
+    term_os=$(uname -s)
+    term_arch=$(uname -m)
+    case "${term_os}:${term_arch}" in
+      Linux:x86_64 | Linux:amd64 | Linux:aarch64 | Linux:arm64)
+        echo "prompt-helpers: ❌ gitstatusd is required on ${term_os}/${term_arch} but is still missing after the archive fallback — failing the build" >&2
+        exit 1
+        ;;
+      *)
+        echo "prompt-helpers: ⚠️ gitstatusd not found on ${term_os}/${term_arch}; not a declared platform, skipping"
+        ;;
+    esac
   fi
 fi
 
