@@ -1905,6 +1905,12 @@ jobs:
         run: |
           version=${GITHUB_REF#refs/tags/v}
           for profile in $(solen list profiles); do
+            # The profile source directory carries a tracked dotfile
+            # (generated/profiles/.gitkeep): a dotfile entry is not a profile
+            # and would become a phantom signing ref cosign cannot resolve.
+            case "$profile" in
+              .*) continue ;;
+            esac
             profile_slug=$(echo "$profile" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
             sign_tag="${profile_slug}-v${version}"
             ref="${REPO}/${IMAGE_NAME}:${sign_tag}"

@@ -123,13 +123,13 @@ actionlint                                 # workflow lint (developer-provided; 
   3. `build-arm64` — `runs-on: ebpro-org-arm`, all profiles, native arm64.
   4. `merge-index` — `needs` all three builds; folds the per-arch images into an
      OCI index (manifest list) at the base tag via `docker buildx imagetools
-     create`. Every trigger.
-  5. `verify-published` — `needs: [merge-index]`, **unguarded (every trigger)**,
-     amd64 pool (`[self-hosted, linux, x64, ebpro-org]`). Re-runs the baked
+     create`. Every trigger (`if: ${{ !cancelled() }}`).
+  5. `verify-published` — `needs: [merge-index]`, `if: ${{ !cancelled() }}`
+     (every trigger), amd64 pool (`[self-hosted, linux, x64, ebpro-org]`). Re-runs the baked
      post-install contract plus an independent binary floor against the
      published `-amd64` tags. Leaf job: nothing needs it. See `docs/TESTING.md`.
-  6. `verify-published-arm64` — `needs: [merge-index]`, **unguarded (no explicit
-     `if:`)**, `runs-on: ebpro-org-arm`. Validates the **folded multiarch index**
+  6. `verify-published-arm64` — `needs: [merge-index]`, `if: ${{ !cancelled() }}`,
+     `runs-on: ebpro-org-arm`. Validates the **folded multiarch index**
      (the unsuffixed base tag, not the `-arm64` child) on real arm64 hardware:
      imagetools fold integrity, `docker image inspect` arch guard, the baked
      contract with `N/M passed` asserted, in-container `uname -m`, a real
@@ -138,8 +138,10 @@ actionlint                                 # workflow lint (developer-provided; 
      because the arm pool is `minRunners: 0` / `maxRunners: 2`. Leaf job. See
      `docs/TESTING.md`.
   7. `sign-release` — signs the merged `solen` indexes with cosign. Guarded by
-     `if: startsWith(github.ref, 'refs/tags/v')` — **the only job with an `if:`
-     guard, so it skips by design on a `develop` push and on dispatch.**
+     `if: ${{ startsWith(github.ref, 'refs/tags/v') && !cancelled() }}` — it
+     skips by design on a `develop` push and on dispatch; the `!cancelled()`
+     clause is the skipped-ancestor cascade guard (run 40173553597 is the
+     proof).
   Each build job bakes with the buildx `docker-container` driver and a Harbor
   registry cache (`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot
   `robot$arc-runner-ci`, pull+push). **Harbor is a soft dependency, not a
