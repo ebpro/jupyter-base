@@ -8,8 +8,9 @@ consumer that asks for arm64 quietly receives the other architecture.
 
 These tests pin the standing gate's design contract, without docker or network:
 
-  * the job exists, needs merge-index, runs on the ARM pool, and carries NO
-    explicit `if:` (the implicit success() default, like verify-published);
+  * the job exists, needs merge-index, runs on the ARM pool, and carries an
+    explicit `if:` with a skipped-ancestor survival guard (the "no explicit
+    if" shape it once carried was the cascade defect, run 40173553597);
   * it never uses bare `ebpro-org` — the arm runners also carry that label, so
     a bare label could route an arm64-proving job onto amd64 hardware;
   * it targets the FOLDED INDEX (unsuffixed base ref), never a per-arch child;
@@ -252,10 +253,18 @@ class TestJobShape:
         assert "ebpro-org" not in labels, f"{JOB} must not be schedulable on bare ebpro-org"
         assert "ebpro-org-large" not in labels
 
-    def test_no_explicit_if_guard(self):
-        # Mirrors verify-published: needs: [merge-index] + the implicit
-        # success() default already prevent execution on a failed/absent fold.
-        assert "if" not in _job(JOB), f"{JOB} must rely on the implicit success() default"
+    def test_carries_survival_guard_against_skipped_ancestors(self):
+        # Skipped-ancestor propagation (run 40173553597): a conditionally-
+        # skipped ancestor (mirror-artefacts on a tag push) cascade-skips any
+        # job without an explicit survival guard, so the implicit success()
+        # default — the "deliberately no explicit if" shape this test used to
+        # pin — was exactly the defect. The guard must reference cancelled()
+        # or always() to survive it.
+        guard = str(_job(JOB).get("if", ""))
+        assert guard.strip(), f"{JOB} lost its explicit if: guard"
+        assert "cancelled()" in guard or "always()" in guard, (
+            f"{JOB} if: {guard!r} cannot survive a skipped ancestor"
+        )
 
     def test_timeout_is_short_but_honest(self):
         # The archived canary measured 119 s for one image including a ~108 s

@@ -1001,6 +1001,14 @@ jobs:
   merge-index:
     runs-on: ebpro-org
     needs: [build-amd64-heavy, build-amd64-standard, build-arm64]
+    # Skipped-ancestor propagation: a conditionally-skipped upstream job
+    # (mirror-artefacts on a tag push) propagates transitively down the needs
+    # graph and cascade-skips any job without an explicit survival guard —
+    # run 40173553597 skipped this whole chain (0 folds) while all three
+    # builds succeeded. !cancelled() also runs on a FAILED build, which is
+    # deliberate: the per-arch assertion below then fails loudly on the
+    # missing child instead of folding a one-arch index or passing vacuously.
+    if: ${{ !cancelled() }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -1183,6 +1191,13 @@ jobs:
   verify-published:
     name: Verify published artifact content
     needs: [merge-index]
+    # Explicit survival guard: the implicit success() default does NOT survive
+    # a skipped ancestor (skipped-ancestor propagation, run 40173553597 —
+    # this job cascade-skipped on the first tag ever while the builds
+    # succeeded). A fold that never ran because a build FAILED still reddens
+    # the run upstream: merge-index fails loudly on the missing per-arch
+    # child, and this job then verifies whatever was actually published.
+    if: ${{ !cancelled() }}
     # amd64 pool, same label list as build-amd64-standard (see the comment
     # there): the arm pool's runners also carry the bare `ebpro-org` label,
     # so `runs-on: ebpro-org` alone could route this job to arm64, where
@@ -1416,9 +1431,13 @@ jobs:
   # members for every base tag, and no profiles/matrix/*.yaml carries an arch
   # exclusion. Cost is therefore capped by SELECTION, not by arch availability.
   #
-  # needs: merge-index, and deliberately NO explicit `if:` — the implicit
-  # success() default, mirroring verify-published: a fold that never ran must
-  # not be "verified", and a failed fold already reddens the run upstream.
+  # needs: merge-index, plus an explicit `if: ${{ !cancelled() }}`. The
+  # "deliberately NO explicit if" shape that preceded it was wrong: the
+  # implicit success() default does not survive a skipped ancestor —
+  # skipped-ancestor propagation cascade-skipped this job on the first tag
+  # ever (run 40173553597) while the builds succeeded. A fold that never ran
+  # because a build FAILED still reddens the run upstream (merge-index fails
+  # loudly on the missing per-arch child).
   # Leaf job: nothing needs it, so sign-release is never gated on this harness.
   #
   # Cost posture: the arm pool is minRunners 0 / maxRunners 2 on a single VM,
@@ -1431,6 +1450,10 @@ jobs:
   verify-published-arm64:
     name: Verify published arm64 (folded index)
     needs: [merge-index]
+    # Skipped-ancestor propagation (run 40173553597): the implicit success()
+    # default cascade-skipped this job on the first tag ever while the
+    # builds succeeded; only an explicit survival guard keeps it in the chain.
+    if: ${{ !cancelled() }}
     # Proven label for this pool (build-arm64, :691). Deliberately NOT the list
     # form used by verify-published: the arm runners also carry the bare
     # `ebpro-org` label, so bare ebpro-org could route THIS job to amd64
@@ -1842,7 +1865,11 @@ jobs:
   sign-release:
     name: Sign release (solen index)
     needs: [merge-index]
-    if: startsWith(github.ref, 'refs/tags/v')
+    # && !cancelled(): a bare startsWith() guard cannot survive skipped-ancestor
+    # propagation — run 40173553597 (the first tag ever) cascade-skipped this
+    # job with the tag condition TRUE, publishing zero .sig tags. The release
+    # gate itself is unchanged: still sign only on v* refs.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !cancelled() }}
     runs-on: ebpro-org
     env:
       REPO: ghcr.io/${{ github.repository_owner }}
