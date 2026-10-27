@@ -133,7 +133,7 @@ class TestDigestPinnedKeylessSign:
     def test_sign_is_keyless_and_digest_pinned(self):
         exec_text = "\n".join(_exec_lines(_step(SIGN_STEP)))
         assert "--key" not in exec_text, "no key-based signing may remain"
-        m = re.search(r"^\s*cosign sign[^\n]*", exec_text, re.M)
+        m = re.search(r"^\s*cosign sign[^\n]*", exec_text, re.MULTILINE)
         assert m, "the sign step must invoke cosign sign"
         assert "--yes" in m.group(0), (
             "cosign sign must be non-interactive (--yes)"
