@@ -47,6 +47,13 @@ jobs:
     # docker:dind sidecar, so buildx works exactly as in a plain docker env.
     runs-on: ebpro-org
     steps:
+      - name: Export DOCKER_CONFIG
+        # Runner-side regression (2026-10): /home/runner/.docker is read-only,
+        # so buildx cannot create its default state dir there. Point
+        # Docker/buildx at the runner temp instead. Written via GITHUB_ENV
+        # because the runner context is not allowed in jobs.<id>.env.
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
