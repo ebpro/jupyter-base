@@ -81,6 +81,9 @@ jobs:
       SUBSET: standard
       BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag --platforms linux/amd64"
     steps:
+      - name: Export DOCKER_CONFIG
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -392,6 +395,9 @@ jobs:
       SUBSET: heavy
       BAKE_FLAGS: "--tag-suffix amd64 --no-build-tag --platforms linux/amd64"
     steps:
+      - name: Export DOCKER_CONFIG
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -703,6 +709,9 @@ jobs:
       SUBSET: all
       BAKE_FLAGS: "--tag-suffix arm64 --no-build-tag --platforms linux/arm64"
     steps:
+      - name: Export DOCKER_CONFIG
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
