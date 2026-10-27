@@ -1859,12 +1859,29 @@ jobs:
           exit "$failed"
 
   # Post-merge signing: consume the native `solen` OCI index produced by
-  # `merge-index` and sign the release tag with cosign. Release-only (v* tags):
-  # no QEMU/binfmt, no buildx builder, no imagetools promotion — the index
-  # already exists at <slug>-v<version> (single `v`, no double-`v` bug).
+  # `merge-index` and sign the release with cosign KEYLESS (Sigstore/Fulcio
+  # OIDC via the ambient GITHUB_TOKEN — no provisioned key, the job reads no
+  # secrets at all). Release-only (v* tags): no QEMU/binfmt, no buildx
+  # builder, no imagetools promotion — the index already exists at
+  # <slug>-v<version> (single `v`, no double-`v` bug).
+  # Every ref is pinned BY DIGEST, never by tag: the multi-arch index and its
+  # two per-arch children are resolved to sha256 before cosign sees them, so
+  # each signature binds the exact released bytes. The verify step is a HARD
+  # gate (set -euo pipefail, no soft-skip, no `|| true`): the old key-based
+  # job silently went green with ZERO signatures whenever the key was not
+  # provisioned ("vacuous green"); a tag run now fails unless every ref
+  # carries a verifiable Fulcio signature from THIS workflow on a v* tag.
   sign-release:
     name: Sign release (solen index)
     needs: [merge-index]
+    # JOB-LEVEL permissions: they OVERRIDE the workflow-level block
+    # (contents:read + packages:write). id-token:write mints the keyless OIDC
+    # identity; packages:write lets the same GITHUB_TOKEN push the signature
+    # manifests to GHCR.
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
     # && !cancelled(): a bare startsWith() guard cannot survive skipped-ancestor
     # propagation — run 40173553597 (the first tag ever) cascade-skipped this
     # job with the tag condition TRUE, publishing zero .sig tags. The release
@@ -1887,22 +1904,19 @@ jobs:
         run: pip install -e solen-cli
       - name: Generate profiles
         run: solen generate profiles --matrix profiles/matrix --out generated/profiles --chain
+      # The DEFAULT GITHUB_TOKEN (the github.token expression — NOT a
+      # provisioned secret; this job reads zero secrets) authenticates both
+      # the digest inspection below and the cosign signature push
+      # (packages:write).
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Prepare cosign key
-        run: |
-          if [ -n "${{ secrets.COSIGN_PRIVATE_KEY }}" ]; then
-            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" | base64 -d > cosign.key
-            chmod 600 cosign.key
-          fi
+          password: ${{ github.token }}
       - name: Sign solen release indexes
-        env:
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
+          set -euo pipefail
           version=${GITHUB_REF#refs/tags/v}
           for profile in $(solen list profiles); do
             # The profile source directory carries a tracked dotfile
@@ -1913,13 +1927,43 @@ jobs:
             esac
             profile_slug=$(echo "$profile" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
             sign_tag="${profile_slug}-v${version}"
-            ref="${REPO}/${IMAGE_NAME}:${sign_tag}"
-            if [ -f cosign.key ]; then
-              echo "Signing ${ref}"
-              COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key cosign.key "${ref}"
-            else
-              echo "No cosign key present, skipping signing for ${ref}"
-            fi
+            # Digest-pin every ref: the multi-arch index AND its two per-arch
+            # children. `imagetools inspect --raw` fetches only the manifest
+            # bytes (the merge-index idiom — no pulls); the sha256 of those
+            # bytes IS the manifest digest, so the signature binds exactly
+            # what was released. Keyless mode: the ambient GITHUB_TOKEN is the
+            # Fulcio identity (no key file, no password).
+            for tag in "${sign_tag}" "${sign_tag}-amd64" "${sign_tag}-arm64"; do
+              ref="${REPO}/${IMAGE_NAME}:${tag}"
+              digest="$(docker buildx imagetools inspect --raw "${ref}" | sha256sum | awk '{print $1}')"
+              echo "Signing ${ref} -> sha256:${digest}"
+              cosign sign --yes "${REPO}/${IMAGE_NAME}@sha256:${digest}"
+            done
+          done
+      - name: Verify release signatures (hard gate)
+        run: |
+          set -euo pipefail
+          version=${GITHUB_REF#refs/tags/v}
+          # A GHA keyless Fulcio certificate carries the identity
+          # https://github.com/<owner>/<repo>/.github/workflows/<file>@<ref>
+          # (cosign docs). This job runs only on v* tags, so a valid signature
+          # must come from THIS workflow on a tag ref of THIS repo — anything
+          # else (other repo, other workflow, branch ref, key-based signer)
+          # fails the release. Under set -e a single failed verify fails the
+          # job: no soft-skip, no swallowed failures.
+          identity_regexp="^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/ci-publish\\.yml@refs/tags/v.*$"
+          for profile in $(solen list profiles); do
+            case "$profile" in
+              .*) continue ;;
+            esac
+            profile_slug=$(echo "$profile" | sed -E 's/^[0-9]+(-[0-9]+)*-//')
+            sign_tag="${profile_slug}-v${version}"
+            for tag in "${sign_tag}" "${sign_tag}-amd64" "${sign_tag}-arm64"; do
+              ref="${REPO}/${IMAGE_NAME}:${tag}"
+              digest="$(docker buildx imagetools inspect --raw "${ref}" | sha256sum | awk '{print $1}')"
+              echo "Verifying ${ref} -> sha256:${digest}"
+              cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp "${identity_regexp}" "${REPO}/${IMAGE_NAME}@sha256:${digest}"
+            done
           done
 
   # Toolcache mirror — publish side. The mirror's digest SoT is the in-repo

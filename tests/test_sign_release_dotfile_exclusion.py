@@ -5,17 +5,15 @@ Regression pin for the phantom ref the v1.3.41 tag run enumerated:
 list profiles` is a plain file listing of `generated/profiles`
 (`solen-cli/solen/cli.py:62`), and `generated/profiles/.gitkeep` is the one
 tracked file in that directory — so the profile/slug enumeration hands the
-signing loop a dotfile entry that is not a profile. Today the job soft-skips
-every ref (no `COSIGN_PRIVATE_KEY` provisioned), but once the key exists,
-cosign would attempt the nonexistent `.gitkeep-<tag>` ref and fail the
-release.
+signing loop a dotfile entry that is not a profile.
 
-The contract pinned here: the ref-enumeration block must exclude entries
-starting with `.` (and blank lines) from the slug list. As in the
-verify-published contract tests, the block is the workflow's real text
-(sliced, never retyped) and is EXECUTED over a stubbed `solen` whose output
-contains a dotfile line and a blank line — the exclusion is asserted by
-behaviour, not by pattern-matching the step's text.
+The job is now KEYLESS (no key, no soft-skip), so the contract is pinned the
+same way as before — by EXECUTING the job's own signing script over a stubbed
+`solen` — but observed at the cosign boundary instead of at the old
+"No cosign key present, skipping signing for <ref>" branch (that branch is
+gone by design): stub `docker`/`sha256sum`/`cosign` record every digest ref
+cosign is asked to sign, and the assertion is that the ref set is exactly the
+real profiles (index + per-arch children), never the dotfile.
 """
 
 import os
@@ -58,27 +56,52 @@ def _sign_script():
     raise AssertionError(f"step {STEP!r} with a run block missing from {JOB}")
 
 
-def _run_enumeration(profile_lines):
-    """Runs the job's OWN ref-enumeration block over a stubbed `solen`.
+def _run_signing(profile_lines):
+    """Runs the job's OWN signing script over stubbed tooling.
 
     `profile_lines` is the exact stdout of `solen list profiles` (one entry
-    per line; may contain dotfile and blank lines). The block runs in a temp
-    cwd with NO cosign.key, so the soft-skip branch is taken and every
-    enumerated ref is printed as
-    `No cosign key present, skipping signing for <ref>` — that printed set is
-    exactly the set cosign would attempt once COSIGN_PRIVATE_KEY is
-    provisioned. Returns ``(stdout_lines, rc, stderr)``.
+    per line; may contain dotfile and blank lines). The stubs close the loop
+    at the cosign boundary:
+
+      * `docker` — echoes its LAST argument (the ref) as the "manifest
+        bytes", so each ref flows into the (stub) digest verbatim;
+      * `sha256sum` — wraps the input in `stub-digest-of-<input>`, keeping
+        the ref recoverable out of the digest;
+      * `cosign` — appends every non-flag argument (the digest ref) to
+        `cosign-calls.log` and exits 0.
+
+    Returns ``(cosign_refs, rc, stderr)`` where `cosign_refs` is the list of
+    digest refs cosign was invoked with (filtered to this image).
     """
     script_src = _sign_script()
     with tempfile.TemporaryDirectory() as td:
         bin_dir = Path(td, "bin")
         bin_dir.mkdir()
-        stub = bin_dir / "solen"
-        stub.write_text(
-            "#!/usr/bin/env bash\n"
-            + "".join(f"printf '%s\\n' {shlex.quote(line)}\n" for line in profile_lines)
-        )
-        stub.chmod(0o755)
+        stubs = {
+            "solen": (
+                "#!/usr/bin/env bash\n"
+                + "".join(f"printf '%s\\n' {shlex.quote(line)}\n" for line in profile_lines)
+            ),
+            "docker": "#!/usr/bin/env bash\nprintf '%s' \"${@: -1}\"\n",
+            "sha256sum": (
+                "#!/usr/bin/env bash\n"
+                "input=\"$(cat)\"\n"
+                "printf 'stub-digest-of-%s -\\n' \"$input\"\n"
+            ),
+            "cosign": (
+                "#!/usr/bin/env bash\n"
+                "for a in \"$@\"; do\n"
+                "  case \"$a\" in\n"
+                "    -*) ;;\n"
+                "    *) printf '%s\\n' \"$a\" >> cosign-calls.log ;;\n"
+                "  esac\n"
+                "done\n"
+            ),
+        }
+        for name, src in stubs.items():
+            stub = bin_dir / name
+            stub.write_text(src)
+            stub.chmod(0o755)
         r = subprocess.run(
             ["bash", "-c", script_src],
             capture_output=True,
@@ -93,7 +116,12 @@ def _run_enumeration(profile_lines):
                 "HOME": td,
             },
         )
-    return r.stdout.splitlines(), r.returncode, r.stderr
+        log = Path(td) / "cosign-calls.log"
+        all_calls = log.read_text().splitlines() if log.exists() else []
+        cosign_refs = [
+            ln for ln in all_calls if ln.startswith(f"{REPO}/{IMAGE_NAME}@")
+        ]
+    return cosign_refs, r.returncode, r.stderr
 
 
 class TestSignReleaseRefEnumeration:
@@ -101,22 +129,19 @@ class TestSignReleaseRefEnumeration:
         # The profile source directory carries a tracked dotfile
         # (generated/profiles/.gitkeep); the v1.3.41 run enumerated it as
         # `ghcr.io/ebpro/solen:.gitkeep-v1.3.41`.
-        lines, rc, stderr = _run_enumeration(["minimal", "", ".gitkeep", "quarto-full"])
-        assert rc == 0, f"enumeration block died: rc={rc} {stderr!r}"
-        refs = [
-            ln.rsplit(" ", 1)[1]
-            for ln in lines
-            if ln.startswith("No cosign key present, skipping signing for ")
-        ]
-        assert f"{REPO}/{IMAGE_NAME}:.gitkeep-{TAG}" not in refs, (
-            "a dotfile entry was enumerated as a signing ref — once "
-            "COSIGN_PRIVATE_KEY is provisioned, cosign would attempt the "
-            f"nonexistent {REPO}/{IMAGE_NAME}:.gitkeep-{TAG} and fail the release"
+        refs, rc, stderr = _run_signing(["minimal", "", ".gitkeep", "quarto-full"])
+        assert rc == 0, f"signing block died: rc={rc} {stderr!r}"
+        assert not any(".gitkeep" in ref for ref in refs), (
+            "a dotfile entry was enumerated as a signing ref — cosign would "
+            f"be invoked for {REPO}/{IMAGE_NAME}:.gitkeep-{TAG} and fail the "
+            "release"
         )
         assert refs == [
-            f"{REPO}/{IMAGE_NAME}:minimal-{TAG}",
-            f"{REPO}/{IMAGE_NAME}:quarto-full-{TAG}",
+            f"{REPO}/{IMAGE_NAME}@sha256:stub-digest-of-{REPO}/{IMAGE_NAME}:{p}-{TAG}{suffix}"
+            for p in ("minimal", "quarto-full")
+            for suffix in ("", "-amd64", "-arm64")
         ], (
             f"expected exactly the two real profiles (dotfile and blank lines "
-            f"excluded), got {refs!r}"
+            f"excluded), each signed by digest for the index and both per-arch "
+            f"children, got {refs!r}"
         )

@@ -108,7 +108,7 @@ runner (actions-runner-controller runner set `ebpro-org`, with a `docker:dind` s
 |----------|---------|--------------|
 | `ci-validate.yml` | PR / push | `solen validate features`, profile + devcontainer generation, `solen versions sync --check`, `pytest`, `ruff` |
 | `ci-build.yml` | `workflow_run` (after "Publish to GHCR" on `develop`) / PR / dispatch | Single-arch build of selected profiles (default `quarto-full`), Syft SBOM + Trivy scan |
-| `ci-publish.yml` | push to `develop` / tag `v*` / dispatch | Multi-arch publish to GHCR (6 jobs: native per-arch builds on `ebpro-org`/`ebpro-org-large`/`ebpro-org-arm`, Harbor registry cache, OCI-index merge, published-artifact verification, cosign sign on `v*` only) |
+| `ci-publish.yml` | push to `develop` / tag `v*` / dispatch | Multi-arch publish to GHCR (6 jobs: native per-arch builds on `ebpro-org`/`ebpro-org-large`/`ebpro-org-arm`, Harbor registry cache, OCI-index merge, published-artifact verification, keyless cosign sign + hard-failing verify on `v*` only) |
 | `validate-artefacts.yml` | `artefacts/**` changes | Run `scripts/validate-artefacts.sh` |
 | `cleanup-ghcr.yml` | schedule | GC old GHCR tags |
 
@@ -123,7 +123,20 @@ cache directives or with a cache-less bake file, so a Harbor outage costs build 
 publish. On **every** trigger each tag is suffixed per-arch (`-amd64`/`-arm64`), then
 `merge-index` folds them into a multi-arch manifest list at the base tag, and
 `verify-published` re-checks the published content of the `-amd64` tags (see
-`docs/TESTING.md`). `sign-release` cosign-signs the merged indexes on `v*` tags only.
+`docs/TESTING.md`). `sign-release` signs the merged indexes (and their per-arch
+children) on `v*` tags only — **keyless** (Sigstore/Fulcio OIDC via the default
+`GITHUB_TOKEN`, no provisioned key or secret), digest-pinned, with a hard-failing
+`cosign verify` gate: a tag run fails unless every ref carries a verifiable
+signature from this workflow on a tag ref.
+
+Consumers can verify a published release:
+
+```bash
+cosign verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github.com/ebpro/jupyter-base/.github/workflows/ci-publish\.yml@refs/tags/v.*$' \
+  ghcr.io/ebpro/solen:<profile>-v<version>
+```
 
 ## Contributor guide
 

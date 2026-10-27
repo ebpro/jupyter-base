@@ -137,11 +137,21 @@ actionlint                                 # workflow lint (developer-provided; 
      representative subset (`quarto-full lang-java-25 db-postgres minimal`)
      because the arm pool is `minRunners: 0` / `maxRunners: 2`. Leaf job. See
      `docs/TESTING.md`.
-  7. `sign-release` — signs the merged `solen` indexes with cosign. Guarded by
-     `if: ${{ startsWith(github.ref, 'refs/tags/v') && !cancelled() }}` — it
-     skips by design on a `develop` push and on dispatch; the `!cancelled()`
-     clause is the skipped-ancestor cascade guard (run 40173553597 is the
-     proof).
+  7. `sign-release` — signs the merged `solen` indexes (and their per-arch
+     children) with cosign **keyless** (Sigstore/Fulcio OIDC via the default
+     `GITHUB_TOKEN`): no provisioned key, the job reads no secrets. Job-level
+     `permissions` (which override the workflow block) grant `id-token: write`
+     (OIDC mint) + `packages: write` (sig-manifest push). Sign is digest-pinned
+     (`cosign sign --yes …@sha256:…`, never by tag); verify is a HARD gate
+     (`cosign verify --certificate-oidc-issuer
+     https://token.actions.githubusercontent.com --certificate-identity-regexp
+     '^https://github.com/<owner>/<repo>/.github/workflows/ci-publish\.yml@refs/tags/v.*$'`),
+     so a tag run fails unless every ref carries a verifiable signature from
+     this workflow on a tag ref — the old key-based soft-skip "vacuous green"
+     is gone. Guarded by `if: ${{ startsWith(github.ref, 'refs/tags/v') &&
+     !cancelled() }}` — it skips by design on a `develop` push and on dispatch;
+     the `!cancelled()` clause is the skipped-ancestor cascade guard (run
+     40173553597 is the proof).
   Each build job bakes with the buildx `docker-container` driver and a Harbor
   registry cache (`harbor.ebruno.fr/solen/build-cache:<profile>-<arch>`, robot
   `robot$arc-runner-ci`, pull+push). **Harbor is a soft dependency, not a
