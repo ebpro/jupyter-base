@@ -868,8 +868,10 @@ class TestConsumerContractPreserved:
         assert "Please include java-sdkman feature first" in proc.stderr
 
     def test_java_jdk_default_numeric_pin_fails_loud(self, tmp_path):
-        """Production's real shape: JDK_VERSION=25, no candidate resolves from
-        `sdk list java`, the documented fallback install fails -> abort."""
+        """Production's real shape: JDK_VERSION=25. Since the `cut -f 4` fix,
+        the pinned major's identifier resolves from the vendored catalog, so
+        the failing command is the selected identifier rather than the pre-fix
+        fallback `sdk install java` — same loud abort, same named marker."""
         sb = _Sandbox(tmp_path, "jdk-numeric")
         sb.preinstall_sdkman()
         sb.set_sdk({"java": (1, None)})
@@ -878,7 +880,10 @@ class TestConsumerContractPreserved:
 
         assert proc.returncode == 1, proc.stdout
         assert "FH_JAVA_JDK_INSTALL_FAILED" in proc.stderr
-        assert "java-jdk: no matching temurin candidate for version 25" in proc.stdout
+        # Pre-fix signature: no candidate resolved and the fallback install
+        # was the failing command. The field-4 fix must make this line
+        # disappear (a candidate of major 25 now resolves).
+        assert "java-jdk: no matching temurin candidate for version 25" not in proc.stdout
         assert "java-jdk: done" not in proc.stdout
 
         old = sb.run(_old_form("java-jdk", sb.root))

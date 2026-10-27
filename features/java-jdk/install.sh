@@ -50,17 +50,19 @@ fi
 # preserving rather than behaviour changing: the real `sdk list java`, run in a
 # non-tty pipe, emits exactly these bytes (7975 for linuxarm64, 8344 for
 # linuxx64), so every filter below is fed the same input it was fed before and
-# therefore returns the same answer — INCLUDING the pre-existing quirks. The
-# `tr -d ' ' | cut -f 6 -d '|'` filters are deliberately untouched: `cut`
-# prints delimiter-free lines verbatim, so they see only the table's
-# header/footer lines, numeric majors resolve no candidate and fall through to
-# the plain `install java` default, and `latest` passes an option-looking
-# pattern (`-tem$`) to grep with no `--` separator and resolves nothing either.
-# All three discovery paths therefore reach the documented fallback, exactly as
-# they did against the live endpoint. Those are upstream-owned defects, recorded in
-# the report and pinned as OBSERVED behaviour by
-# tests/test_java_jdk_catalog_is_mirrored.py; fixing them here would change
-# behaviour and confound this determinism change.
+# therefore returns the same answer — INCLUDING the pre-existing quirks. One of
+# them has since been fixed: the discovery filters used `cut -f 6`, but a real
+# table row carries only four pipe fields (vendor, Use, Version, Identifier),
+# so field 6 was always empty, numeric majors resolved no candidate and every
+# pinned build silently fell through to SDKMAN's default install. The filters
+# now read `cut -f 4` — the Identifier column — so a pinned numeric major
+# resolves the real identifier of that major. The remaining quirks stay pinned
+# as OBSERVED behaviour by tests/test_java_jdk_catalog_is_mirrored.py: `latest`
+# passes an option-looking pattern (`-tem$`) to grep with no `--` separator and
+# resolves nothing, and the EA pattern matches no row of the vendored bytes. A
+# numeric selection that STILL finds no candidate falls through to the default
+# install, and the post-install major gate below aborts the build rather than
+# letting the default masquerade as the pinned major.
 #
 # Integrity of the vendored bytes is pinned in checksums.json
 # (tools.sdkman-java-catalog) and asserted there by that test with hashlib.
@@ -194,7 +196,7 @@ install_jdk() {
     esac
 
     resolve_catalog
-    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 6 -d '|' | grep \"${suffix}\$\" | head -n1") || true
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 4 -d '|' | grep \"${suffix}\$\" | head -n1") || true
 
     if [ -n "${cand}" ]; then
       run_sdk_install "sdk install java ${cand}"
@@ -217,7 +219,7 @@ install_jdk() {
     esac
 
     resolve_catalog
-    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 6 -d '|' | grep \"^${ver}\\..*${suffix}\" | head -n1") || true
+    cand=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc "set +u; [ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\" >/dev/null 2>&1 || true; cat \"${SDKMAN_JAVA_CATALOG}\" | tr -d ' ' | cut -f 4 -d '|' | grep \"^${ver}\\..*${suffix}\" | head -n1") || true
 
     if [ -n "${cand}" ]; then
       run_sdk_install "sdk install java ${cand}"
@@ -261,6 +263,45 @@ if [ "$jdk_probe_rc" -ne 0 ]; then
     *) cause="the java probe for ${NB_USER:-jovyan} could not be executed (exit ${jdk_probe_rc})" ;;
   esac
   echo "❌ java-jdk: FH_JAVA_JDK_NOT_AVAILABLE — ${cause} although the 'sdk install java' stage exited 0 (distribution ${SDKMAN_JAVA_IDENTIFIER}, version request ${JDK_VERSION}). Aborting rather than publishing an image that advertises java/javac and ships neither." >&2
+  exit 1
+fi
+
+# Post-install gate: the installed JDK must be the MAJOR the request named.
+# Selection is best-effort by design — a candidate the vendored catalog does
+# not list falls through to SDKMAN's default — but a pinned profile must not
+# ship the default silently: JDK_VERSION=8 that ends up as the default 25 is a
+# broken promise, and the install stage exiting 0 proves nothing about WHICH
+# java was installed. `java -version` is the only ground truth left. Requests
+# that name no major ('default', 'latest', 'ea') are exempt: there is nothing
+# to compare against.
+expected_major=""
+req_ver="${JDK_VERSION%%-*}"
+case "${req_ver}" in
+  '' | latest | ea | default) ;;
+  *)
+    expected_major="${req_ver%%.*}"
+    case "${req_ver}" in
+      1.*) expected_major="${req_ver#1.}"; expected_major="${expected_major%%.*}" ;;
+    esac
+    ;;
+esac
+
+installed_version_line=""
+installed_version_rc=0
+installed_version_line=$(su - ${NB_USER:-jovyan} -s /bin/bash -lc 'set +u; [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ] || exit 3; source "$HOME/.sdkman/bin/sdkman-init.sh" >/dev/null 2>&1 || exit 4; java -version 2>&1 | head -n1') || installed_version_rc=$?
+if [ "$installed_version_rc" -ne 0 ]; then
+  echo "❌ java-jdk: FH_JAVA_JDK_MAJOR_MISMATCH — 'java -version' could not be run as ${NB_USER:-jovyan} to verify the installed major for JDK_VERSION='${JDK_VERSION}' (exit ${installed_version_rc}); aborting." >&2
+  exit 1
+fi
+installed_ver="${installed_version_line#*\"}"
+installed_ver="${installed_ver%%\"*}"
+installed_major="${installed_ver%%.*}"
+case "${installed_ver}" in
+  1.*) installed_major="${installed_ver#1.}"; installed_major="${installed_major%%.*}" ;;
+esac
+
+if [ -n "${expected_major}" ] && [ "${installed_major}" != "${expected_major}" ]; then
+  echo "❌ java-jdk: FH_JAVA_JDK_MAJOR_MISMATCH — JDK_VERSION='${JDK_VERSION}' asked for major ${expected_major} but the installed JDK reports '${installed_ver}' (major ${installed_major}). The selection fell through to SDKMAN's default instead of the pinned major; aborting rather than publishing an image with the wrong JDK." >&2
   exit 1
 fi
 echo "java-jdk: installation successful"
