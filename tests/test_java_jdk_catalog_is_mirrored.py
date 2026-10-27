@@ -22,14 +22,16 @@ file pins all of it:
                   failure message that performs no fetch).
   (d) parity    — the EXACT filter strings from the installer (extracted from
                   the shipped text, never retyped) resolve, against the
-                  vendored bytes, to the same values the live endpoint gave:
-                  ALL THREE of numeric majors, 'latest' and 'ea' resolve
-                  NOTHING and fall through to the plain default install. Those
-                  are the pre-existing upstream-owned quirks (a `cut -f 6` that
-                  only ever sees delimiter-free lines, and a grep pattern
-                  starting with `-` passed without `--`); this test pins them
-                  as OBSERVED behaviour so a future "cleanup" cannot silently
-                  change which JDK a profile gets.
+                  vendored bytes, to the values the shipped filters give: a
+                  pinned numeric major resolves the Identifier of that major
+                  (the `cut -f 4` fix — the old `cut -f 6` only ever saw
+                  delimiter-free lines, so every pinned build silently fell
+                  through to the default install), while 'latest' and 'ea'
+                  still resolve NOTHING: their separate quirks (a grep pattern
+                  starting with `-` passed without `--`, and an EA pattern
+                  that matches no row) remain pinned as OBSERVED behaviour so
+                  a future "cleanup" cannot silently change which JDK a
+                  profile gets.
   (e) fail-closed — a missing catalog aborts with its own FH_* marker; no
                   retry, no fallback to the network, TOOLCACHE_STRICT unset.
 
@@ -220,10 +222,10 @@ class TestNoLiveEndpoint:
 # Verbatim from the shipped installer (normalised escaping), so the replay
 # below cannot rot away from the code it is supposed to describe.
 LATEST_FILTER = (
-    r"""cat "${SDKMAN_JAVA_CATALOG}" | tr -d ' ' | cut -f 6 -d '|' | grep "${suffix}$" | head -n1"""
+    r"""cat "${SDKMAN_JAVA_CATALOG}" | tr -d ' ' | cut -f 4 -d '|' | grep "${suffix}$" | head -n1"""
 )
 NUMERIC_FILTER = (
-    r"""cat "${SDKMAN_JAVA_CATALOG}" | tr -d ' ' | cut -f 6 -d '|' | grep "^${ver}\\..*${suffix}" | head -n1"""
+    r"""cat "${SDKMAN_JAVA_CATALOG}" | tr -d ' ' | cut -f 4 -d '|' | grep "^${ver}\\..*${suffix}" | head -n1"""
 )
 EA_FILTER = (
     r"""cat "${SDKMAN_JAVA_CATALOG}" | grep -E "${pattern}" | awk '{print $NF}' | head -n1"""
@@ -234,7 +236,7 @@ class TestFiltersUnchangedAndEquivalent:
     def test_installer_still_carries_the_same_three_filters(self):
         code = _installer_code()
         for name, pipeline in (("latest", LATEST_FILTER), ("numeric", NUMERIC_FILTER), ("ea", EA_FILTER)):
-            assert pipeline in code, f"the {name} discovery pipeline was altered — this change must not touch filters"
+            assert pipeline in code, f"the {name} discovery pipeline drifted from the pinned constant — keep the constant in lockstep with the shipped filter"
         assert code.count('cat "${SDKMAN_JAVA_CATALOG}"') == 3
 
     def test_baseline_used_the_same_filters_on_the_live_command(self):
@@ -246,16 +248,24 @@ class TestFiltersUnchangedAndEquivalent:
 
     @pytest.mark.parametrize("token", sorted(PLATFORMS.values()))
     @pytest.mark.parametrize("ver", ["25", "21", "17", "11", "8"])
-    def test_numeric_major_resolves_nothing_so_default_install_is_used(self, token, ver):
-        """Production's real shape (JDK_VERSION=25 etc.): `cut -f 6` yields
-        only delimiter-free lines, so no `^N.*-tem` candidate exists and the
-        installer falls through to the plain default install — exactly as it
-        did against the live endpoint. Pinned, not fixed."""
+    def test_numeric_major_resolves_the_pinned_majors_identifier(self, token, ver):
+        """Production's real shape (JDK_VERSION=25 etc.), after the `cut -f 4`
+        fix: field 4 is the Identifier column, so a pinned numeric major
+        resolves a real candidate of THAT major — the silent fallback to
+        SDKMAN's default (25) is gone. The selected identifier must carry the
+        requested major, never the default's."""
         out = _run_filter(NUMERIC_FILTER, {
             "SDKMAN_JAVA_CATALOG": str(_snapshot(token)),
             "ver": ver, "suffix": "-tem",
         })
-        assert out == "", f"numeric {ver} resolved {out!r} against {token}; behaviour changed"
+        assert out, (
+            f"numeric {ver} resolved nothing against {token}; field 4 must carry "
+            "the identifier, so a pinned major must select a candidate"
+        )
+        assert out.startswith(f"{ver}.") and out.endswith("-tem"), (
+            f"numeric {ver} selected {out!r} against {token}; the identifier must "
+            "be of the requested major, not of the default install"
+        )
 
     @pytest.mark.parametrize("token", sorted(PLATFORMS.values()))
     def test_latest_resolves_nothing_because_the_pattern_is_not_dash_dash(self, token):
