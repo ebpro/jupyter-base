@@ -13,6 +13,7 @@ set -euo pipefail
 # java-jdk install - JDK installation via SDKMAN
 JDK_VERSION=${JDK_VERSION:-25}
 SDKMAN_JAVA_IDENTIFIER=${SDKMAN_JAVA_IDENTIFIER:-temurin}
+JAVA_JDK_ALLOW_SDKMAN_FALLBACK=${JAVA_JDK_ALLOW_SDKMAN_FALLBACK:-false}
 
 echo "java-jdk: installing JDK version=${JDK_VERSION} distribution=${SDKMAN_JAVA_IDENTIFIER}"
 
@@ -235,8 +236,158 @@ install_jdk() {
   run_sdk_install "sdk install java ${ver}"
 }
 
-# Run installation
-install_jdk "${JDK_VERSION}" "${SDKMAN_JAVA_IDENTIFIER}"
+# ---------------------------------------------------------------------------
+# Routing. The pinned pair — temurin at exactly the SoT version (JDK_VERSION
+# ∈ {25, 25.0.4.1+1, 25.0.4.1+1-tem}, i.e. whatever tools.jdk resolves to) —
+# installs from the offline Harbor toolcache mirror through download_direct,
+# digest-verified, producing the EXACT on-disk layout an SDKMAN candidate
+# install would (candidate dir <VERSION>-tem + `current` symlink). Every other
+# request (8, 21, latest, ea, or any non-temurin identifier) keeps the legacy
+# `sdk install java` path above, unchanged. An explicit
+# JAVA_JDK_ALLOW_SDKMAN_FALLBACK=true forces the legacy path even for the
+# pinned pair; the default is fail-closed on the pinned path — there is NO
+# silent SDKMAN fallback.
+# ---------------------------------------------------------------------------
+
+# Resolve the version from the SoT (versions/versions.yaml -> versions.json),
+# fail closed. jdk is checksum-pinned (checksums.json tools.jdk.checksums) and
+# mirrored by scripts/stage-toolcache.sh; it must never fall back to an SDKMAN
+# "latest" candidate or a bare curl (java-gradle precedent).
+resolve_version(){
+  local tool="$1" v=""
+  if command -v fh_resolve_version >/dev/null 2>&1; then
+    v=$(fh_resolve_version "$tool" || true)
+    if [ -n "$v" ]; then
+      echo "$v"; return 0
+    fi
+  fi
+  if [ -f "${PWD}/artefacts/versions.json" ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' "${PWD}/artefacts/versions.json" 2>/dev/null || true)
+  elif [ -f /tmp/versions.json ]; then
+    v=$(jq -r --arg t "$tool" '.tools[$t] // empty' /tmp/versions.json 2>/dev/null || true)
+  fi
+  echo "$v"
+}
+
+VERSION=$(resolve_version "jdk")
+if [ -z "${VERSION}" ]; then
+  echo "❌ java-jdk: FH_VERSION_UNRESOLVED — pinned version for 'jdk' not found via fh_resolve_version/artefacts/versions.json; the pinned pair cannot be resolved against no SoT and must not drift to an SDKMAN 'latest' candidate." >&2
+  exit 1
+fi
+
+# True (0) iff the request IS the pinned pair: temurin at exactly the SoT
+# version, spelled as the bare major (25), the full version (25.0.4.1+1), or
+# the SDKMAN identifier (25.0.4.1+1-tem). 'latest'/'ea' name no major and
+# never pin; any other major, full version, or identifier is a legacy request.
+jdk_request_is_pinned() {
+  [ "${SDKMAN_JAVA_IDENTIFIER}" = "temurin" ] || return 1
+  case "${JDK_VERSION}" in
+    latest | ea) return 1 ;;
+  esac
+  case "${JDK_VERSION}" in
+    *-tem) [ "${JDK_VERSION%-tem}" = "${VERSION}" ] ;;
+    *[!0-9]*) [ "${JDK_VERSION}" = "${VERSION}" ] ;;
+    *) [ "${JDK_VERSION}" = "${VERSION%%.*}" ] ;;
+  esac
+}
+
+if jdk_request_is_pinned && [ "${JAVA_JDK_ALLOW_SDKMAN_FALLBACK}" != "true" ]; then
+  # --- Mirror transport (modelled on java-gradle/install.sh) ---------------
+  echo "java-jdk: pinned request — installing ${VERSION} via the offline toolcache mirror"
+  NB_USER=${NB_USER:-jovyan}
+  NB_UID=${NB_UID:-1001}
+  NB_GID=${NB_GID:-1001}
+  HOME_DIR="${HOME_DIR:-/home/${NB_USER}}"
+
+  # Target layout — deliberately the SDKMAN candidate layout: the image
+  # resolves java from /home/jovyan/.sdkman/candidates/java/current/bin
+  # (dockerfile_template.j2 PATH line and /etc/profile.d/solen.sh), and the
+  # probes below evaluate that exact artefact. The archive is unpacked to
+  # candidates/java/<VERSION>-tem/ with a `current` symlink — byte-for-byte
+  # the on-disk shape an `sdk install java <VERSION>-tem` produced — so no
+  # consumer, PATH entry, or probe moves.
+  JDK_CANDIDATE_DIR="${HOME_DIR}/.sdkman/candidates/java"
+
+  # download_direct performs the toolcache-hit fetch, the publisher-digest
+  # verification against checksums.json (tools.jdk.checksums[<VERSION>][<arch>])
+  # and the /opt/toolcache seed, failing closed on missing/mismatch and
+  # falling back to the origin on cache miss. Its absence is fatal — the
+  # pinned pair must not drift to the SDKMAN CDN (the java-gradle precedent,
+  # and the very egress this mirror removes). This check MUST precede the
+  # tar check: a missing helper is a routing failure, not a packaging one.
+  if ! command -v download_direct >/dev/null 2>&1; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — download_direct helper not found (features/_lib/download-release must run first); refusing to fall back to an SDKMAN network install for the pinned ${JDK_VERSION}/${SDKMAN_JAVA_IDENTIFIER} request." >&2
+    exit 1
+  fi
+
+  # The payload is a tar.gz carrying the full JDK tree, so the feature owns
+  # the extract (download_direct's extract branch is single-binary; EXTRACT=
+  # false stages the archive at ${SCRATCH_DIR}/jdk). Keep the precondition
+  # explicit rather than hoping the base image ships it (java-gradle shape).
+  if ! command -v tar >/dev/null 2>&1; then
+    apt_install tar || true
+  fi
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — tar is not available, so the digest-verified JDK archive cannot be extracted to ${JDK_CANDIDATE_DIR}; refusing to publish an image that advertises java and ships none." >&2
+    exit 1
+  fi
+
+  ARCH=$(dpkg --print-architecture)
+  case "${ARCH}" in
+    amd64) RELEASE_ARCH="x64" ;;
+    arm64) RELEASE_ARCH="aarch64" ;;
+    *) echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — Unsupported architecture '${ARCH}'; the Temurin mirror is staged for amd64/arm64 only." >&2; exit 1 ;;
+  esac
+
+  # adoptium per-major release repo: '+' is %-encoded in the release tag and
+  # '_'-substituted in the asset file name. This URL must stay in lock-step
+  # with the jdk arm of tool_url() in scripts/stage-toolcache.sh, which keys
+  # the toolcache as $TOOLCACHE_DIR/jdk/$(basename "$url").
+  DOWNLOAD_URL="https://github.com/adoptium/temurin25-binaries/releases/download/jdk-${VERSION//+/%2B}/OpenJDK${VERSION%%.*}U-jdk_${RELEASE_ARCH}_linux_hotspot_${VERSION//+/_}.tar.gz"
+
+  # extract=false (5th arg): download_direct fetches + digest-verifies the
+  # archive and hands it over as ${SCRATCH_DIR}/jdk; the tree layout below is
+  # this feature's responsibility, mirroring what the SDKMAN installer did
+  # with the same upstream archive.
+  SCRATCH_DIR="/tmp/java-jdk-mirror"
+  jdk_fetch_rc=0
+  download_direct "$DOWNLOAD_URL" "jdk" "${VERSION}" "${SCRATCH_DIR}" false || jdk_fetch_rc=$?
+  if [ "$jdk_fetch_rc" -ne 0 ]; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — download_direct of the pinned archive (${DOWNLOAD_URL}) exited ${jdk_fetch_rc}; the JDK was NOT fetched. The archive is digest-verified against checksums.json tools.jdk and served from the toolcache mirror when staged." >&2
+    exit 1
+  fi
+
+  if ! mkdir -p "${JDK_CANDIDATE_DIR}"; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — could not create ${JDK_CANDIDATE_DIR}." >&2
+    exit 1
+  fi
+  if ! tar -xzf "${SCRATCH_DIR}/jdk" -C "${SCRATCH_DIR}"; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — tar of the digest-verified archive into ${SCRATCH_DIR} exited non-zero; the jdk-${VERSION} tree was not materialised." >&2
+    rm -rf "${SCRATCH_DIR}" || true
+    exit 1
+  fi
+  if ! mv "${SCRATCH_DIR}/jdk-${VERSION}" "${JDK_CANDIDATE_DIR}/${VERSION}-tem"; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — could not place the extracted tree at ${JDK_CANDIDATE_DIR}/${VERSION}-tem." >&2
+    rm -rf "${SCRATCH_DIR}" || true
+    exit 1
+  fi
+  rm -rf "${SCRATCH_DIR}" || true
+
+  # SDKMAN candidate layout: current -> <VERSION>-tem (relative symlink, as
+  # the SDKMAN installer wrote it — survives a home-dir path being what it is).
+  ln -sfn "${VERSION}-tem" "${JDK_CANDIDATE_DIR}/current"
+
+  # Ownership: the flow above ran as root; the sdk-era install ran su'd as
+  # ${NB_USER}. Hand the candidate tree back so java behaves exactly as
+  # before (jovyan-owned candidate tree, writable caches). Failure is fatal —
+  # a root-owned distribution breaks the user contract downstream.
+  if ! chown -R "${NB_UID}:${NB_GID}" "${JDK_CANDIDATE_DIR}"; then
+    echo "❌ java-jdk: FH_JAVA_JDK_INSTALL_FAILED — could not chown ${JDK_CANDIDATE_DIR} to ${NB_UID}:${NB_GID} (${NB_USER}); the java candidate tree would not be user-owned as every consumer expects." >&2
+    exit 1
+  fi
+else
+  install_jdk "${JDK_VERSION}" "${SDKMAN_JAVA_IDENTIFIER}"
+fi
 
 # Verify installation. This is the post-condition for every branch above: a
 # JDK the target user cannot execute is a failed feature, not a warning —
