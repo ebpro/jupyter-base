@@ -54,10 +54,9 @@ set -euo pipefail
 # The SDKMAN bootstrap is now IN this list (sdkman-cli): java-sdkman used to
 # pipe the upstream bootstrap SCRIPT, whose own archive fetch was the last
 # severable build-time egress in the java family; the script's synthesised
-# state (etc/config, var/*) is reproduced by the feature. What STAYS excluded
-# is the JDK/CANDIDATE archive transport — java-jdk still installs the java
-# candidate through SDKMAN, and mirroring those archives needs a redirector
-# (deferred, gitops-wave2a).
+ # state (etc/config, var/*) is reproduced by the feature. The JDK archive
+ # transport is also IN this list (jdk): the pinned Temurin candidate tar.gz,
+ # mirrored per arch from the canonical publisher release.
 #
 # CREDENTIALS. solen is a PRIVATE Harbor project: pull AND push both require
 # the robot credential (HARBOR_USERNAME / HARBOR_ROBOT_SECRET — names
@@ -121,7 +120,7 @@ REPO_PREFIX="solen/toolcache"
 # (token scope + blob/manifest URLs + browsing-tag reference).
 repo_name() { printf '%s-%s-%s' "$REPO_PREFIX" "$1" "$2"; }
 
-TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship gradle sdkman-cli)
+TOOLS=(kubectl helm kustomize k9s tilt tinytex hadolint ctop dive starship gradle sdkman-cli jdk)
 
 MODE=""
 ARCHES="amd64,arm64"
@@ -223,6 +222,17 @@ tool_url() {
                # download_direct keys the cache as $TOOLCACHE_DIR/<tool>/
                # $(basename "$url"))
       printf 'https://github.com/sdkman/sdkman-cli/releases/download/%s/sdkman-cli-%s.zip' "$ver" "$ver" ;;
+    jdk)       # java-jdk (canonical Temurin publisher endpoint; per-arch asset
+               # naming: amd64 -> x64, arm64 -> aarch64 — starship arch-mapping
+               # idiom; the '+' in the version is %2B-encoded in the release
+               # tag and _-encoded in the asset basename)
+      ta="$arch"
+      case "$arch" in
+        amd64|x86_64|X86_64) ta="x64" ;;
+        arm64|aarch64|AARCH64) ta="aarch64" ;;
+      esac
+      printf 'https://github.com/adoptium/temurin25-binaries/releases/download/jdk-%s/OpenJDK25U-jdk_%s_linux_hotspot_%s.tar.gz' \
+        "${ver//+/%2B}" "$ta" "${ver//+/_}" ;;
     *) return 1 ;;
   esac
 }

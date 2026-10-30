@@ -326,6 +326,17 @@
         }
       }
     },
+    "jdk": {
+      "pinned_version": "25.0.4.1+1",
+      "archive_format": "tar.gz",
+      "archive_url_template": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_{arch}_linux_hotspot_25.0.4.1_1.tar.gz",
+      "checksums": {
+        "25.0.4.1+1": {
+          "amd64": "dbb698396d478e7fa2b1e50f4103324b2a99b90569ee27c33f2261f9215cf41e",
+          "arm64": "69df11a02cfa3ef7d7ca645e03edce6778ec090e100f6ae2b42097865730ac52"
+        }
+      }
+    },
     "sdkman-cli": {
       "pinned_version": "5.23.2",
       "archive_format": "zip",
