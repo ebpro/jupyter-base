@@ -95,7 +95,7 @@ def test_pinned_routing_present():
     # Fail-closed by default: leaving the mirror path needs an explicit opt-in.
     assert re.search(
         r"^JAVA_JDK_ALLOW_SDKMAN_FALLBACK=\$\{JAVA_JDK_ALLOW_SDKMAN_FALLBACK:"
-        r"-false\}", text, re.M), \
+        r"-false\}", text, re.MULTILINE), \
         "JAVA_JDK_ALLOW_SDKMAN_FALLBACK must default to false"
     assert "jdk_request_is_pinned" in text
     # Both fail-closed tokens the build greps for.
@@ -172,7 +172,7 @@ def test_no_live_fallback_on_pinned_path():
     # carry no `sdk install java` invocation of its own (comment prose is
     # stripped — the gradle test's curl-invocation lesson).
     m = re.search(r"^if jdk_request_is_pinned[^\n]*\n(.*?)^else\n",
-                  text, re.M | re.S)
+                  text, re.MULTILINE | re.DOTALL)
     assert m, "pinned-branch routing guard (jdk_request_is_pinned) not found"
     code = "\n".join(ln for ln in m.group(1).splitlines()
                      if not ln.lstrip().startswith("#"))
