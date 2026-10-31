@@ -9,6 +9,10 @@ on:
         description: 'If true, do not actually delete, only show candidates'
         required: false
         default: 'true'
+      issue_link:
+        description: 'Link to the issue authorizing this run (REQUIRED when dry_run is false)'
+        required: false
+        default: ''
 
 permissions:
   packages: write
@@ -34,9 +38,19 @@ jobs:
           KEEP_COUNT_FEATURE: 5
           KEEP_COUNT_DEV: 5
           DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+          ISSUE_LINK: ${{ github.event.inputs.issue_link || '' }}
         run: |
           set -euo pipefail
           echo "Owner: $OWNER, Package: $PACKAGE"
+
+          # Safety guard: a destructive run (dry_run != true) must be explicitly
+          # linked to an issue. Refuse to delete without an authorization link.
+          # Schedules default to dry_run=true, so they are unaffected.
+          if [ "$DRY_RUN" != 'true' ] && [ -z "$ISSUE_LINK" ]; then
+            echo "ERROR: destructive run (dry_run != true) requires a non-empty issue_link." >&2
+            echo "Refusing to delete. Re-dispatch with dry_run=true or provide issue_link." >&2
+            exit 1
+          fi
 
           page=1
           per_page=100
@@ -74,6 +88,16 @@ jobs:
             echo "$t"
           }
 
+          # Tags matching this pattern are PROTECTED/RETAINED and must never be
+          # GC-deleted -- neither by tag nor by version id. Covers release
+          # versions (vX.Y.Z), prod/stable, and the retained -develop channel.
+          # NOTE: -develop is a retained channel. It used to be retained only
+          # "by accident" (it matched no deletion pattern, so it was never a
+          # candidate). Recognizing it explicitly here makes that durable by
+          # design. The SAME pattern is reused for the id-aware PROTECTED_IDS
+          # guard below so the two can never drift apart.
+          PROTECTED_TAG_RE='(^v[0-9]+|[-]v[0-9]+|prod$|stable$|-develop$)'
+
           # Collect deletion candidates per policy
           declare -A groups
           # We'll store lines as: id|created_at|tag
@@ -85,8 +109,8 @@ jobs:
               # skip empty
               [ -z "$tag" ] && continue
               tag=$(echo "$tag" | sed -E 's/-(amd64|arm64)$//')
-              # skip release or prod tags
-              if echo "$tag" | grep -E -q '(^v[0-9]+|[-]v[0-9]+|prod$|stable$)'; then
+              # skip protected/retained tags (release, prod, stable, develop)
+              if echo "$tag" | grep -E -q "$PROTECTED_TAG_RE"; then
                 continue
               fi
 
@@ -106,6 +130,28 @@ jobs:
                   key="feature::$base"
                   groups["$key"]+="$id|$created_at|$tag\n"
                 fi
+              fi
+            done
+          done < $ndfile
+
+          # Id-aware protection. A GHCR version id can carry MULTIPLE tags
+          # (e.g. quarto-full-v1.3.41 AND quarto-full-<sha> on the same
+          # manifest). The per-tag skip above only protects the release tag
+          # itself; the co-tagged sha sibling still routes the version id into
+          # the feature:: FIFO, and deleting the version id removes ALL its
+          # tags -- including the release tag. So we collect every version id
+          # that carries at least one protected/retained tag and refuse to
+          # delete those ids outright. Exclusion-only: this can only REMOVE
+          # ids from the delete set, never add any.
+          declare -A PROTECTED_IDS
+          while IFS= read -r line; do
+            id=$(echo "$line" | jq -r '.id')
+            tags=$(echo "$line" | jq -r '.tags[]?') || true
+            for tag in $tags; do
+              [ -z "$tag" ] && continue
+              tag=$(echo "$tag" | sed -E 's/-(amd64|arm64)$//')
+              if echo "$tag" | grep -E -q "$PROTECTED_TAG_RE"; then
+                PROTECTED_IDS[$id]=1
               fi
             done
           done < $ndfile
@@ -137,13 +183,19 @@ jobs:
               created_at=$(echo "$it" | cut -d'|' -f2)
               tag=$(echo "$it" | cut -d'|' -f3)
               # check age for PRs: only delete if older than KEEP_DAYS_PR
-              created_ts=$(date -u -d "$created_at" +%s)
-              age=$((now - created_ts))
-              if [ $age -lt $cutoff_seconds ]; then
-                echo "Skipping $tag (not old enough)"
-                continue
-              fi
-              deletions+=("$id|$tag|$created_at")
+               created_ts=$(date -u -d "$created_at" +%s)
+               age=$((now - created_ts))
+               if [ $age -lt $cutoff_seconds ]; then
+                 echo "Skipping $tag (not old enough)"
+                 continue
+               fi
+               # id-aware guard: never queue a version that carries a
+               # protected/retained tag (see PROTECTED_IDS above).
+               if [ -n "${PROTECTED_IDS[$id]:-}" ]; then
+                 echo "Skipping $tag (id $id carries a protected/retained tag)"
+                 continue
+               fi
+               deletions+=("$id|$tag|$created_at")
             done
           done
 
@@ -166,6 +218,12 @@ jobs:
           for d in "${deletions[@]}"; do
             id=$(echo "$d" | cut -d'|' -f1)
             tag=$(echo "$d" | cut -d'|' -f2)
+            # id-aware guard (backstop): refuse to delete a protected version
+            # id even if it somehow reached the delete list.
+            if [ -n "${PROTECTED_IDS[$id]:-}" ]; then
+              echo "skip protected $id (carries release tag)"
+              continue
+            fi
             echo "Deleting id=$id tag=$tag"
             gh api --method DELETE -H "Accept: application/vnd.github+json" "/orgs/${OWNER}/packages/container/${PACKAGE}/versions/${id}"
           done
