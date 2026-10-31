@@ -1,7 +1,8 @@
-"""Regression tests for the java-sdkman / java-jdk / java-maven fail-loud
+"""Regression tests for the java-sdkman / java-maven fail-loud
 contract (CI run 39053927880, the 7-minute misattribution chain).
-java-gradle is no longer a consumer of the SDKMAN transport; its mirrored
-install is guarded by tests/test_java_gradle_is_mirrored.py.
+java-gradle and java-jdk are no longer consumers of the SDKMAN transport;
+their mirrored installs are guarded by tests/test_java_gradle_is_mirrored.py
+and tests/test_java_jdk_is_mirrored.py.
 
 `features/java-sdkman/install.sh` used to end its installer pipeline in
 `|| true`, and its only post-install probe printed a warning and exited 0:
@@ -51,7 +52,7 @@ These tests run the REAL shipped installers in a bash subprocess with `su`,
      init script is fatal instead of a warning;
   5. java-sdkman: the happy path exits 0 with stdout byte-identical to the
      pre-fix installer (behaviour unchanged when the install works);
-  6. java-jdk / java-maven: a failing `sdk install <candidate>`
+  6. java-maven: a failing `sdk install <candidate>`
      and a successful install that materialises no binary are both fatal; the
      install-failure paths name java-sdkman as the producer, the verify paths
      name the exact artefact the probe checked for and did not find; their
@@ -637,17 +638,10 @@ _CONSUMERS = {
     # SDKMAN transport (pinned digest-verified toolcache mirror via
     # download_direct). Its fail-loud contract lives in
     # tests/test_java_gradle_is_mirrored.py.
-    "java-jdk": {
-        "candidate": "java",
-        "binary": "java",
-        "install_token": "FH_JAVA_JDK_INSTALL_FAILED",
-        "verify_token": "FH_JAVA_JDK_NOT_AVAILABLE",
-        "warning": "WARNING - java command not available after installation",
-        # Case 5 (specific identifier). The production default (numeric) is
-        # covered separately, because `sdk list java` output is upstream-owned
-        # and deliberately not pinned by these stubs.
-        "env": {"JDK_VERSION": "25.0.4.1+1-tem"},
-    },
+    # java-jdk REMOVED from this suite: it no longer installs through the
+    # SDKMAN transport (pinned digest-verified toolcache mirror via
+    # download_direct). Its fail-loud contract lives in
+    # tests/test_java_jdk_is_mirrored.py.
 }
 
 
@@ -856,9 +850,10 @@ class TestConsumerContractPreserved:
     """Change 3/4: nothing that used to be a correct early abort got softer,
     and no supported configuration became a hard failure."""
 
-    # java-gradle dropped: it has no SDKMAN-absent abort any more (see
-    # tests/test_java_gradle_is_mirrored.py for its guards).
-    @pytest.mark.parametrize("feature", ["java-jdk", "java-maven"])
+    # java-gradle and java-jdk dropped: neither installs through the SDKMAN
+    # transport any more (see tests/test_java_gradle_is_mirrored.py and
+    # tests/test_java_jdk_is_mirrored.py for their guards).
+    @pytest.mark.parametrize("feature", ["java-maven"])
     def test_sdkman_absent_still_aborts_naming_the_producer(self, tmp_path, feature):
         sb = _Sandbox(tmp_path, f"{feature}-no-sdkman")
         # No artefact, no sdk anywhere: the accurate early signal.
@@ -866,26 +861,3 @@ class TestConsumerContractPreserved:
         assert proc.returncode == 1
         assert "ERROR - SDKMAN not available" in proc.stderr
         assert "Please include java-sdkman feature first" in proc.stderr
-
-    def test_java_jdk_default_numeric_pin_fails_loud(self, tmp_path):
-        """Production's real shape: JDK_VERSION=25. Since the `cut -f 4` fix,
-        the pinned major's identifier resolves from the vendored catalog, so
-        the failing command is the selected identifier rather than the pre-fix
-        fallback `sdk install java` — same loud abort, same named marker."""
-        sb = _Sandbox(tmp_path, "jdk-numeric")
-        sb.preinstall_sdkman()
-        sb.set_sdk({"java": (1, None)})
-
-        proc = sb.run(REPO / "features" / "java-jdk" / "install.sh")
-
-        assert proc.returncode == 1, proc.stdout
-        assert "FH_JAVA_JDK_INSTALL_FAILED" in proc.stderr
-        # Pre-fix signature: no candidate resolved and the fallback install
-        # was the failing command. The field-4 fix must make this line
-        # disappear (a candidate of major 25 now resolves).
-        assert "java-jdk: no matching temurin candidate for version 25" not in proc.stdout
-        assert "java-jdk: done" not in proc.stdout
-
-        old = sb.run(_old_form("java-jdk", sb.root))
-        assert old.returncode == 0
-        assert "WARNING - java command not available after installation" in old.stderr

@@ -118,6 +118,14 @@ tools:
     sources:
       - type: github
         repo: "sdkman/sdkman-cli"
+  jdk:
+    version: "25.0.4.1+1"
+    # Temurin JDK pin for the toolcache mirror matrix (checksums.json
+    # tools.jdk: per-arch tar.gz — amd64 -> x64 asset, arm64 -> aarch64 asset;
+    # the '+' is %2B-encoded in the release tag).
+    sources:
+      - type: github
+        repo: "adoptium/temurin25-binaries"
   starship:
     version: "1.27.0"
     # zsh-config installs this pin through download_direct (checksums.json
